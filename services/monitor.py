@@ -4,9 +4,9 @@ import time
 
 class ProductMonitor:
 
-    def __init__(self, browser, parser, logger=None, on_product_update=None):
+    def __init__(self, page, parser, logger=None, on_product_update=None):
 
-        self.browser = browser
+        self.page = page
         self.parser = parser
         self.previous = None
         self.comparator = ProductComparator()
@@ -15,9 +15,11 @@ class ProductMonitor:
         self.running = True
         
     def check(self):
-        print("ProductMonitor -> check()")
+        print("[ProductMonitor] Refresh cycle.")
         self.log("Refreshing Shopee page...")
-        self.browser.refresh()
+        self.page.reload(
+            wait_until="domcontentloaded"
+        )
 
         self.log("Parsing latest product data...")
         product = self.parser.parse()
@@ -58,7 +60,7 @@ class ProductMonitor:
         self.previous = product
 
     def start(self, interval=10):
-        print("ProductMonitor -> start()")
+        print("[ProductMonitor] Monitoring started.")
         while self.running:
 
             try:

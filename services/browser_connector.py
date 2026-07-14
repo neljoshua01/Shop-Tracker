@@ -6,23 +6,32 @@ class BrowserConnector:
     def __init__(self):
         self.playwright = None
         self.browser = None
-        self.page = None
 
     def connect(self):
+        print("[BrowserConnector] Connecting to Chrome...")
         self.playwright = sync_playwright().start()
 
         self.browser = self.playwright.chromium.connect_over_cdp(
             "http://localhost:9222"
         )
+        print("[BrowserConnector] Connected.")
+
+    def open_tab(self, url):
+
+        print("[BrowserConnector] Opening monitoring tab...")
 
         context = self.browser.contexts[0]
 
-        if context.pages:
-            self.page = context.pages[0]
-        else:
-            self.page = context.new_page()
+        page = context.new_page()
 
-        return self.page
+        page.goto(
+            url,
+            wait_until="domcontentloaded"
+        )
+
+        print("[BrowserConnector] Navigation complete.")
+
+        return page
 
     def close(self):
 
@@ -53,15 +62,3 @@ class BrowserConnector:
         self.page = None
         self.browser = None
         self.playwright = None
-
-    def refresh(self):
-
-        if not self.page:
-            return
-
-        try:
-
-            self.page.reload(wait_until="domcontentloaded")
-
-        except Exception:
-            raise

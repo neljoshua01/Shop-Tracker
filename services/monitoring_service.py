@@ -16,12 +16,13 @@ class MonitoringService:
         self.worker = None
         self.thread = None
 
-    def start(self):
+    def start(self, url):
 
         if self.thread and self.thread.is_alive():
             return
 
         self.worker = MonitorWorker(
+            url=url,
             logger=self.logger,
             on_product_update=self.on_product_update
         )
@@ -30,8 +31,10 @@ class MonitoringService:
             target=self.worker.run,
             daemon=True
         )
-        print("MonitoringService -> Starting worker thread")
+        print("[MonitoringService] Worker created.")
+        print("[MonitoringService] Starting worker thread...")
         self.thread.start()
+        print("[MonitoringService] Worker thread started.")
 
     def stop(self):
 

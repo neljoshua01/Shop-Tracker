@@ -78,7 +78,7 @@ class TrackerController:
         if "shopee." not in url.lower():
             return False, "Please enter a valid Shopee product URL."
 
-        self.monitoring_service.start()
+        self.monitoring_service.start(url)
 
         return True, "Product added successfully."
 
