@@ -13,36 +13,56 @@ class MonitoringService:
 
         self.logger = logger
         self.on_product_update = on_product_update
-        self.worker = None
-        self.thread = None
+        self.workers = {}
+        self.threads = {}
 
     def start(self, url):
 
-        if self.thread and self.thread.is_alive():
-            return
+        # if url in self.threads:
 
-        self.worker = MonitorWorker(
+        #     thread = self.threads[url]
+
+        #     if thread.is_alive():
+
+        #         print("[MonitoringService] Product already being monitored.")
+
+        #         return False
+
+        worker = MonitorWorker(
             url=url,
             logger=self.logger,
             on_product_update=self.on_product_update
         )
 
-        self.thread = threading.Thread(
-            target=self.worker.run,
+        thread = threading.Thread(
+            target=worker.run,
             daemon=True
         )
+        self.workers[url] = worker
+        self.threads[url] = thread
         print("[MonitoringService] Worker created.")
         print("[MonitoringService] Starting worker thread...")
-        self.thread.start()
+        
+        thread.start()
         print("[MonitoringService] Worker thread started.")
+        return True
 
-    def stop(self):
+    def stop(self, url):
 
-        if self.worker:
-            self.worker.stop()
+        if url not in self.workers:
+            return False
 
-        if self.thread and self.thread.is_alive():
-            self.thread.join(timeout=5)
+        worker = self.workers[url]
+        thread = self.threads[url]
 
-        self.worker = None
-        self.thread = None
+        worker.stop()
+
+        if thread.is_alive():
+            thread.join(timeout=5)
+
+        del self.workers[url]
+        del self.threads[url]
+
+        print(f"[MonitoringService] Worker stopped: {url}")
+
+        return True

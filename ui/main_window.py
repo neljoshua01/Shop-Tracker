@@ -328,9 +328,9 @@ class MainWindow(ctk.CTk):
             self.topbar.focus_url()
             return
 
-        self.status_bar.update_timestamp()
-
         self.topbar.clear()
+
+        self.status_bar.update_timestamp()
 
     def on_product_update(self, product):
 

@@ -78,7 +78,9 @@ class TrackerController:
         if "shopee." not in url.lower():
             return False, "Please enter a valid Shopee product URL."
 
-        self.monitoring_service.start(url)
+        success = self.monitoring_service.start(url)
+        if not success:
+            return False, "This product is already being monitored."
 
         return True, "Product added successfully."
 
@@ -91,7 +93,10 @@ class TrackerController:
         if product not in self.products:
             return False, "Product is not being monitored."
 
-        self.monitoring_service.stop()
+        success = self.monitoring_service.stop(product.url)
+
+        if not success:
+            return False, "Failed to stop monitoring."
 
         self.products.remove(product)
 

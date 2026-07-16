@@ -41,7 +41,7 @@ class MonitorWorker:
         print("[MonitorWorker] ProductMonitor initialized.")
 
         try:
-            self.monitor.start(interval=2)
+            self.monitor.start(interval=5)
 
         finally:
 
