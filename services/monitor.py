@@ -1,5 +1,6 @@
+import asyncio
+
 from services.comparator import ProductComparator
-import time
 
 
 class ProductMonitor:
@@ -14,15 +15,15 @@ class ProductMonitor:
         self.on_product_update = on_product_update
         self.running = True
         
-    def check(self):
+    async def check(self):
         print("[ProductMonitor] Refresh cycle.")
         self.log("Refreshing Shopee page...")
-        self.page.reload(
+        await self.page.reload(
             wait_until="domcontentloaded"
         )
 
         self.log("Parsing latest product data...")
-        product = self.parser.parse()
+        product = await self.parser.parse()
 
         if self.running and self.on_product_update:
             self.on_product_update(product)
@@ -59,19 +60,19 @@ class ProductMonitor:
 
         self.previous = product
 
-    def start(self, interval=10):
+    async def start(self, interval=10):
         print("[ProductMonitor] Monitoring started.")
         while self.running:
 
             try:
 
-                self.check()
+                await self.check()
 
             except Exception as e:
 
                 self.log(f"[ERROR] Monitoring failed: {e}")
 
-            time.sleep(interval)
+            await asyncio.sleep(interval)
 
     def stop(self):
 

@@ -33,3 +33,8 @@ class Product:
 
     # Monitoring
     is_monitoring: bool = False
+
+    # Auto-checkout
+    target_price: float = None
+    auto_checkout: bool = False
+    purchased: bool = False

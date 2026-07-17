@@ -1,64 +1,58 @@
-from playwright.sync_api import sync_playwright
+from services.async_runtime import AsyncRuntime
+from services.browser_engine import BrowserEngine
 
 
 class BrowserConnector:
 
     def __init__(self):
-        self.playwright = None
+
+        self.runtime = AsyncRuntime.instance()
+
+        self.engine = BrowserEngine.instance()
+
         self.browser = None
 
-    def connect(self):
-        print("[BrowserConnector] Connecting to Chrome...")
-        self.playwright = sync_playwright().start()
+    # =====================================================
+    # Connect
+    # =====================================================
 
-        self.browser = self.playwright.chromium.connect_over_cdp(
-            "http://localhost:9222"
+    def connect(self):
+
+        print("[BrowserConnector] Requesting browser from BrowserEngine...")
+
+        future = self.runtime.submit(
+            self.engine.connect()
         )
-        print("[BrowserConnector] Connected.")
+
+        self.browser = future.result(timeout=15)
+
+        print("[BrowserConnector] Browser acquired.")
+
+    # =====================================================
+    # Open Monitoring Tab
+    # =====================================================
 
     def open_tab(self, url):
 
         print("[BrowserConnector] Opening monitoring tab...")
 
-        context = self.browser.contexts[0]
-
-        page = context.new_page()
-
-        page.goto(
-            url,
-            wait_until="domcontentloaded"
+        future = self.runtime.submit(
+            self.engine.open_page(url)
         )
+
+        page = future.result(timeout=30)
 
         print("[BrowserConnector] Navigation complete.")
 
         return page
 
+    # =====================================================
+    # Close
+    # =====================================================
+
     def close(self):
 
-        try:
-
-            if self.page:
-                self.page.close()
-
-        except Exception:
-            pass
-
-        try:
-
-            if self.browser:
-                self.browser.close()
-
-        except Exception:
-            pass
-
-        try:
-
-            if self.playwright:
-                self.playwright.stop()
-
-        except Exception:
-            pass
-
-        self.page = None
-        self.browser = None
-        self.playwright = None
+    #
+    # BrowserEngine owns shutdown now.
+    #
+        pass

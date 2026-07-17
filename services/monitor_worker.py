@@ -1,6 +1,7 @@
 from services.browser_connector import BrowserConnector
 from services.page_parser import PageParser
 from services.monitor import ProductMonitor
+from services.async_runtime import AsyncRuntime
 
 
 class MonitorWorker:
@@ -11,6 +12,9 @@ class MonitorWorker:
         logger=None,
         on_product_update=None
     ):
+
+        self.runtime = AsyncRuntime.instance()
+
         self.url = url
         self.logger = logger
         self.on_product_update = on_product_update
@@ -22,13 +26,16 @@ class MonitorWorker:
     def run(self):
 
         print("[MonitorWorker] Worker started.")
+
         self.browser = BrowserConnector()
         self.browser.connect()
+
         print("[MonitorWorker] Browser connected.")
 
         page = self.browser.open_tab(self.url)
+
         print("[MonitorWorker] Monitoring tab ready.")
-        
+
         self.parser = PageParser(page)
 
         self.monitor = ProductMonitor(
@@ -41,7 +48,12 @@ class MonitorWorker:
         print("[MonitorWorker] ProductMonitor initialized.")
 
         try:
-            self.monitor.start(interval=5)
+
+            future = self.runtime.submit(
+                self.monitor.start(interval=5)
+            )
+
+            future.result()
 
         finally:
 

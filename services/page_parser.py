@@ -6,39 +6,40 @@ class PageParser:
     def __init__(self, page):
         self.page = page
 
-    def parse(self):
+    async def parse(self):
 
         product = Product(url=self.page.url)
 
         # Get product name
-        product.name = self.get_name()
+        product.name = await self.get_name()
 
         # Get prices and discount
-        prices = self.get_prices()
+        prices = await self.get_prices()
 
         product.current_price = prices["current_price"] or ""
         product.original_price = prices["original_price"] or ""
         product.discount = prices["discount"] or ""
-        product.stock = self.get_stock()
+        product.stock = await self.get_stock()
 
         return product
 
-    def get_name(self):
+    async def get_name(self):
 
         try:
-            return self.page.locator("h1").inner_text().strip()
-
+            text = await self.page.locator("h1").inner_text()
+            return text.strip()
+        
         except:
             return None
 
-    def get_price_section(self):
+    async def get_price_section(self):
 
-        sections = self.page.locator("section").all()
+        sections = await self.page.locator("section").all()
 
         for section in sections:
 
             try:
-                text = section.inner_text()
+                text = await section.inner_text()
 
                 if "₱" in text:
                     return text
@@ -48,9 +49,9 @@ class PageParser:
 
         return ""
 
-    def get_prices(self):
+    async def get_prices(self):
 
-        text = self.get_price_section()
+        text = await self.get_price_section()
 
         prices = re.findall(r"₱[\d,]+", text)
 
@@ -73,14 +74,14 @@ class PageParser:
 
         return result
 
-    def get_main_text(self):
+    async def get_main_text(self):
 
-        sections = self.page.locator("section").all()
+        sections = await self.page.locator("section").all()
 
         for section in sections:
 
             try:
-                text = section.inner_text()
+                text = await section.inner_text()
 
                 if (
                     "Ratings" in text
@@ -94,9 +95,9 @@ class PageParser:
 
         return ""
 
-    def get_stock(self):
+    async def get_stock(self):
 
-        text = self.get_main_text()
+        text = await self.get_main_text()
 
         if "OUT OF STOCK" in text.upper():
             return "OUT OF STOCK"

@@ -343,6 +343,15 @@ class MainWindow(ctk.CTk):
             self.products_frame.update_product(product)
 
             #
+            # Live counters
+            #
+            count = len(self.controller.get_products())
+
+            self.status_bar.update_product_count(count)
+
+            self.stats.products.update(str(count))
+
+            #
             # Footer
             #
             self.status_bar.update_timestamp()
