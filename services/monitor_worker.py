@@ -20,6 +20,7 @@ class MonitorWorker:
         self.on_product_update = on_product_update
 
         self.browser = None
+        self.page = None
         self.parser = None
         self.monitor = None
 
@@ -32,14 +33,14 @@ class MonitorWorker:
 
         print("[MonitorWorker] Browser connected.")
 
-        page = self.browser.open_tab(self.url)
+        self.page = self.browser.open_tab(self.url)
 
         print("[MonitorWorker] Monitoring tab ready.")
 
-        self.parser = PageParser(page)
+        self.parser = PageParser(self.page)
 
         self.monitor = ProductMonitor(
-            page,
+            self.page,
             self.parser,
             logger=self.logger,
             on_product_update=self.on_product_update
@@ -57,7 +58,7 @@ class MonitorWorker:
 
         finally:
 
-            self.browser.close()
+            self.browser.close(self.page)
 
     def stop(self):
 

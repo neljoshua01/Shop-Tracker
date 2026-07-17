@@ -10,6 +10,11 @@ class BrowserEngine:
         self.playwright = None
         self.browser = None
 
+        #
+        # URL -> Playwright Page
+        #
+        self.pages = {}
+
     @classmethod
     def instance(cls):
 
@@ -53,12 +58,55 @@ class BrowserEngine:
             wait_until="domcontentloaded"
         )
 
+        #
+        # Register page ownership
+        #
+        self.pages[url] = page
+
         print(f"[BrowserEngine] Page opened: {url}")
 
         return page
+    
+    async def get_page(self, url):
 
+        #
+        # Already opened?
+        #
+        if url in self.pages:
+
+            page = self.pages[url]
+
+            #
+            # Ignore closed pages
+            #
+            if not page.is_closed():
+                print(f"[BrowserEngine] Reusing page: {url}")
+                return page
+
+            #
+            # Remove stale entry
+            #
+            del self.pages[url]
+
+        #
+        # Otherwise create one
+        #
+        return await self.open_page(url)
+    
     async def close_page(self, page):
 
-        if page:
+        if not page:
+            return
 
-            await page.close()
+        #
+        # Remove from registry
+        #
+        for url, registered_page in list(self.pages.items()):
+
+            if registered_page == page:
+                del self.pages[url]
+                break
+
+        await page.close()
+
+        print("[BrowserEngine] Page closed.")
