@@ -24,7 +24,7 @@ class ProductMonitor:
         self.log("Parsing latest product data...")
         product = self.parser.parse()
 
-        if self.on_product_update:
+        if self.running and self.on_product_update:
             self.on_product_update(product)
 
         if self.previous is None:

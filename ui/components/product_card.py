@@ -22,6 +22,10 @@ class ProductCard(ctk.CTkFrame):
 
         self.product = product
         self.stop_callback = stop_callback
+
+        self.metric_labels = {}
+        self.stock_label = None
+
         self.grid_columnconfigure(1, weight=1)
 
         self.build_media()
@@ -198,12 +202,19 @@ class ProductCard(ctk.CTkFrame):
             text_color=colors.TEXT_SECONDARY
         ).pack(anchor="w")
 
-        ctk.CTkLabel(
+        value_label = ctk.CTkLabel(
             frame,
             text=str(value) if value else "--",
             font=("Segoe UI", 22, "bold") if large else fonts.BODY,
             text_color=accent or colors.TEXT_PRIMARY
-        ).pack(anchor="w", pady=(2, 0))
+        )
+
+        value_label.pack(
+            anchor="w",
+            pady=(2, 0)
+        )
+
+        self.metric_labels[label] = value_label
 
     def add_stock_metric(self, column, label, value):
         frame = ctk.CTkFrame(
@@ -227,7 +238,7 @@ class ProductCard(ctk.CTkFrame):
 
         stock_text, badge_bg, badge_color = self.stock_badge_style(value)
 
-        ctk.CTkLabel(
+        self.stock_label = ctk.CTkLabel(
             frame,
             text=stock_text,
             width=82,
@@ -236,7 +247,12 @@ class ProductCard(ctk.CTkFrame):
             fg_color=badge_bg,
             text_color=badge_color,
             corner_radius=6
-        ).pack(anchor="w", pady=(4, 0))
+        )
+
+        self.stock_label.pack(
+            anchor="w",
+            pady=(4, 0)
+        )
 
     def build_auto_checkout(self):
         panel = ctk.CTkFrame(
@@ -353,6 +369,59 @@ class ProductCard(ctk.CTkFrame):
             return "OUT OF STOCK", colors.DANGER_BG, colors.DANGER
 
         return stock_value or "--", colors.CARD_HOVER, colors.TEXT_SECONDARY
+
+    def update_data(self, product):
+
+        self.product = product
+
+        #
+        # Product Name
+        #
+        self.name_label.configure(
+            text=product.name
+        )
+
+        #
+        # Current Price
+        #
+        self.metric_labels["Current Price"].configure(
+            text=str(product.current_price)
+        )
+
+        #
+        # Original Price
+        #
+        self.metric_labels["Original Price"].configure(
+            text=str(product.original_price)
+        )
+
+        #
+        # Discount
+        #
+        self.metric_labels["Discount"].configure(
+            text=str(product.discount),
+            text_color=self.discount_color()
+        )
+
+        #
+        # Stock Badge
+        #
+        stock_text, badge_bg, badge_color = self.stock_badge_style(
+            product.stock
+        )
+
+        self.stock_label.configure(
+            text=stock_text,
+            fg_color=badge_bg,
+            text_color=badge_color
+        )
+
+        #
+        # Last Checked
+        #
+        self.metric_labels["Last Checked"].configure(
+            text="Just now"
+        )
 
     def stop_monitoring(self):
         if self.stop_callback:

@@ -47,19 +47,17 @@ class TrackerController:
 
     def on_product_update(self, product):
 
+        if product.url not in self.monitoring_service.workers:
+            return   # stopped/removed since this update was queued — drop it
+
         for index, existing in enumerate(self.products):
-
             if existing.url == product.url:
-
                 self.products[index] = product
                 break
-
         else:
-
             self.products.append(product)
 
         if self.ui_callback:
-
             self.ui_callback(product)
 
     # =====================================================
@@ -90,15 +88,23 @@ class TrackerController:
 
     def remove_product(self, product):
 
-        if product not in self.products:
+        existing = next(
+            (
+                p for p in self.products
+                if p.url == product.url
+            ),
+            None
+        )
+
+        if existing is None:
             return False, "Product is not being monitored."
 
-        success = self.monitoring_service.stop(product.url)
+        success = self.monitoring_service.stop(existing.url)
 
         if not success:
             return False, "Failed to stop monitoring."
 
-        self.products.remove(product)
+        self.products.remove(existing)
 
         return True, "Monitoring stopped successfully."
 

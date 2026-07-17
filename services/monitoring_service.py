@@ -18,15 +18,15 @@ class MonitoringService:
 
     def start(self, url):
 
-        # if url in self.threads:
+        if url in self.threads:
 
-        #     thread = self.threads[url]
+            thread = self.threads[url]
 
-        #     if thread.is_alive():
+            if thread.is_alive():
 
-        #         print("[MonitoringService] Product already being monitored.")
+                print("[MonitoringService] Product already being monitored.")
 
-        #         return False
+                return False
 
         worker = MonitorWorker(
             url=url,

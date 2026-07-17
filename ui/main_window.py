@@ -11,7 +11,7 @@ from ui.components.dashboard_header import DashboardHeader
 from ui.components.status_bar import StatusBar
 from ui.components.dashboard_stats import DashboardStats
 from ui.components.topbar import TopBar
-from ui.components.product_card import ProductCard
+from ui.components.product_list import ProductList
 
 
 class MainWindow(ctk.CTk):
@@ -120,8 +120,9 @@ class MainWindow(ctk.CTk):
             pady=(0, 6)
         )
 
-        self.products_frame = ctk.CTkScrollableFrame(
+        self.products_frame = ProductList(
             parent,
+            stop_callback=self.stop_monitoring,
             fg_color="transparent",
             height=260
         )
@@ -334,34 +335,52 @@ class MainWindow(ctk.CTk):
 
     def on_product_update(self, product):
 
+        def update():
+
+            #
+            # Update only this product card
+            #
+            self.products_frame.update_product(product)
+
+            #
+            # Footer
+            #
+            self.status_bar.update_timestamp()
+
         self.after(
             0,
-            self.refresh_products
+            update
         )
 
     def refresh_products(self):
 
-        # Remove all existing cards
-        for widget in self.products_frame.winfo_children():
-            widget.destroy()
+        products = self.controller.get_products()
 
-        # Create one card per product
-        for product in self.controller.get_products():
+        #
+        # Remove cards that no longer exist
+        #
+        current_urls = {
+            product.url
+            for product in products
+        }
 
-            card = ProductCard(
-                self.products_frame,
-                product,
-                stop_callback=self.stop_monitoring
-            )
+        for url in list(self.products_frame.cards.keys()):
 
-            card.pack(
-                fill="x",
-                padx=10,
-                pady=8
-            )
+            if url not in current_urls:
+                self.products_frame.remove_product(url)
 
+        #
+        # Add or update cards
+        #
+        for product in products:
+
+            self.products_frame.update_product(product)
+
+        #
+        # Update footer
+        #
         self.status_bar.update_product_count(
-            len(self.controller.get_products())
+            len(products)
         )
 
         self.status_bar.update_timestamp()
@@ -375,8 +394,20 @@ class MainWindow(ctk.CTk):
         if not success:
             return
 
-        self.refresh_products()
+        #
+        # Remove this card immediately
+        #
+        self.products_frame.remove_product(product.url)
+
+        #
+        # Update counters
+        #
+        self.status_bar.update_product_count(
+            len(self.controller.get_products())
+        )
 
         self.stats.products.update(
             str(len(self.controller.get_products()))
         )
+
+        self.status_bar.update_timestamp()
