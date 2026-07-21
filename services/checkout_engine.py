@@ -57,23 +57,42 @@ class CheckoutEngine:
     # DRY RUN
     # =====================================================
 
-    async def buy(self, product):
+    async def buy(self, product, page):
 
         print()
-        print("=" * 60)
-        print("AUTO CHECKOUT (DRY RUN)")
-        print("=" * 60)
-        print(f"Product : {product.name}")
-        print(f"Current : {product.current_price}")
-        print(f"Target  : {product.target_price}")
-        print()
-        print("A REAL CHECKOUT WOULD START HERE")
-        print("=" * 60)
-        print()
+        print("============================================================")
+        print("AUTO CHECKOUT (STEP 1)")
+        print("============================================================")
 
-        #
-        # Prevent another trigger
-        #
-        product.purchased = True
+        print("Searching for Buy Now button...")
 
-        return True
+        buy_button = page.locator("button:has-text('Buy Now')")
+
+        await buy_button.wait_for(
+            state="visible",
+            timeout=5000
+        )
+
+        print("Buy Now button found.")
+
+        await buy_button.scroll_into_view_if_needed()
+
+        await page.wait_for_timeout(500)
+
+        await buy_button.hover()
+
+        await page.wait_for_timeout(500)
+
+        await buy_button.click()
+        print(page.url)
+        await page.wait_for_timeout(2000)
+
+        print("Buy Now clicked.")
+
+        print("Waiting for purchase flow...")
+
+        await page.wait_for_timeout(3000)
+
+        print("============================================================")
+        print("STEP 1 COMPLETE")
+        print("============================================================")

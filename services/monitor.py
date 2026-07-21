@@ -6,13 +6,15 @@ from services.checkout_engine import CheckoutEngine
 
 class ProductMonitor:
 
-    def __init__(self, page, parser, logger=None, on_product_update=None, initial_product=None):
+    def __init__(self, page, parser, logger=None, on_product_update=None, initial_product=None, worker=None):
 
         self.page = page
         self.parser = parser
         self.previous = initial_product
         self.comparator = ProductComparator()
         self.checkout_engine = CheckoutEngine()
+        self.checkout_started = False
+        self.worker = worker
         self.logger = logger
         self.on_product_update = on_product_update
         self.running = True
@@ -67,17 +69,31 @@ class ProductMonitor:
         if should_checkout:
 
             self.log("⚡ AUTO CHECKOUT CONDITIONS MET")
-
             self.log("Checkout condition met.")
 
-            await self.checkout_engine.buy(product)
+            self.checkout_started = True
+            if self.worker:
+                self.worker.checkout_handoff = True
+
+            await self.checkout_engine.buy(
+                product,
+                self.page
+            )
 
             #
-            # Save purchased state
+            # CheckoutEngine now owns the page.
             #
+
+            self.stop()
 
             if self.on_product_update:
                 self.on_product_update(product)
+
+            return
+
+        #
+        # Continue monitoring normally
+        #
 
         self.previous = product
 
