@@ -1,4 +1,5 @@
 from services.monitoring_service import MonitoringService
+from services.settings_service import SettingsService
 
 
 class TrackerController:
@@ -22,6 +23,12 @@ class TrackerController:
         # ==========================
 
         self.logger = logger
+
+        # ==========================
+        # Settings Service
+        # ==========================
+
+        self.settings = SettingsService()
 
         # ==========================
         # Monitoring Engine
@@ -60,6 +67,51 @@ class TrackerController:
         if self.ui_callback:
             self.ui_callback(product)
 
+        self.save_products()
+
+        # =====================================================
+        # Target / Auto Checkout Updated
+        # =====================================================
+
+    def on_target_updated(
+        self,
+        product,
+        target_price,
+        auto_checkout,
+        target_locked
+    ):
+
+            #
+            # ProductCard already updated the live Product object.
+            # We only need to persist it immediately.
+            #
+
+        self.save_products()
+
+    def set_target(
+        self,
+        product,
+        target_price,
+        auto_checkout,
+        target_locked
+    ):
+
+        #
+        # Update running monitor immediately
+        #
+
+        self.monitoring_service.set_target(
+            product.url,
+            target_price,
+            auto_checkout,
+            target_locked
+        )
+
+        #
+        # Persist immediately
+        #
+
+        self.save_products()
     # =====================================================
     # Add Product
     # =====================================================
@@ -106,12 +158,36 @@ class TrackerController:
 
         self.products.remove(existing)
 
+        self.save_products()
+
         return True, "Monitoring stopped successfully."
+    
 
     # =====================================================
     # Get Products
     # =====================================================
 
     def get_products(self):
+
+        return self.products
+    
+    # =====================================================
+    # Persistence
+    # =====================================================
+    
+    def save_products(self):
+        print(f"[TrackerController] Saving {len(self.products)} products")
+        self.settings.save_products(self.products)
+
+    def load_products(self):
+
+        self.products = self.settings.load_products()
+
+        for product in self.products:
+
+            self.monitoring_service.start(
+                product.url,
+                initial_product=product
+            )
 
         return self.products

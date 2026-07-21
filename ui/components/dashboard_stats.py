@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from ui import colors, fonts
+from ui import icons
 
 
 class StatCard(ctk.CTkFrame):
@@ -11,8 +12,7 @@ class StatCard(ctk.CTkFrame):
         title,
         value,
         subtitle="",
-        icon="●",
-        icon_color="#7C3AED"
+        image=None
     ):
         super().__init__(
             master,
@@ -24,16 +24,12 @@ class StatCard(ctk.CTkFrame):
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
+        self.image = image
 
         self.icon = ctk.CTkLabel(
             self,
-            text=icon,
-            width=52,
-            height=52,
-            fg_color=icon_color,
-            corner_radius=26,
-            font=("Segoe UI", 20, "bold"),
-            text_color=colors.TEXT_PRIMARY
+            text="",
+            image=self.image,
         )
 
         self.icon.grid(
@@ -109,17 +105,15 @@ class DashboardStats(ctk.CTkFrame):
             title="Products",
             value="0",
             subtitle="Being monitored",
-            icon="▣",
-            icon_color="#4C1D95"
+            image=icons.PRODUCT
         )
 
-        self.discounts = StatCard(
+        self.Purchased = StatCard(
             self,
-            title="Discounts Found",
+            title="Products purchased",
             value="0",
             subtitle="With active discounts",
-            icon="◇",
-            icon_color="#166534"
+            image=icons.CART
         )
 
         self.lowest = StatCard(
@@ -127,24 +121,22 @@ class DashboardStats(ctk.CTkFrame):
             title="Lowest Price",
             value="--",
             subtitle="Best deal",
-            icon="₱",
-            icon_color="#854D0E"
+            image=icons.DISCOUNT
         )
 
-        self.last_check = StatCard(
+        self.Response_time = StatCard(
             self,
-            title="Last Check",
+            title="Ave. Response Time",
             value="--",
             subtitle="Today",
-            icon="◷",
-            icon_color="#1D4ED8"
+            image=icons.TIME
         )
 
         cards = [
             self.products,
-            self.discounts,
+            self.Purchased,
             self.lowest,
-            self.last_check
+            self.Response_time
         ]
 
         for index, card in enumerate(cards):

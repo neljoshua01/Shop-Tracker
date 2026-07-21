@@ -16,7 +16,11 @@ class ProductList(ctk.CTkScrollableFrame):
 
         self.stop_callback = stop_callback
 
-        # url -> ProductCard
+        #
+        # Called whenever Auto Checkout / Target Price changes.
+        #
+        self.set_target_callback = None
+
         self.cards = {}
 
     # =====================================================
@@ -33,7 +37,8 @@ class ProductList(ctk.CTkScrollableFrame):
         card = ProductCard(
             self,
             product,
-            stop_callback=self.stop_callback
+            stop_callback=self.stop_callback,
+            set_target_callback=self.set_target_callback
         )
 
         card.pack(

@@ -35,6 +35,15 @@ class Product:
     is_monitoring: bool = False
 
     # Auto-checkout
-    target_price: float = None
+    target_price: float | None = None
+    target_locked: bool = False
     auto_checkout: bool = False
     purchased: bool = False
+
+
+    # Purchase Information
+    purchase_reason: str = ""
+    purchase_trigger_price: float | None = None
+    purchase_detected_at: str = ""
+    checkout_started_at: str = ""
+    checkout_completed_at: str = ""

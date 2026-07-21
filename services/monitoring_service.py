@@ -16,8 +16,8 @@ class MonitoringService:
         self.workers = {}
         self.threads = {}
 
-    def start(self, url):
-
+    def start(self, url, initial_product=None):
+        
         if url in self.threads:
 
             thread = self.threads[url]
@@ -31,7 +31,8 @@ class MonitoringService:
         worker = MonitorWorker(
             url=url,
             logger=self.logger,
-            on_product_update=self.on_product_update
+            on_product_update=self.on_product_update,
+            initial_product=initial_product
         )
 
         thread = threading.Thread(
@@ -46,6 +47,24 @@ class MonitoringService:
         thread.start()
         print("[MonitoringService] Worker thread started.")
         return True
+    
+    def set_target(
+        self,
+        url,
+        target_price,
+        auto_checkout,
+        target_locked
+    ):
+
+        worker = self.workers.get(url)
+
+        if worker:
+
+            worker.set_target(
+                target_price,
+                auto_checkout,
+                target_locked
+            )
 
     def stop(self, url):
 

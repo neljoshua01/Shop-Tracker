@@ -20,7 +20,14 @@ class MainWindow(ctk.CTk):
         super().__init__()
 
         self.title("Shopee Price Tracker")
-        self.geometry("1280x880")
+        screen_w = self.winfo_screenwidth()
+        screen_h = self.winfo_screenheight()
+
+        width = int(screen_w * 0.90)
+        height = int(screen_h * 0.90)
+
+        self.geometry(f"{width}x{height}")
+
         self.minsize(1100, 800)
 
         ctk.set_appearance_mode("Dark")
@@ -28,23 +35,39 @@ class MainWindow(ctk.CTk):
 
         self.configure(fg_color=colors.BACKGROUND)
 
+        # =====================================================
+        # Main Window Layout
+        # =====================================================
+
+        # Sidebar stays fixed
+        self.grid_columnconfigure(0, weight=0)
+
+        # Main content expands
+        self.grid_columnconfigure(1, weight=1)
+
+        # Full height
+        self.grid_rowconfigure(0, weight=1)
+
+        # Sidebar
         self.sidebar = Sidebar(self)
-        self.sidebar.pack(
-            side="left",
-            fill="y"
+
+        self.sidebar.grid(
+            row=0,
+            column=0,
+            sticky="ns"
         )
 
+        # Main Content
         self.main_frame = ctk.CTkFrame(
             self,
             fg_color=colors.BACKGROUND
         )
 
-        self.main_frame.pack(
-            side="left",
-            fill="both",
-            expand=True
+        self.main_frame.grid(
+            row=0,
+            column=1,
+            sticky="nsew"
         )
-
         self.build_ui(self.main_frame)
 
         self.controller = TrackerController(
@@ -54,18 +77,57 @@ class MainWindow(ctk.CTk):
         self.controller.set_ui_callback(
             self.on_product_update
         )
+
+        #
+        # Receive Target Price / Auto Checkout changes.
+        #
+
+        self.products_frame.set_target_callback = (
+            self.controller.set_target
+        )
+        #
+        # Restore previous monitoring session
+        #
+        self.controller.load_products()
+
+        #
+        # Show restored products
+        #
+        self.refresh_products()
+
     # =====================================================
     # Build Dashboard Layout
     # =====================================================
     def build_ui(self, parent):
         # ==================================================
+        # Dashboard Grid Layout
+        # ==================================================
+
+        parent.grid_columnconfigure(0, weight=1)
+
+        # Fixed-height rows
+        parent.grid_rowconfigure(0, weight=0)   # Header
+        parent.grid_rowconfigure(1, weight=0)   # Topbar
+        parent.grid_rowconfigure(2, weight=0)   # Status
+        parent.grid_rowconfigure(3, weight=0)   # Stats
+        parent.grid_rowconfigure(4, weight=0)   # Products Header
+
+        # This will become expandable in Phase 3
+        parent.grid_rowconfigure(5, weight=1)
+
+        # Bottom section
+        parent.grid_rowconfigure(6, weight=0)
+
+        # ==================================================
         # Dashboard Header
         # ==================================================
         self.dashboard_header = DashboardHeader(parent)
-        self.dashboard_header.pack(
-            fill="x",
+        self.dashboard_header.grid(
+            row=0,
+            column=0,
+            sticky="ew",
             padx=20,
-            pady=(25, 10)
+            pady=(15,6)
         )
 
         # ==================================================
@@ -76,10 +138,12 @@ class MainWindow(ctk.CTk):
             add_callback=self.start_monitoring
         )
 
-        self.topbar.pack(
-            fill="x",
+        self.topbar.grid(
+            row=1,
+            column=0,
+            sticky="ew",
             padx=20,
-            pady=(5, 12)
+            pady=(4,8)
         )
 
         # ==================================================
@@ -87,10 +151,12 @@ class MainWindow(ctk.CTk):
         # ==================================================
         self.status_bar = StatusBar(parent)
 
-        self.status_bar.pack(
-            fill="x",
+        self.status_bar.grid(
+            row=2,
+            column=0,
+            sticky="ew",
             padx=20,
-            pady=(0, 12)
+            pady=(0,8)
         )
 
         # ==================================================
@@ -98,10 +164,12 @@ class MainWindow(ctk.CTk):
         # ==================================================
         self.stats = DashboardStats(parent)
 
-        self.stats.pack(
-            fill="x",
+        self.stats.grid(
+            row=3,
+            column=0,
+            sticky="ew",
             padx=20,
-            pady=(0, 16)
+            pady=(0,10)
         )
 
         # ==================================================
@@ -114,23 +182,27 @@ class MainWindow(ctk.CTk):
             text_color=colors.TEXT_PRIMARY
         )
 
-        products_header.pack(
-            anchor="w",
+        products_header.grid(
+            row=4,
+            column=0,
+            sticky="w",
             padx=20,
-            pady=(0, 6)
+            pady=(0,4)
         )
 
         self.products_frame = ProductList(
             parent,
             stop_callback=self.stop_monitoring,
             fg_color="transparent",
-            height=260
+            height=330
         )
 
-        self.products_frame.pack(
-            fill="x",
+        self.products_frame.grid(
+            row=5,
+            column=0,
+            sticky="nsew",
             padx=20,
-            pady=(0, 12)
+            pady=(0,12)
         )
 
         # ==========================
@@ -140,14 +212,18 @@ class MainWindow(ctk.CTk):
             parent,
             fg_color="transparent"
         )
-
-        bottom_frame.pack(
-            fill="x",
+        bottom_frame.grid_propagate(False)
+        bottom_frame.grid(
+            row=6,
+            column=0,
+            sticky="ew",
             padx=20,
-            pady=(0, 12)
+            pady=(0,5)
         )
 
-        bottom_frame.grid_columnconfigure(0, weight=1)
+        bottom_frame.configure(height=220)
+
+        bottom_frame.grid_columnconfigure(0, weight=6)
         bottom_frame.grid_columnconfigure(1, weight=1)
 
         self.build_activity_logs(bottom_frame)
@@ -180,7 +256,7 @@ class MainWindow(ctk.CTk):
             fg_color="transparent"
         )
 
-        header.pack(fill="x", padx=18, pady=(12, 6))
+        header.pack(fill="x", padx=18, pady=(10, 4))
 
         logs_label = ctk.CTkLabel(
             header,
@@ -208,7 +284,7 @@ class MainWindow(ctk.CTk):
 
         self.log_box = ctk.CTkTextbox(
             logs_frame,
-            height=118,
+            height=85,
             font=fonts.LOG,
             fg_color="transparent",
             border_width=0,
@@ -223,9 +299,10 @@ class MainWindow(ctk.CTk):
         self.log_box.tag_config("log_message", foreground=colors.TEXT_PRIMARY)
 
         self.log_box.pack(
-            fill="x",
+            fill="both",
+            expand=True,
             padx=18,
-            pady=(0, 14)
+            pady=(0, 8)
         )
 
     def build_quick_actions(self, parent):
@@ -240,7 +317,7 @@ class MainWindow(ctk.CTk):
         actions_frame.grid(
             row=0,
             column=1,
-            sticky="nsew",
+            sticky="nsew",  
             padx=(8, 0)
         )
 
@@ -249,26 +326,30 @@ class MainWindow(ctk.CTk):
             text="Quick Actions",
             font=fonts.HEADING,
             text_color=colors.TEXT_PRIMARY
-        ).pack(anchor="w", padx=18, pady=(12, 10))
+        ).pack(anchor="w", padx=18, pady=(10, 6))
 
         tiles = ctk.CTkFrame(
             actions_frame,
             fg_color="transparent"
         )
 
-        tiles.pack(fill="x", padx=14, pady=(0, 14))
+        tiles.pack(fill="both", expand=True, padx=14, pady=(0, 8))
 
         tile_data = [
-            ("♧", "Add Alert", "Get notified on price drops"),
-            ("ϟ", "Flash Sale Calendar", "View upcoming flash sales"),
-            ("🛒", "Cart Settings", "Manage auto checkout cart")
+            ("▤", "View All Logs", "See all activity"),
+            ("⬇", "Export Data", "Export to CSV"),
+            ("➤", "Test Notification", "Send test to Discord"),
+            ("⚙", "Browser Settings", "Manage browser")
         ]
 
         for index, (icon, title, subtitle) in enumerate(tile_data):
+            row = index // 2
+            col = index % 2
+
             tile = ctk.CTkButton(
                 tiles,
                 text=f"{icon}\n\n{title}\n{subtitle}",
-                height=100,
+                height=58,
                 fg_color=colors.SURFACE,
                 hover_color=colors.CARD_HOVER,
                 border_width=1,
@@ -279,13 +360,17 @@ class MainWindow(ctk.CTk):
             )
 
             tile.grid(
-                row=0,
-                column=index,
+                row=row,
+                column=col,
                 sticky="nsew",
-                padx=6
+                padx=4,
+                pady=3
             )
 
-            tiles.grid_columnconfigure(index, weight=1)
+        tiles.grid_columnconfigure(0, weight=1)
+        tiles.grid_columnconfigure(1, weight=1)
+        tiles.grid_rowconfigure(0, weight=1)
+        tiles.grid_rowconfigure(1, weight=1)
 
     def log(self, message):
 

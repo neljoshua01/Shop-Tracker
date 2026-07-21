@@ -1,16 +1,18 @@
 import asyncio
 
 from services.comparator import ProductComparator
+from services.checkout_engine import CheckoutEngine
 
 
 class ProductMonitor:
 
-    def __init__(self, page, parser, logger=None, on_product_update=None):
+    def __init__(self, page, parser, logger=None, on_product_update=None, initial_product=None):
 
         self.page = page
         self.parser = parser
-        self.previous = None
+        self.previous = initial_product
         self.comparator = ProductComparator()
+        self.checkout_engine = CheckoutEngine()
         self.logger = logger
         self.on_product_update = on_product_update
         self.running = True
@@ -25,8 +27,18 @@ class ProductMonitor:
         self.log("Parsing latest product data...")
         product = await self.parser.parse()
 
-        if self.running and self.on_product_update:
-            self.on_product_update(product)
+        print("[ProductMonitor] Product parsed.")
+
+        #
+        # Preserve user settings across refreshes
+        #
+
+        if self.previous is not None:
+
+            product.auto_checkout = self.previous.auto_checkout
+            product.target_price = self.previous.target_price
+            product.target_locked = self.previous.target_locked
+            product.purchased = self.previous.purchased or product.purchased
 
         if self.previous is None:
 
@@ -35,28 +47,37 @@ class ProductMonitor:
             self.log(f"Price : {product.current_price}")
             self.log(f"Stock : {product.stock}")
 
+            if self.running and self.on_product_update:
+                self.on_product_update(product)
+
             self.previous = product
             return
-
+        
         events = self.comparator.compare(
             self.previous,
             product
         )
 
-        if events:
+        #
+        # Evaluate checkout once
+        #
 
-            print("\n" + "=" * 60)
-            print("CHANGES DETECTED")
-            print("=" * 60)
+        should_checkout = self.checkout_engine.should_checkout(product)
 
-            for event in events:
+        if should_checkout:
 
-                self.log(
-                    f"{event.field}: {event.old_value} → {event.new_value}"
-            )
-        else:
+            self.log("⚡ AUTO CHECKOUT CONDITIONS MET")
 
-            self.log("No changes detected.")
+            self.log("Checkout condition met.")
+
+            await self.checkout_engine.buy(product)
+
+            #
+            # Save purchased state
+            #
+
+            if self.on_product_update:
+                self.on_product_update(product)
 
         self.previous = product
 
@@ -73,6 +94,24 @@ class ProductMonitor:
                 self.log(f"[ERROR] Monitoring failed: {e}")
 
             await asyncio.sleep(interval)
+
+    def set_target(
+        self,
+        target_price,
+        auto_checkout,
+        target_locked
+    ):
+
+        #
+        # First snapshot hasn't happened yet.
+        #
+
+        if self.previous is None:
+            return
+
+        self.previous.target_price = target_price
+        self.previous.auto_checkout = auto_checkout
+        self.previous.target_locked = target_locked
 
     def stop(self):
 

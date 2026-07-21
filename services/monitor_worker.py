@@ -10,7 +10,8 @@ class MonitorWorker:
         self,
         url,
         logger=None,
-        on_product_update=None
+        on_product_update=None,
+        initial_product=None
     ):
 
         self.runtime = AsyncRuntime.instance()
@@ -18,6 +19,7 @@ class MonitorWorker:
         self.url = url
         self.logger = logger
         self.on_product_update = on_product_update
+        self.initial_product = initial_product
 
         self.browser = None
         self.page = None
@@ -43,7 +45,8 @@ class MonitorWorker:
             self.page,
             self.parser,
             logger=self.logger,
-            on_product_update=self.on_product_update
+            on_product_update=self.on_product_update,
+            initial_product=self.initial_product
         )
 
         print("[MonitorWorker] ProductMonitor initialized.")
@@ -55,10 +58,25 @@ class MonitorWorker:
             )
 
             future.result()
-
+   
         finally:
 
             self.browser.close(self.page)
+
+    def set_target(
+        self,
+        target_price,
+        auto_checkout,
+        target_locked
+    ):
+
+        if self.monitor:
+
+            self.monitor.set_target(
+                target_price,
+                auto_checkout,
+                target_locked
+            )
 
     def stop(self):
 
