@@ -2,52 +2,80 @@ class VariationSelector:
 
     async def prepare(self, page):
 
-        headings = page.locator("text=/Case Finish|Size/")
+            print()
+            print("============================================================")
+            print("VARIATION SELECTOR")
+            print("============================================================")
 
-        count = await headings.count()
+            #
+            # Temporary heading locator
+            #
+            headings = page.locator("text=/Case Finish|Size|Type/")
 
-        groups = []
+            count = await headings.count()
 
-        for i in range(count):
+            groups = []
 
-            heading = headings.nth(i)
+            print(f"Found groups: {count}")
 
-            title = await heading.inner_text()
+            for i in range(count):
 
-            group = {
-                "name": title,
-                "options": []
-            }
+                heading = headings.nth(i)
 
-            parent = heading.locator("xpath=..")
+                title = (await heading.inner_text()).strip()
 
-            buttons = parent.locator("button")
+                group = {
+                    "name": title,
+                    "options": []
+                }
 
-            button_count = await buttons.count()
+                parent = heading.locator("xpath=..")
 
-            for j in range(button_count):
+                buttons = parent.locator("button")
 
-                button = buttons.nth(j)
+                button_count = await buttons.count()
 
-                text = (await button.inner_text()).strip()
+                for j in range(button_count):
 
-                disabled = (
-                    await button.get_attribute("aria-disabled")
-                ) == "true"
+                    button = buttons.nth(j)
 
-                group["options"].append({
-                    "text": text,
-                    "disabled": disabled,
-                    "button": button
-                })
+                    text = (await button.inner_text()).strip()
 
-            groups.append(group)
+                    disabled = (
+                        await button.get_attribute("aria-disabled")
+                    ) == "true"
 
-        return groups
+                    group["options"].append({
+                        "text": text,
+                        "disabled": disabled,
+                        "button": button
+                    })
 
+                groups.append(group)
 
-    async def select_variations(self, page):
+            return groups
+
+    async def choose_option(self, group, page):
+
+        for option in group["options"]:
+
+            if option["disabled"]:
+                continue
+
+            await option["button"].click()
+
+            await page.wait_for_timeout(500)
+
+            print(f"✓ {option['text']}")
+
+            return True
+
+        print(f"No available option for [{group['name']}]")
+
+        return False
         
+    async def select_variations(self, page):
+
         print()
         print("============================================================")
         print("VARIATION SELECTOR")
@@ -64,18 +92,7 @@ class VariationSelector:
             print()
             print(f"Selecting [{group['name']}]")
 
-            for option in group["options"]:
-
-                if option["disabled"]:
-                    continue
-
-                await option["button"].click()
-
-                await page.wait_for_timeout(500)
-
-                print(f"✓ {option['text']}")
-
-                break
+            await self.choose_option(group, page)
 
         print()
         print("Variation selection complete.")
