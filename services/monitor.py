@@ -74,7 +74,8 @@ class ProductMonitor:
             self.checkout_started = True
             if self.worker:
                 self.worker.checkout_handoff = True
-
+                
+            self.stop()
             await self.checkout_engine.buy(
                 product,
                 self.page
@@ -83,8 +84,6 @@ class ProductMonitor:
             #
             # CheckoutEngine now owns the page.
             #
-
-            self.stop()
 
             if self.on_product_update:
                 self.on_product_update(product)
