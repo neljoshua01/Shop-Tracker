@@ -2,58 +2,92 @@ class VariationSelector:
 
     async def prepare(self, page):
 
+        print()
+        print("============================================================")
+        print("VARIATION SELECTOR")
+        print("============================================================")
+
+        panel = await self.find_purchase_panel(page)
+
+        if panel is None:
+            return []
+
+        #
+        # Child 3 is currently the variation container.
+        #
+        wrapper = panel.locator(":scope > *").nth(3)
+
+        sections = wrapper.locator("section")
+
+        section_count = await sections.count()
+
+        print()
+        print("========== VARIATION SECTIONS ==========")
+        print(f"Sections: {section_count}")
+
+        groups = []
+
+        for i in range(section_count):
+
+            section = sections.nth(i)
+
+            heading = section.locator("h2")
+
+            if await heading.count() == 0:
+                continue
+
+            title = (await heading.inner_text()).strip()
+
             print()
-            print("============================================================")
-            print("VARIATION SELECTOR")
-            print("============================================================")
+            print(f"[{title}]")
 
             #
-            # Temporary heading locator
+            # Ignore Quantity.
             #
-            headings = page.locator("text=/Case Finish|Size|Type/")
+            if title.lower() == "quantity":
 
-            count = await headings.count()
+                print("Skipping Quantity")
 
-            groups = []
+                continue
 
-            print(f"Found groups: {count}")
+            buttons = section.locator("button")
 
-            for i in range(count):
+            button_count = await buttons.count()
 
-                heading = headings.nth(i)
+            print(f"Buttons: {button_count}")
 
-                title = (await heading.inner_text()).strip()
+            #
+            # Skip non-variation sections.
+            # 
+            if button_count == 0:
+                continue
 
-                group = {
-                    "name": title,
-                    "options": []
-                }
+            group = {
+                "name": title,
+                "options": []
+            }
 
-                parent = heading.locator("xpath=..")
+            for j in range(button_count):
 
-                buttons = parent.locator("button")
+                button = buttons.nth(j)
 
-                button_count = await buttons.count()
+                text = (await button.inner_text()).strip()
 
-                for j in range(button_count):
+                disabled = (
+                    await button.get_attribute("aria-disabled")
+                ) == "true"
 
-                    button = buttons.nth(j)
+                print(f"   - {text}")
 
-                    text = (await button.inner_text()).strip()
+                group["options"].append({
+                    "text": text,
+                    "disabled": disabled,
+                    "button": button
+                })
 
-                    disabled = (
-                        await button.get_attribute("aria-disabled")
-                    ) == "true"
+            groups.append(group)
 
-                    group["options"].append({
-                        "text": text,
-                        "disabled": disabled,
-                        "button": button
-                    })
-
-                groups.append(group)
-
-            return groups
+        return groups
 
     async def choose_option(self, group, page):
 
@@ -96,3 +130,55 @@ class VariationSelector:
 
         print()
         print("Variation selection complete.")
+
+    async def find_purchase_panel(self, page):
+
+        print()
+        print("========== FINDING PURCHASE PANEL ==========")
+
+        #
+        # Reuse the same purchase button logic already proven
+        #
+        purchase_button = page.locator(
+            "button:has-text('Buy Now'), button:has-text('Buy With Voucher')"
+        ).first
+
+        if await purchase_button.count() == 0:
+            print("❌ Purchase button not found.")
+            return None
+
+        #
+        # Walk upward through ancestors.
+        #
+        current = purchase_button
+
+        for level in range(10):
+
+            current = current.locator("xpath=..")
+
+            try:
+                text = await current.inner_text()
+            except:
+                continue
+
+            has_quantity = "Quantity" in text
+
+            has_buy_button = (
+                "Buy Now" in text
+                or
+                "Buy With Voucher" in text
+            )
+
+            print(
+                f"Ancestor {level} "
+                f"(Quantity={has_quantity}, Buy={has_buy_button})"
+            )
+
+            if has_quantity and has_buy_button:
+
+                print(f"✓ Purchase panel found at ancestor {level}")
+
+                return current
+            
+        print("❌ Purchase panel not found.")
+        return None
