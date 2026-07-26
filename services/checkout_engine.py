@@ -1,9 +1,20 @@
 from services.variation_selector import VariationSelector
+from services.checkout_verifier import CheckoutVerifier
+from services.config_service import ConfigService
+from notifier.discord import DiscordNotifier
 
 class CheckoutEngine:
 
     def __init__(self):
         self.variation_selector = VariationSelector()
+        self.checkout_verifier = CheckoutVerifier()
+        self.config_service = ConfigService()
+
+        config = self.config_service.load()
+
+        self.notifier = DiscordNotifier(
+            config["discord_webhook"]
+        )
 
     def should_checkout(self, product):
 
@@ -146,8 +157,118 @@ class CheckoutEngine:
         place_order = page.locator("button:has-text('Place Order')")
 
         if await place_order.count() > 0:
+
             print("Place Order detected.")
             print("Checkout page reached.")
-            print("Ready to purchase.")
+
+            #
+            # Verify checkout state
+            #
+            if not await self.checkout_verifier.verify_price(
+                page,
+                product
+            ):
+                return
+
+            if not await self.checkout_verifier.disable_protection(page):
+                return
+            
+
+            if not await self.checkout_verifier.select_payment(page):
+                return
+            
+            if not await self.checkout_verifier.handle_shipping_popup(page):
+                return
+            
+            order_summary = await self.checkout_verifier.collect_order_summary(page)
+            order_summary["url"] = product.url
+            order_summary["target_price"] = product.target_price
+            
+            if not await self.checkout_verifier.verify_ready(page):
+                return
+            
+            if not await self.checkout_verifier.verify_place_order(page):
+                return
+
+            result = await self.execute_purchase(
+                page,
+                order_summary
+            )
+
+            print()
+            print("========== PURCHASE RESULT ==========")
+            print(f"Status : {result['status']}")
         else:
             print("Checkout page not reached.")
+
+    async def execute_purchase(self, page, summary):
+
+        print()
+        print("========== ARMED MODE ==========")
+
+        config = self.config_service.load()
+
+        if not config["armed_mode"]:
+
+            print("SAFE MODE")
+            print("Sending Discord notification...")
+
+            await self.notifier.send_dry_run(summary)
+
+            print("Place Order skipped.")
+
+            return {
+                "status": "dry_run",
+                "summary": summary
+            }
+
+        print("ARMED MODE ENABLED")
+        print("Submitting order...")
+
+        place_order = page.locator(
+            "button:has-text('Place Order')"
+        )
+
+        await place_order.wait_for(
+            state="visible",
+            timeout=5000
+        )
+
+        await place_order.click()
+        print("Place Order clicked.")
+
+        print("Waiting for purchase result...")
+
+        await page.wait_for_timeout(5000)
+
+        success = await self.verify_purchase_result(page)
+
+        return {
+            "status": "submitted" if success else "failed",
+            "summary": summary
+        }
+
+    async def verify_purchase_result(self, page):
+
+        print()
+        print("========== VERIFY PURCHASE RESULT ==========")
+
+        print("Current URL:")
+        print(page.url)
+
+        print()
+
+        print("Page Title:")
+        print(await page.title())
+
+        print()
+
+        body = await page.locator("body").inner_text()
+
+        print("Page Preview:")
+        print(body[:1000])
+
+        #
+        # Temporary
+        #
+        return True
