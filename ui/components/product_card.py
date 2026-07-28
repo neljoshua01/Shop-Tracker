@@ -1,4 +1,5 @@
 import customtkinter as ctk
+import threading
 
 from ui import colors, fonts
 from ui.windows.product_details import ProductDetailsWindow
@@ -109,11 +110,14 @@ class ProductCard(ctk.CTkFrame):
         thumbnail.pack(side="left")
         thumbnail.pack_propagate(False)
 
-        ctk.CTkLabel(
+        self.thumbnail_label = ctk.CTkLabel(
             thumbnail,
             text="📱",
             font=("Segoe UI", 22)
-        ).pack(expand=True)
+        )
+        self.thumbnail_label.pack(expand=True)
+
+        self.load_thumbnail()
 
         #
         # Product Information
@@ -543,7 +547,7 @@ class ProductCard(ctk.CTkFrame):
     def update_data(self, product):
 
         self.product = product
-
+        self.load_thumbnail()
         self.name_label.configure(text=truncate_name(product.name))
 
         self.price_label.configure(text=str(product.current_price))
@@ -577,3 +581,71 @@ class ProductCard(ctk.CTkFrame):
 
     def open_details(self):
         ProductDetailsWindow(self, self.product)
+
+    def load_thumbnail(self):
+        """
+        Fetches the product image off the UI thread. The emoji
+        placeholder stays put until (and unless) this succeeds —
+        a slow or dead image URL never blocks or breaks the card.
+        """
+
+        url = getattr(self.product, "image_url", "")
+
+        if not url:
+            return
+
+        threading.Thread(
+            target=self._fetch_thumbnail,
+            args=(url,),
+            daemon=True
+        ).start()
+
+    def _fetch_thumbnail(self, url):
+
+        try:
+            import requests
+            from PIL import Image
+            from io import BytesIO
+
+            #
+            # Shopee sometimes serves protocol-relative URLs
+            # (//cf.shopeemobile.com/...) from the fallback selector.
+            # requests can't handle those without a scheme.
+            #
+            if url.startswith("//"):
+                url = "https:" + url
+
+            response = requests.get(url, timeout=6)
+            response.raise_for_status()
+
+            pil_image = Image.open(BytesIO(response.content)).convert("RGB")
+            pil_image = pil_image.resize((56, 56))
+
+            ctk_image = ctk.CTkImage(
+                light_image=pil_image,
+                dark_image=pil_image,
+                size=(56, 56)
+            )
+
+            #
+            # The card may have been closed/destroyed (Stop
+            # Monitoring) while this fetch was still in flight —
+            # self.after() itself can raise TclError in that case.
+            #
+            try:
+                self.after(0, self._apply_thumbnail, ctk_image)
+            except Exception:
+                pass
+
+        except Exception as e:
+            print(f"[ProductCard] Thumbnail load failed: {e}")
+
+    def _apply_thumbnail(self, ctk_image):
+
+        if not self.winfo_exists():
+            return
+
+        self.thumbnail_label.configure(image=ctk_image, text="")
+        self.thumbnail_label.image = ctk_image  # keep a reference — CTk/Tk will
+                                                 # garbage-collect the image
+                                                 # and show a blank box otherwise

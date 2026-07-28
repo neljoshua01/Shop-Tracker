@@ -15,6 +15,8 @@ class Product:
 
     name: str = "Unknown"
 
+    image_url: str = ""
+
     # Pricing
     current_price: str = ""
     original_price: str = ""

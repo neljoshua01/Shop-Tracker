@@ -1,6 +1,14 @@
 import re
 
+
 class CheckoutVerifier:
+
+    def __init__(self):
+
+        # Set by select_payment() once a method is actually confirmed —
+        # collect_order_summary() reads this directly instead of
+        # re-guessing from page text.
+        self.selected_payment = None
 
     async def verify_price(self, page, product):
 
@@ -12,8 +20,6 @@ class CheckoutVerifier:
         #
         # Try to locate the final payment amount.
         #
-        import re
-
         matches = re.findall(r"₱[\d,]+(?:\.\d{2})?", body)
 
         if not matches:
@@ -41,72 +47,147 @@ class CheckoutVerifier:
 
         return True
 
+    async def _find_protection_row(self, learn_more_link):
+        """
+        Walk up from a 'Learn more' link until reaching an ancestor
+        that BOTH mentions 'Protection' in its text AND contains a
+        checkbox as a descendant. Requiring both signals matters here:
+        the label/description text and the actual checkbox can sit as
+        SIBLINGS under a shared parent rather than one containing the
+        other. Stopping at the first ancestor that merely mentions
+        "protection" (text-only) can land one level too low, before
+        the checkbox's sibling branch has actually joined the scope —
+        which is exactly what was happening. Same two-signal,
+        first-match-wins technique already proven for purchase-panel
+        detection in variation_selector.py (Quantity + Buy Now).
+        """
+ 
+        current = learn_more_link
+ 
+        for level in range(8):
+ 
+            candidate = current.locator("xpath=..")
+ 
+            row_text = await candidate.inner_text()
+ 
+            has_protection_text = "protection" in row_text.lower()
+            has_checkbox = await candidate.locator("input[type='checkbox']").count() > 0
+ 
+            if has_protection_text and has_checkbox:
+                return candidate
+ 
+            current = candidate
+ 
+        return None
+ 
     async def disable_protection(self, page):
-
+ 
         print()
         print("========== DISABLE EXTENDED PROTECTION ==========")
-
-        body = await page.locator("body").inner_text()
-
-        if "Extended Protection" not in body and "Merchandise Protection" not in body:
-            print("No protection found.")
+ 
+        #
+        # Generalized AND scoped. This is the piece that was missing:
+        # a page-wide "grab the first checked checkbox anywhere" search
+        # doesn't just risk matching the wrong label — it risks
+        # clicking a completely unrelated checkbox (e.g. something
+        # shipping-related) if that happens to sit earlier in the DOM.
+        # That's very likely what was opening the shipping popup on
+        # every protection click. Anchoring on "Learn more" and walking
+        # up to the row that mentions "Protection" keeps the search
+        # confined to just that one widget, every time.
+        #
+        learn_more_links = page.locator("text=Learn more")
+ 
+        link_count = await learn_more_links.count()
+ 
+        if link_count == 0:
+            print("No protection option found.")
             return True
+ 
+        found_any = False
+ 
+        for i in range(link_count):
+ 
+            row = await self._find_protection_row(learn_more_links.nth(i))
+ 
+            if row is None:
+                continue
+ 
+            found_any = True
+ 
+            row_text = (await row.inner_text()).strip()
+ 
+            label = next(
+                (line.strip() for line in row_text.splitlines() if "protection" in line.lower()),
+                "Protection option"
+            )
+ 
+            print(f"{label} found.")
+ 
+            checkbox = row.locator("input[type='checkbox']").first
+ 
+            if await checkbox.count() == 0:
+                print(f"No checkbox found for {label} — may be a custom (non-<input>) toggle.")
+                continue
+ 
+            if not await checkbox.is_checked():
+                print(f"{label} already unchecked — no action needed.")
+                continue
+ 
+            await checkbox.scroll_into_view_if_needed()
+ 
+            await checkbox.click(force=True)
+ 
+            print(f"✓ {label} unchecked.")
+ 
+            await page.wait_for_timeout(1000)
+ 
+        if not found_any:
+            print("No protection option found.")
+ 
+        return True
 
-        print("Protection detected.")
+    async def handle_checkout_dialog(self, page):
 
-        checkbox = page.locator(
-            "input[type='checkbox'][checked]"
-        ).first
+        print()
+        print("========== CHECKOUT DIALOG ==========")
 
-        if await checkbox.count() == 0:
-            print("Protection already disabled.")
-            return True
+        confirm = page.get_by_role(
+            "button",
+            name="Confirm"
+        )
 
-        await checkbox.scroll_into_view_if_needed()
+        try:
+            await confirm.first.wait_for(
+                state="visible",
+                timeout=2000
+            )
+        except Exception:
+            print("No checkout dialog.")
+            return False
 
-        await checkbox.click(force=True)
+        print("Checkout dialog detected.")
 
-        print("✓ Protection disabled.")
+        await confirm.first.click()
 
-        await page.wait_for_timeout(1000)
+        print("✓ Checkout dialog confirmed.")
+
+        await confirm.first.wait_for(
+            state="hidden",
+            timeout=5000
+        )
+
+        print("✓ Dialog closed.")
 
         return True
     
-    async def handle_shipping_popup(self, page):
-
-        print()
-        print("========== SHIPPING POPUP ==========")
-
-        try:
-
-            confirm = page.get_by_role(
-                "button",
-                name="Confirm"
-            )
-
-            if await confirm.count() == 0:
-                print("No shipping confirmation required.")
-                return True
-
-            await confirm.first.click()
-
-            print("✓ Shipping confirmed.")
-
-            await page.wait_for_timeout(800)
-
-        except Exception:
-
-            print("No shipping popup.")
-
-        return True
-
     async def verify_ready(self, page):
 
         print()
         print("========== FINAL CHECK ==========")
 
         return True
-    
+
     async def verify_place_order(self, page):
 
         print()
@@ -127,17 +208,107 @@ class CheckoutVerifier:
 
         print("✓ Place Order button found.")
 
+        # Deliberately does not click. Whether this checkout goes
+        # through is decided by the Safe/Armed gate upstream, not here.
+
         return True
-    
+
+    async def select_spaylater_plan(self, page):
+
+        print()
+        print("========== SPAYLATER PLAN ==========")
+
+        plan = page.get_by_text(
+            "Buy Now Pay Later",
+            exact=False
+        )
+
+        try:
+
+            await plan.first.wait_for(
+                state="visible",
+                timeout=5000
+            )
+
+        except Exception:
+
+            print("❌ Buy Now Pay Later plan not found.")
+
+            return False
+
+        await plan.first.click()
+
+        print("✓ Buy Now Pay Later selected")
+
+        await page.wait_for_timeout(500)
+
+        return True
+
     async def select_payment(self, page):
+
+        self.selected_payment = None
 
         print()
         print("========== SELECT PAYMENT ==========")
 
         #
-        # Open payment selector
+        # One last chance for the delayed protection dialog.
+        # This doesn't hurt if no dialog exists.
         #
+        await self.handle_checkout_dialog(page)
+
+        #
+        # If SPayLater is already active, don't change anything.
+        #
+        spay_selected = page.locator(
+            "button:has-text('SPayLater')"
+        )
+
+        if await spay_selected.count() > 0:
+
+            classes = await spay_selected.first.get_attribute("class") or ""
+
+            aria = await spay_selected.first.get_attribute("aria-pressed")
+
+            #
+            # Shopee usually marks the selected payment by CSS.
+            # You may adjust this after one inspector check.
+            #
+            if (
+                "selected" in classes.lower()
+                or "active" in classes.lower()
+                or aria == "true"
+            ):
+
+                print("✓ SPayLater already selected.")
+
+                self.selected_payment = "SPayLater"
+
+                #
+                # Still verify the plan.
+                #
+                if not await self.select_spaylater_plan(page):
+
+                    print("SPayLater plan setup failed.")
+
+                    return False
+
+                return True
+
+        #
+        # Otherwise we need to change payment.
+        #
+        print("SPayLater not currently selected.")
+
+        print("Looking for payment CHANGE...")
+
         change = page.locator("text=CHANGE").last
+
+        if await change.count() == 0:
+
+            raise Exception(
+                "Payment CHANGE button not found."
+            )
 
         await change.click()
 
@@ -145,18 +316,14 @@ class CheckoutVerifier:
 
         print("Payment options opened.")
 
-        #
-        # Payment priority
-        #
         preferred_methods = [
-            "ShopeePay Balance",
+            "SPayLater",
             "Cash on Delivery",
         ]
 
-        #
-        # Search available buttons
-        #
-        buttons = page.locator("button, div[role='button']")
+        buttons = page.locator(
+            "button, div[role='button']"
+        )
 
         count = await buttons.count()
 
@@ -171,7 +338,11 @@ class CheckoutVerifier:
                 btn = buttons.nth(i)
 
                 try:
-                    text = (await btn.inner_text()).strip()
+
+                    text = (
+                        await btn.inner_text()
+                    ).strip()
+
                 except:
                     continue
 
@@ -180,9 +351,6 @@ class CheckoutVerifier:
 
                 print(f"Found: {text}")
 
-                #
-                # Try selecting it
-                #
                 try:
 
                     await btn.scroll_into_view_if_needed()
@@ -193,13 +361,23 @@ class CheckoutVerifier:
 
                     print(f"✓ Selected {payment}")
 
+                    if payment == "SPayLater":
+
+                        if not await self.select_spaylater_plan(page):
+
+                            print("SPayLater plan setup failed.")
+
+                            continue
+
+                    self.selected_payment = payment
+
                     selected = True
 
                     break
 
-                except Exception:
+                except Exception as e:
 
-                    print(f"Cannot use {payment}")
+                    print(f"Cannot use {payment}: {e}")
 
             if selected:
                 break
@@ -210,9 +388,6 @@ class CheckoutVerifier:
                 "No supported payment method available."
             )
 
-        #
-        # Give Shopee time to update
-        #
         await page.wait_for_timeout(1000)
 
         return True
@@ -261,6 +436,7 @@ class CheckoutVerifier:
 
         if product_match:
             summary["product"] = product_match.group(1).strip()
+
         #
         # --------------------------
         # Variation
@@ -334,17 +510,7 @@ class CheckoutVerifier:
             summary["total"] = float(
                 total_match.group(1).replace(",", "")
             )
-
-        #
-        # --------------------------
-        # Payment
-        # --------------------------
-        #
-        if "Cash on Delivery" in body:
-            summary["payment"] = "Cash on Delivery"
-
-        elif "ShopeePay Balance" in body:
-            summary["payment"] = "ShopeePay"
+        summary["payment"] = self.selected_payment or "Unknown"
 
         #
         # --------------------------

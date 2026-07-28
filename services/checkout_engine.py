@@ -173,11 +173,9 @@ class CheckoutEngine:
             if not await self.checkout_verifier.disable_protection(page):
                 return
             
+            await self.checkout_verifier.handle_checkout_dialog(page)
 
             if not await self.checkout_verifier.select_payment(page):
-                return
-            
-            if not await self.checkout_verifier.handle_shipping_popup(page):
                 return
             
             order_summary = await self.checkout_verifier.collect_order_summary(page)

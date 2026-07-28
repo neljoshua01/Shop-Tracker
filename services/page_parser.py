@@ -21,6 +21,11 @@ class PageParser:
         product.discount = prices["discount"] or ""
         product.stock = await self.get_stock()
 
+        #get img of product
+        product.stock = await self.get_stock()
+        product.image_url = await self.get_image_url()
+
+
         return product
 
     async def get_name(self):
@@ -106,3 +111,35 @@ class PageParser:
             return "IN STOCK"
 
         return "UNKNOWN"
+    
+    async def get_image_url(self):
+
+        #
+        # og:image is the single most reliable source — it's the
+        # exact image Shopee itself designates as "the" product photo,
+        # same one used for link previews.
+        #
+        try:
+            meta = self.page.locator('meta[property="og:image"]')
+
+            if await meta.count() > 0:
+                url = await meta.first.get_attribute("content")
+                if url:
+                    return url
+
+        except:
+            pass
+
+        #
+        # Fallback: first Shopee CDN image on the page.
+        #
+        try:
+            img = self.page.locator("img[src*='cf.shopee']").first
+            url = await img.get_attribute("src")
+            if url:
+                return url
+
+        except:
+            pass
+
+        return ""
