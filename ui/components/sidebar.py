@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from ui import colors, fonts
+from services.config_service import ConfigService
 
 
 class Sidebar(ctk.CTkFrame):
@@ -15,6 +16,9 @@ class Sidebar(ctk.CTkFrame):
         )
 
         self.pack_propagate(False)
+
+        self.config_service = ConfigService()
+        self.config = self.config_service.load()
 
         self.build_ui()
 
@@ -58,7 +62,6 @@ class Sidebar(ctk.CTkFrame):
             ("⌂", "Dashboard", True),
             ("▣", "Products", False),
             ("◴", "Activity Logs", False),
-            ("⚙", "Settings", False),
             ("♢", "Alerts &\nAuto Checkout", False),
             ("ⓘ", "About", False)
         ]
@@ -83,7 +86,11 @@ class Sidebar(ctk.CTkFrame):
                 pady=5
             )
 
-        self.monitor_card = ctk.CTkFrame(
+        # =====================================================
+        # Armed Mode Card
+        # =====================================================
+
+        self.armed_card = ctk.CTkFrame(
             self,
             fg_color=colors.CARD,
             border_width=1,
@@ -91,7 +98,7 @@ class Sidebar(ctk.CTkFrame):
             corner_radius=8
         )
 
-        self.monitor_card.pack(
+        self.armed_card.pack(
             side="bottom",
             fill="x",
             padx=15,
@@ -99,22 +106,79 @@ class Sidebar(ctk.CTkFrame):
         )
 
         ctk.CTkLabel(
-            self.monitor_card,
-            text="● MONITORING",
+            self.armed_card,
+            text="⚡ ARMED MODE",
             font=("Segoe UI", 11, "bold"),
-            text_color=colors.SUCCESS
-        ).pack(anchor="w", padx=14, pady=(14, 8))
-
-        ctk.CTkLabel(
-            self.monitor_card,
-            text="0 Products",
-            font=fonts.BODY,
             text_color=colors.TEXT_PRIMARY
-        ).pack(anchor="w", padx=14)
+        ).pack(
+            anchor="w",
+            padx=14,
+            pady=(14, 6)
+        )
 
-        ctk.CTkLabel(
-            self.monitor_card,
-            text="Since app start",
-            font=fonts.SMALL,
-            text_color=colors.TEXT_SECONDARY
-        ).pack(anchor="w", padx=14, pady=(2, 14))
+        self.armed_status = ctk.CTkLabel(
+            self.armed_card,
+            text="",
+            font=fonts.BODY
+        )
+
+        self.armed_status.pack(
+            anchor="w",
+            padx=14,
+            pady=(0, 10)
+        )
+        self.armed_var = ctk.BooleanVar(
+            value=self.config["armed_mode"]
+        )
+        self.armed_switch = ctk.CTkSwitch(
+            self.armed_card,
+            text="Enable Live Purchases",
+            variable=self.armed_var,
+            command=self.toggle_armed_mode
+        )
+
+        self.armed_switch.pack(
+            anchor="w",
+            padx=14,
+            pady=(0, 14)
+        )
+        
+        if self.config["armed_mode"]:
+
+            self.armed_status.configure(
+                text="🔴 LIVE PURCHASE",
+                text_color=colors.DANGER
+            )
+
+        else:
+
+            self.armed_status.configure(
+                text="🟢 SAFE MODE",
+                text_color=colors.SUCCESS
+            )
+
+    def toggle_armed_mode(self):
+
+        self.config["armed_mode"] = self.armed_var.get()
+
+        self.config_service.save(
+            self.config
+        )
+
+        if self.config["armed_mode"]:
+
+            self.armed_status.configure(
+                text="🔴 LIVE PURCHASE",
+                text_color=colors.DANGER
+            )
+
+            print("[Sidebar] Armed Mode ENABLED")
+
+        else:
+
+            self.armed_status.configure(
+                text="🟢 SAFE MODE",
+                text_color=colors.SUCCESS
+            )
+
+            print("[Sidebar] Armed Mode DISABLED")

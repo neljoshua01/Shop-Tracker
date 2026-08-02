@@ -31,6 +31,26 @@ class SettingsService:
                 "purchased": product.purchased
             })
 
+        if self.settings_file.exists():
+
+            with open(
+                self.settings_file,
+                "r",
+                encoding="utf-8"
+            ) as file:
+
+                content = json.load(file)
+
+            # Old format
+            if isinstance(content, list):
+                content = {}
+
+        else:
+
+            content = {}
+
+        content["products"] = data
+
         with open(
             self.settings_file,
             "w",
@@ -38,7 +58,7 @@ class SettingsService:
         ) as file:
 
             json.dump(
-                data,
+                content,
                 file,
                 indent=4
             )
@@ -58,7 +78,15 @@ class SettingsService:
             encoding="utf-8"
         ) as file:
 
-            data = json.load(file)
+            content = json.load(file)
+
+        # Old format (list)
+        if isinstance(content, list):
+            data = content
+
+        # New format (dict)
+        else:
+            data = content.get("products", [])
 
         products = []
 
