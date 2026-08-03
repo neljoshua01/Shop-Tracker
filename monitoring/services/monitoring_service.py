@@ -1,6 +1,6 @@
 import threading
 
-from services.monitor_worker import MonitorWorker
+from monitoring.services.monitor_worker import MonitorWorker
 
 
 class MonitoringService:

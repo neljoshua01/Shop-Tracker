@@ -1,5 +1,5 @@
-from services.async_runtime import AsyncRuntime
-from services.browser_engine import BrowserEngine
+from core.runtime.async_runtime import AsyncRuntime
+from execution.browser.browser_engine import BrowserEngine
 
 
 runtime = AsyncRuntime.instance()

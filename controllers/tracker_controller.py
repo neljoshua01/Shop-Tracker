@@ -1,5 +1,5 @@
-from services.monitoring_service import MonitoringService
-from services.settings_service import SettingsService
+from monitoring.services.monitoring_service import MonitoringService
+from core.config.settings_service import SettingsService
 
 
 class TrackerController:

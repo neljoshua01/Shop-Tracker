@@ -1,4 +1,4 @@
-from services.browser_connector import BrowserConnector
+from execution.browser.browser_connector import BrowserConnector
 
 
 class DeveloperInspector:

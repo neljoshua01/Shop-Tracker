@@ -1,7 +1,7 @@
 import asyncio
 
-from services.comparator import ProductComparator
-from services.checkout_engine import CheckoutEngine
+from monitoring.decision.comparator import ProductComparator
+from execution.checkout.execution_engine import CheckoutEngine
 
 
 class ProductMonitor:

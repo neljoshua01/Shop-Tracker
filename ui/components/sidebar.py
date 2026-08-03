@@ -1,7 +1,7 @@
 import customtkinter as ctk
 
 from ui import colors, fonts
-from services.config_service import ConfigService
+from core.config.config_service import ConfigService
 
 
 class Sidebar(ctk.CTkFrame):

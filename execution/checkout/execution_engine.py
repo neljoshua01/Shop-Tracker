@@ -1,6 +1,6 @@
 from services.variation_selector import VariationSelector
-from services.checkout_verifier import CheckoutVerifier
-from services.config_service import ConfigService
+from execution.checkout.checkout_verifier import CheckoutVerifier
+from core.config.config_service import ConfigService
 from notifier.discord import DiscordNotifier
 
 class CheckoutEngine:

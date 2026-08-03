@@ -1,4 +1,4 @@
-from models.event import Event
+from monitoring.models.event import Event
 
 
 class ProductComparator:

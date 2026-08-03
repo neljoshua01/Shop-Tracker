@@ -31,3 +31,17 @@ ms-playwright/
 # Build
 build/
 dist/
+
+# Runtime
+runtime/logs/
+runtime/cache/
+runtime/browser/
+runtime/downloads/
+runtime/temp/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]

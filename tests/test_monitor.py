@@ -1,6 +1,6 @@
-from services.browser_connector import BrowserConnector
+from execution.browser.browser_connector import BrowserConnector
 from services.page_parser import PageParser
-from services.monitor import ProductMonitor
+from monitoring.services.product_monitor import ProductMonitor
 
 browser = BrowserConnector()
 

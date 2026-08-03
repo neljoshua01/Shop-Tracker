@@ -1,7 +1,7 @@
-from services.browser_connector import BrowserConnector
+from execution.browser.browser_connector import BrowserConnector
 from services.page_parser import PageParser
-from services.monitor import ProductMonitor
-from services.async_runtime import AsyncRuntime
+from monitoring.services.product_monitor import ProductMonitor
+from core.runtime.async_runtime import AsyncRuntime
 
 
 class MonitorWorker:

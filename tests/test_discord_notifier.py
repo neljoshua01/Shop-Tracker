@@ -1,6 +1,6 @@
 import asyncio
 
-from services.config_service import ConfigService
+from core.config.config_service import ConfigService
 from notifier.discord import DiscordNotifier
 
 

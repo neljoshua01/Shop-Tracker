@@ -1,4 +1,4 @@
-from services.shopee_adapter import ShopeeAdapter
+from monitoring.api.shopee_adapter import ShopeeAdapter
 
 adapter = ShopeeAdapter()
 
