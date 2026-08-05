@@ -36,7 +36,10 @@ class MonitorWorker:
 
         print("[MonitorWorker] Browser connected.")
 
-        self.page = self.browser.open_tab(self.url)
+        self.page = self.browser.open_page(
+            self,
+            self.url,
+        )
 
         print("[MonitorWorker] Monitoring tab ready.")
 
@@ -64,7 +67,7 @@ class MonitorWorker:
         finally:
 
             if not self.checkout_handoff:
-                self.browser.close(self.page)
+                self.browser.close(self)
 
     def set_target(
         self,

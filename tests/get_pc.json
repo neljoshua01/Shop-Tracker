@@ -1,0 +1,2621 @@
+{
+  "bff_meta": null,
+  "error": null,
+  "error_msg": null,
+  "data": {
+    "item": {
+      "item_id": 42720981321,
+      "shop_id": 448087759,
+      "item_status": "normal",
+      "status": 1,
+      "item_type": 0,
+      "reference_item_id": "",
+      "title": "Apple Watch SE 3 GPS Aluminium Case Sport Band",
+      "image": "ph-11134207-81zte-mf7vyfgtjtaid8",
+      "label_ids": [
+        298708311,
+        1002657,
+        1718157937,
+        844931064601283,
+        1563576,
+        298628334,
+        844931086908638,
+        2243669,
+        299073340,
+        1048598,
+        1048599,
+        822059952759830,
+        298928384,
+        298928392,
+        831765669597722,
+        840784281818640,
+        814381247182854,
+        298643427,
+        13,
+        839709523705368,
+        700960110,
+        700995173,
+        299108372,
+        700810080,
+        1948020500924934,
+        298933337,
+        2298866,
+        998301290,
+        1048595,
+        1048596,
+        1003286,
+        1400835276,
+        298643493
+      ],
+      "is_adult": false,
+      "is_preview": false,
+      "flag": 268632064,
+      "is_service_by_shopee": true,
+      "condition": 1,
+      "cat_id": 100013,
+      "has_low_fulfillment_rate": false,
+      "is_live_streaming_price": null,
+      "currency": "PHP",
+      "brand": "Apple",
+      "brand_id": 1189223,
+      "show_discount": 9,
+      "ctime": 1758709158,
+      "item_rating": {
+        "rating_star": 4.984802431610942
+      },
+      "cb_option": 0,
+      "has_model_with_available_shopee_stock": true,
+      "shop_location": "Calamba City, Laguna",
+      "attributes": [
+        {
+          "name": "Warranty Type",
+          "value": "Supplier Warranty",
+          "id": 100370,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 2437,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Warranty Duration",
+          "value": "12 Months",
+          "id": 100121,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 822,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Supported Operating System",
+          "value": "iOS",
+          "id": 100507,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 2849,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Watch Features",
+          "value": "GPS, Notifications, Water Resistance",
+          "id": 100537,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 2875,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Watch Connectivity",
+          "value": "GPS",
+          "id": 100512,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 2860,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Condition",
+          "value": "New",
+          "id": 100413,
+          "is_timestamp": false,
+          "brand_option": null,
+          "val_id": 2497,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": null,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        }
+      ],
+      "rich_text_description": {
+        "paragraph_list": [
+          {
+            "type": 0,
+            "text": "MODEL NUMBER: A3324 / A3325",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 10001,
+            "text": null,
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": 1
+          },
+          {
+            "type": 0,
+            "text": "Apple Watch SE 3 is packed with essentials like sleep score, Always-On display, Activity rings, and more. All for a great value.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 10001,
+            "text": null,
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": 1
+          },
+          {
+            "type": 0,
+            "text": "HEALTH ESSENTIALS — Temperature sensing⁴ enables richer insights in the Vitals app¹ and retrospective ovulation estimates. You’ll also get a daily sleep score and be alerted if you have a high or low heart rate or an irregular rhythm. ⁵",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "GREAT BATTERY LIFE — Enjoy all-day, 18-hour battery life. ³Then charge up to twice as fast as SE 26 and get up to 8 hours of battery in just 15 minutes. ³",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "ALWAYS-ON DISPLAY — Now you can read the time and see the watch face without raising your wrist to wake the display.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "A GREAT FITNESS PARTNER — SE 3 gives you a healthy number of ways to track your workouts. With real-time metrics, you’ll hit your goals like never before.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "STAY CONNECTED — Send a text, take a call, listen to music and podcasts, and get notifications. SE 3 (GPS) works with your iPhone or Wi-Fi to keep you connected. ⁷",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "SAFETY FEATURES — SE 3 can detect a hard fall or severe car crash, automatically help connect you with emergency services, and notify your emergency contacts. ⁸Check In can automatically notify a loved one when you’ve arrived at your destination.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "YOUR WATCH, YOUR WAY — Express yourself with dozens of easily customizable faces and a wide range of bands in different colors, styles, and materials.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 10001,
+            "text": null,
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": 1
+          },
+          {
+            "type": 0,
+            "text": "Apple Watch SE 3 requires iPhone 11 or later with iOS 26 or later.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "¹The Vitals app is for wellness purposes only and not for medical use.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "²Fast charging is compatible with Apple Watch Series 7 and later, any Apple Watch Ultra model, and Apple Watch SE 3.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "³Battery life varies by use and configuration. See apple.com/watch/battery for more information.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "⁴the temperature sensing feature is not intended for medical use. Temperature sensing is available only on Apple Watch Series 8 and later, Apple Watch SE 3, and all Apple Watch Ultra models.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "⁵Irregular rhythm notification requires the latest versions of watchOS and iOS. It is not intended for use by people under 22 years old or those who have been previously diagnosed with atrial fibrillation (AFib).",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "⁶Testing conducted by Apple in July and August 2025 using preproduction Apple Watch SE 3 (GPS + Cellular) and Apple Watch SE 2 (GPS + Cellular), each paired with an iPhone; all devices tested with prerelease software, Apple Watch Magnetic Fast Charger to USB-C Cable (Model A2515), and Apple 20W USB-C Power Adapter (Model A2305). Charge time varies with adapter, region, settings, initial battery levels, usage, and environmental factors; actual results will vary.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "⁷Wireless service plan required for cellular service. Contact your service provider for more details. Connection may vary based on network availability. Check apple.com/watch/cellular for participating wireless carriers and eligibility. See support.apple.com/HT207578 for additional setup instructions.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "⁸Emergency SOS requires a cellular connection or Wi-Fi calling with an internet connection from your Apple Watch or nearby iPhone. You can use cellular models of Apple Watch to make an emergency call in many locations, provided that cellular service is available. Some cellular networks may not accept an emergency call from your Apple Watch if your Apple Watch isn’t activated, if it isn’t compatible with or configured to operate on a particular cellular network, if it isn’t set up for cellular service, or if the cellular network does not support emergency calling over IMS. See support.apple.com/108374 and apple.com/watch/cellular for more information.",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 10001,
+            "text": null,
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": 2
+          },
+          {
+            "type": 0,
+            "text": "WHAT'S IN THE BOX",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "1x Apple Watch SE 3 GPS Aluminium Case Sport Band",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 0,
+            "text": "1x USB-C Magnetic Fast Charging Cable",
+            "img_id": null,
+            "ratio": null,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 1,
+            "text": null,
+            "img_id": "ph-11134208-81ztp-mf7vw92549vx40",
+            "ratio": 1,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 1,
+            "text": null,
+            "img_id": "ph-11134208-81ztf-mf7vw924eznv13",
+            "ratio": 1,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          },
+          {
+            "type": 1,
+            "text": null,
+            "img_id": "ph-11134208-81ztq-mf7vw924ge8b25",
+            "ratio": 1,
+            "description_type": 1,
+            "empty_paragraph_count": null
+          }
+        ],
+        "source_language": null
+      },
+      "invoice_option": null,
+      "is_category_failed": null,
+      "is_prescription_item": false,
+      "preview_info": null,
+      "show_prescription_feed": false,
+      "is_alcohol_product": false,
+      "is_infant_milk_formula_product": false,
+      "is_unavailable": false,
+      "is_partial_fulfilled": true,
+      "is_presale": false,
+      "is_presale_deposit_item": null,
+      "is_presale_deposit_made": null,
+      "description": "MODEL NUMBER: A3324 / A3325\n\nApple Watch SE 3 is packed with essentials like sleep score, Always-On display, Activity rings, and more. All for a great value.\n\nHEALTH ESSENTIALS — Temperature sensing⁴ enables richer insights in the Vitals app¹ and retrospective ovulation estimates. You’ll also get a daily sleep score and be alerted if you have a high or low heart rate or an irregular rhythm. ⁵\nGREAT BATTERY LIFE — Enjoy all-day, 18-hour battery life. ³Then charge up to twice as fast as SE 26 and get up to 8 hours of battery in just 15 minutes. ³\nALWAYS-ON DISPLAY — Now you can read the time and see the watch face without raising your wrist to wake the display.\nA GREAT FITNESS PARTNER — SE 3 gives you a healthy number of ways to track your workouts. With real-time metrics, you’ll hit your goals like never before.\nSTAY CONNECTED — Send a text, take a call, listen to music and podcasts, and get notifications. SE 3 (GPS) works with your iPhone or Wi-Fi to keep you connected. ⁷\nSAFETY FEATURES — SE 3 can detect a hard fall or severe car crash, automatically help connect you with emergency services, and notify your emergency contacts. ⁸Check In can automatically notify a loved one when you’ve arrived at your destination.\nYOUR WATCH, YOUR WAY — Express yourself with dozens of easily customizable faces and a wide range of bands in different colors, styles, and materials.\n\nApple Watch SE 3 requires iPhone 11 or later with iOS 26 or later.\n¹The Vitals app is for wellness purposes only and not for medical use.\n²Fast charging is compatible with Apple Watch Series 7 and later, any Apple Watch Ultra model, and Apple Watch SE 3.\n³Battery life varies by use and configuration. See apple.com/watch/battery for more information.\n⁴the temperature sensing feature is not intended for medical use. Temperature sensing is available only on Apple Watch Series 8 and later, Apple Watch SE 3, and all Apple Watch Ultra models.\n⁵Irregular rhythm notification requires the latest versions of watchOS and iOS. It is not intended for use by people under 22 years old or those who have been previously diagnosed with atrial fibrillation (AFib).\n⁶Testing conducted by Apple in July and August 2025 using preproduction Apple Watch SE 3 (GPS + Cellular) and Apple Watch SE 2 (GPS + Cellular), each paired with an iPhone; all devices tested with prerelease software, Apple Watch Magnetic Fast Charger to USB-C Cable (Model A2515), and Apple 20W USB-C Power Adapter (Model A2305). Charge time varies with adapter, region, settings, initial battery levels, usage, and environmental factors; actual results will vary.\n⁷Wireless service plan required for cellular service. Contact your service provider for more details. Connection may vary based on network availability. Check apple.com/watch/cellular for participating wireless carriers and eligibility. See support.apple.com/HT207578 for additional setup instructions.\n⁸Emergency SOS requires a cellular connection or Wi-Fi calling with an internet connection from your Apple Watch or nearby iPhone. You can use cellular models of Apple Watch to make an emergency call in many locations, provided that cellular service is available. Some cellular networks may not accept an emergency call from your Apple Watch if your Apple Watch isn’t activated, if it isn’t compatible with or configured to operate on a particular cellular network, if it isn’t set up for cellular service, or if the cellular network does not support emergency calling over IMS. See support.apple.com/108374 and apple.com/watch/cellular for more information.\n\n\nWHAT'S IN THE BOX\n1x Apple Watch SE 3 GPS Aluminium Case Sport Band\n1x USB-C Magnetic Fast Charging Cable\n\n\n\n\n",
+      "categories": [
+        {
+          "catid": 100013,
+          "display_name": "Mobile & Gadgets",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 100074,
+          "display_name": "Wearable Devices",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 100270,
+          "display_name": "Smartwatches & Fitness Trackers",
+          "no_sub": true,
+          "is_default_subcat": false
+        }
+      ],
+      "fe_categories": [
+        {
+          "catid": 11021712,
+          "display_name": "Mobiles & Gadgets",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 11021733,
+          "display_name": "Wearables",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 11021734,
+          "display_name": "Smart Watches",
+          "no_sub": true,
+          "is_default_subcat": false
+        }
+      ],
+      "item_has_video": false,
+      "presale_dday_start_time": null,
+      "is_lowest_price_at_shopee": null,
+      "display_description_disclosure_rsku_redirection": null,
+      "display_similar_sold": null,
+      "title_type": 1,
+      "authorized_brand_name": null,
+      "is_sexual": false,
+      "models": [
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Starlight,40MM M L",
+          "promotion_id": 487296390803644,
+          "price": 1599000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              1,
+              1
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1749000000,
+          "model_id": 198721540358,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": false,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Starlight,44MM S M",
+          "promotion_id": 487296390803644,
+          "price": 1799000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              1,
+              2
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1949000000,
+          "model_id": 198721540359,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": false,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Starlight,44MM M L",
+          "promotion_id": 487296390803644,
+          "price": 1799000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              1,
+              3
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1949000000,
+          "model_id": 198721540360,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": false,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Midnight,40MM S M",
+          "promotion_id": 487296390803644,
+          "price": 1599000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              0,
+              0
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1749000000,
+          "model_id": 208721552326,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": true,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Midnight,40MM M L",
+          "promotion_id": 0,
+          "price": 1749000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              0,
+              1
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 0,
+          "model_id": 208721552327,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": false,
+          "name_tr": null,
+          "is_clickable": false,
+          "is_grayout": true,
+          "has_stock": false
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Midnight,44MM S M",
+          "promotion_id": 487296390803644,
+          "price": 1799000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              0,
+              2
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1949000000,
+          "model_id": 208721552328,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": false,
+          "name_tr": null,
+          "is_clickable": false,
+          "is_grayout": true,
+          "has_stock": false
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Midnight,44MM M L",
+          "promotion_id": 487296390803644,
+          "price": 1799000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              0,
+              3
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1949000000,
+          "model_id": 198721540356,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": true,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        },
+        {
+          "item_id": 42720981321,
+          "status": 1,
+          "current_promotion_reserved_stock": null,
+          "name": "Starlight,40MM S M",
+          "promotion_id": 487296390803644,
+          "price": 1599000000,
+          "price_stocks": [
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 301
+            },
+            {
+              "allocated_stock": null,
+              "stock_breakdown_by_location": null,
+              "promotion_type": 0
+            }
+          ],
+          "current_promotion_has_reserve_stock": false,
+          "normal_stock": null,
+          "extinfo": {
+            "tier_index": [
+              1,
+              0
+            ],
+            "is_pre_order": false,
+            "estimated_days": 1,
+            "sku_image": ""
+          },
+          "price_before_discount": 1749000000,
+          "model_id": 198721540357,
+          "stock": null,
+          "has_gimmick_tag": false,
+          "key_measurement": null,
+          "sold": null,
+          "is_lowest_price_at_shopee": true,
+          "name_tr": null,
+          "is_clickable": true,
+          "is_grayout": false,
+          "has_stock": true
+        }
+      ],
+      "tier_variations": [
+        {
+          "name": "Color",
+          "options": [
+            "Midnight",
+            "Starlight"
+          ],
+          "images": [
+            "ph-11134207-81zte-mf7vyfgtjtaid8",
+            "ph-11134207-81ztj-mf7w1kj0oc97ca"
+          ],
+          "properties": null,
+          "type": 0,
+          "summed_stocks": null,
+          "display_indicators": [
+            0,
+            0
+          ],
+          "name_tr": null,
+          "options_tr": null,
+          "selling_points": [
+            "",
+            ""
+          ],
+          "selling_points_tr": null
+        },
+        {
+          "name": "Watch Size",
+          "options": [
+            "40MM S M",
+            "40MM M L",
+            "44MM S M",
+            "44MM M L"
+          ],
+          "images": null,
+          "properties": null,
+          "type": 0,
+          "summed_stocks": null,
+          "display_indicators": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "name_tr": null,
+          "options_tr": null,
+          "selling_points": [
+            "",
+            "",
+            "",
+            ""
+          ],
+          "selling_points_tr": null
+        }
+      ],
+      "size_chart": null,
+      "size_chart_info": null,
+      "welcome_package_type": null,
+      "is_free_gift": false,
+      "deep_discount": null,
+      "is_low_price_eligible": null,
+      "bundle_deal_info": null,
+      "add_on_deal_info": null,
+      "shipping_icon_type": 0,
+      "badge_icon_type": 10,
+      "spl_info": null,
+      "estimated_days": 1,
+      "is_pre_order": false,
+      "is_free_shipping": false,
+      "overall_purchase_limit": null,
+      "min_purchase_limit": 0,
+      "is_hide_stock": false,
+      "stock": null,
+      "normal_stock": null,
+      "current_promotion_reserved_stock": null,
+      "can_use_wholesale": false,
+      "wholesale_tier_list": [],
+      "price": 1599000000,
+      "raw_discount": 9,
+      "hidden_price_display": null,
+      "price_min": 1599000000,
+      "price_max": 1799000000,
+      "price_before_discount": 1749000000,
+      "price_min_before_discount": 1749000000,
+      "price_max_before_discount": 1949000000,
+      "other_stock": null,
+      "discount_stock": null,
+      "current_promotion_has_reserve_stock": false,
+      "complaint_policy": null,
+      "show_recycling_info": null,
+      "should_show_amp_tag": true,
+      "all_models_has_pre_order": false,
+      "is_item_inherited": false,
+      "max_quantity": null,
+      "drug_details": null,
+      "selected_real_models": null,
+      "size_tier_variation_idx": null,
+      "is_fashion_item": false,
+      "social_proof_label": null,
+      "title_tr": null,
+      "description_tr": null,
+      "rich_text_description_tr": null,
+      "stock_display": "IN STOCK",
+      "max_quantity_display": "IN STOCK",
+      "disclaimer": null
+    },
+    "account": {
+      "user_id": 367584822,
+      "is_new_user": false,
+      "default_address": {
+        "state": "Mindanao",
+        "city": "Misamis Oriental",
+        "district": "Cagayan De Oro City",
+        "town": "Kauswagan",
+        "zip_code": "9000",
+        "address": null,
+        "region": null,
+        "longitude": 124.6320663,
+        "latitude": 8.5007023,
+        "vn_data_version": ""
+      },
+      "adult_consent": 1700631458,
+      "birth_timestamp": 958752000
+    },
+    "product_images": {
+      "video": null,
+      "images": [
+        "ph-11134207-81zte-mf7vyfgtjtaid8",
+        "ph-11134207-81ztl-mf7vyfb824nj76",
+        "ph-11134207-81ztm-mf7vyfhxp7nw71",
+        "ph-11134207-81ztp-mf7vyfkdsxzjbb",
+        "ph-11134207-81zte-mf7vyfafnj7u0d",
+        "ph-11134207-81ztc-mf7vyfe1mgwaaa",
+        "ph-11134207-81ztm-mf7vyffxmsqw93",
+        "ph-11134207-81ztk-mf7vyfaft5hp45"
+      ],
+      "first_tier_variations": [
+        {
+          "name": "Midnight",
+          "image": "ph-11134207-81zte-mf7vyfgtjtaid8",
+          "summed_stock": null,
+          "display_indicator": 0,
+          "show_find_similar": null,
+          "name_tr": null,
+          "selling_point": "",
+          "selling_point_tr": null,
+          "gallery_image": "ph-11134207-81zte-mf7vyfgtjtaid8"
+        },
+        {
+          "name": "Starlight",
+          "image": "ph-11134207-81ztj-mf7w1kj0oc97ca",
+          "summed_stock": null,
+          "display_indicator": 0,
+          "show_find_similar": null,
+          "name_tr": null,
+          "selling_point": "",
+          "selling_point_tr": null,
+          "gallery_image": "ph-11134207-81ztj-mf7w1kj0oc97ca"
+        }
+      ],
+      "sorted_variation_image_index_list": [
+        0,
+        1
+      ],
+      "overlay": {
+        "type": 0,
+        "image": "ph-11134258-820l9-mprfr0xgnzm333",
+        "preview_end_time": null,
+        "is_pre_order": null,
+        "description": ""
+      },
+      "makeup_preview": null,
+      "abnormal_status": "",
+      "promotion_images": [],
+      "long_images": null,
+      "shopee_video_info_list": [],
+      "shopee_video_rcmd_info": null,
+      "shopee_video_req_id": null,
+      "skincam": null,
+      "pdp_top_info_list": null,
+      "has_long_image": false,
+      "show_find_similar": null,
+      "try_it_on": null,
+      "show_find_similar_for_selection": false,
+      "beautycam": null,
+      "unavailable_item_recommendation": null,
+      "models": [
+        {
+          "tier_index": [
+            1,
+            1
+          ],
+          "gallery_image": "ph-11134207-81ztj-mf7w1kj0oc97ca"
+        },
+        {
+          "tier_index": [
+            1,
+            2
+          ],
+          "gallery_image": "ph-11134207-81ztj-mf7w1kj0oc97ca"
+        },
+        {
+          "tier_index": [
+            1,
+            3
+          ],
+          "gallery_image": "ph-11134207-81ztj-mf7w1kj0oc97ca"
+        },
+        {
+          "tier_index": [
+            0,
+            0
+          ],
+          "gallery_image": "ph-11134207-81zte-mf7vyfgtjtaid8"
+        },
+        {
+          "tier_index": [
+            0,
+            1
+          ],
+          "gallery_image": "ph-11134207-81zte-mf7vyfgtjtaid8"
+        },
+        {
+          "tier_index": [
+            0,
+            2
+          ],
+          "gallery_image": "ph-11134207-81zte-mf7vyfgtjtaid8"
+        },
+        {
+          "tier_index": [
+            0,
+            3
+          ],
+          "gallery_image": "ph-11134207-81zte-mf7vyfgtjtaid8"
+        },
+        {
+          "tier_index": [
+            1,
+            0
+          ],
+          "gallery_image": "ph-11134207-81ztj-mf7w1kj0oc97ca"
+        }
+      ],
+      "gallery_contents": [
+        {
+          "image": {
+            "url": "ph-11134207-81zte-mf7vyfgtjtaid8",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztl-mf7vyfb824nj76",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztm-mf7vyfhxp7nw71",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztp-mf7vyfkdsxzjbb",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81zte-mf7vyfafnj7u0d",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztc-mf7vyfe1mgwaaa",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztm-mf7vyffxmsqw93",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        },
+        {
+          "image": {
+            "url": "ph-11134207-81ztk-mf7vyfaft5hp45",
+            "promotion_image_type": null,
+            "label_content": null,
+            "cmt_id": null
+          },
+          "video": null
+        }
+      ]
+    },
+    "product_price": {
+      "discount": 9,
+      "installment_info": null,
+      "spl_installment_info": null,
+      "pack_size": "",
+      "hide_price": false,
+      "price": {
+        "single_value": 1584000000,
+        "range_min": -1,
+        "range_max": -1,
+        "price_mask": null
+      },
+      "price_before_discount": {
+        "single_value": 1749000000,
+        "range_min": -1,
+        "range_max": -1,
+        "price_mask": null
+      },
+      "presale_price": null,
+      "lowest_past_price": null,
+      "labels": null,
+      "hide_discount": true,
+      "discount_text": null,
+      "show_final_price_indicator": true,
+      "final_price_vouchers": [
+        {
+          "promotion_id": 1474237169426432,
+          "voucher_code": "BEYOAU150",
+          "is_auto_claimed_just_now": false,
+          "groups": null,
+          "voucher_type": 1
+        }
+      ],
+      "has_final_price": true,
+      "final_price_info": {
+        "model_id": 198721540357,
+        "hint_text": "After Voucher",
+        "show_final_price_indicator": true,
+        "final_price_vouchers": {
+          "platform_voucher": null,
+          "shop_voucher": {
+            "promotion_id": 1474237169426432,
+            "voucher_code": "BEYOAU150",
+            "is_auto_claimed_just_now": false,
+            "groups": null,
+            "voucher_discount_type": 0,
+            "voucher_discount": 15000000
+          },
+          "ads_voucher": null
+        },
+        "payment_channel_discount": null,
+        "final_price_icon_type": 1
+      },
+      "price_subtext": null,
+      "price_model": {
+        "price_single_model_id": 198721540357,
+        "price_min_model_id": null,
+        "price_max_model_id": null
+      },
+      "price_promotion": {
+        "price_single_promotion_id": 487296390803644,
+        "price_single_promotion_type": 301,
+        "price_min_promotion_id": null,
+        "price_min_promotion_type": null,
+        "price_max_promotion_id": null,
+        "price_max_promotion_type": null
+      },
+      "instalment_cta_action": null
+    },
+    "flash_sale": null,
+    "flash_sale_preview": null,
+    "deep_discount": null,
+    "exclusive_price": null,
+    "exclusive_price_cta": null,
+    "product_meta": {
+      "show_lowest_price_guarantee": null,
+      "show_original_guarantee": null,
+      "show_best_price_guarantee": false,
+      "show_official_shop_label_in_title": true,
+      "show_shopee_verified_label": false,
+      "show_lowest_installment_guarantee": null,
+      "hide_sharing_button": false,
+      "hide_sold_count": false,
+      "show_description_translation_button": null
+    },
+    "product_review": {
+      "rating_star": 4.984802431610942,
+      "rating_count": [
+        329,
+        0,
+        1,
+        0,
+        2,
+        326
+      ],
+      "total_rating_count": 329,
+      "historical_sold": null,
+      "global_sold": null,
+      "liked": false,
+      "liked_count": 1605,
+      "cmt_count": 329,
+      "should_move_ratings_above": null,
+      "review_rcmd_exp_group": null,
+      "display_global_sold": false,
+      "hide_rating": false,
+      "hide_buyer_gallery": false,
+      "hide_reviews": false,
+      "hide_other_product_reviews_in_shop": false,
+      "sold_count_disclosure": {
+        "type": 1
+      },
+      "historical_sold_display": "1K+",
+      "global_sold_display": "1K+",
+      "sold_count_display": "1K+"
+    },
+    "promotion_info": {
+      "spl": null,
+      "spl_lite": null,
+      "installment": null,
+      "wholesale": null,
+      "insurance": null,
+      "item_installment_eligibility": {
+        "is_cc_installment_payment_eligible": false,
+        "is_non_cc_installment_payment_eligible": false
+      }
+    },
+    "age_gate": {
+      "kyc": null,
+      "adult_consent": null
+    },
+    "shipping_meta": {
+      "show_fufilled_by_shopee": null,
+      "show_cod": null,
+      "show_mart": false,
+      "show_next_day_delivery": false
+    },
+    "product_shipping": {
+      "free_shipping": null,
+      "shipping_fee_info": {
+        "ship_from_location": "Calamba City, Laguna",
+        "price": {
+          "single_value": 4800000,
+          "range_min": -1,
+          "range_max": -1,
+          "price_mask": null
+        },
+        "shipping_icon_type": 0,
+        "warning": null
+      },
+      "show_shipping_to": true,
+      "ungrouped_channel_infos": [
+        {
+          "channel_id": 40000007,
+          "name": "FBS Fast Delivery",
+          "price": {
+            "single_value": 4800000,
+            "range_min": -1,
+            "range_max": -1,
+            "price_mask": null
+          },
+          "price_before_discount": {
+            "single_value": 8300000,
+            "range_min": -1,
+            "range_max": -1,
+            "price_mask": null
+          },
+          "channel_delivery_info": {
+            "has_edt": true,
+            "display_mode": "edt_by_date",
+            "estimated_delivery_date_from": 1786104311,
+            "estimated_delivery_date_to": 1786449911,
+            "estimated_delivery_time_min": 5,
+            "estimated_delivery_time_max": 9,
+            "delay_message": null,
+            "is_fastest_edt_channel": false,
+            "sla_message": "",
+            "show_edt": true,
+            "edt_text": "Get by 7 to 11 Aug",
+            "formatted_edt_text": [
+              {
+                "template": "{label_get_by++label_date_range_placeholder_underscore}",
+                "format": null,
+                "attributes": [
+                  {
+                    "type": 1,
+                    "key": "label_get_by++label_date_range_placeholder_underscore",
+                    "value": {
+                      "value_str": "7 - 11 Aug",
+                      "value_int": null
+                    },
+                    "format": [
+                      1
+                    ],
+                    "text_color": null,
+                    "text_hex_color": "#000000de",
+                    "url": null
+                  }
+                ],
+                "text_color": null,
+                "text_hex_color": null
+              }
+            ],
+            "formatted_pre_order_text": null,
+            "formatted_fbs_description_text": null,
+            "show_edt_as_header": true
+          },
+          "channel_promotion_infos": [
+            {
+              "rule_id": 379596134821889,
+              "type": 0,
+              "display_mode": 1,
+              "discount_off": 3500000,
+              "min_spend": {
+                "single_value": 0,
+                "range_min": -1,
+                "range_max": -1,
+                "price_mask": null
+              },
+              "cap": 3500000
+            }
+          ],
+          "warning": null,
+          "shipping_icon_type": null,
+          "lowest_bpsf_promotion_rule": null,
+          "service_type_info": "standard_local",
+          "is_integrated_channel": true,
+          "late_delivery_compensation": {
+            "type": 1,
+            "amount": 4000000,
+            "is_guaranteed_edt": true,
+            "compensation_amount": null,
+            "text": null,
+            "max_coins_cap": null,
+            "coin_cap": 0
+          },
+          "is_sst_included": false,
+          "display_text": {
+            "late_delivery_compensation": null,
+            "direct_delivery": null,
+            "fulfilled_by_shopee": null,
+            "spx_instant_delivery": null
+          },
+          "rule_type": 0,
+          "is_xdd_channel": false,
+          "show_shopee_plus_icon": false,
+          "xdd_value": null,
+          "hide_shipping_fee": null,
+          "edt_tracking_info": "{\"edt_min\":5,\"edt_max\":9,\"edt_min_hours\":120,\"edt_max_hours\":216,\"edt_min_minutes\":7200,\"edt_max_minutes\":12960,\"edt_display_identifier\":65545,\"buyer_address_hash\":\"X4hG79f\",\"is_cache_edt\":false}",
+          "subscription_icon": 0
+        }
+      ],
+      "grouped_channel_infos_by_service_type": [],
+      "also_available_channel_name": null,
+      "pre_selected_shipping_channel": {
+        "channel_id": 40000007,
+        "name": "FBS Fast Delivery",
+        "price": {
+          "single_value": 4800000,
+          "range_min": -1,
+          "range_max": -1,
+          "price_mask": ""
+        },
+        "price_before_discount": {
+          "single_value": 8300000,
+          "range_min": -1,
+          "range_max": -1,
+          "price_mask": null
+        },
+        "channel_delivery_info": {
+          "has_edt": true,
+          "display_mode": "edt_by_date",
+          "estimated_delivery_date_from": 1786104311,
+          "estimated_delivery_date_to": 1786449911,
+          "estimated_delivery_time_min": 5,
+          "estimated_delivery_time_max": 9,
+          "delay_message": "",
+          "is_fastest_edt_channel": false,
+          "sla_message": "",
+          "show_edt": true,
+          "edt_text": "Get by 7 to 11 Aug",
+          "formatted_edt_text": [
+            {
+              "template": "{label_get_by++label_date_range_placeholder_underscore}",
+              "format": [],
+              "attributes": [
+                {
+                  "type": 1,
+                  "key": "label_get_by++label_date_range_placeholder_underscore",
+                  "value": {
+                    "value_str": "7 - 11 Aug",
+                    "value_int": null
+                  },
+                  "format": [
+                    1
+                  ],
+                  "text_color": null,
+                  "text_hex_color": "#000000de",
+                  "url": null
+                }
+              ],
+              "text_color": null,
+              "text_hex_color": null
+            }
+          ],
+          "formatted_pre_order_text": null,
+          "formatted_fbs_description_text": null,
+          "show_edt_as_header": true
+        },
+        "channel_promotion_infos": [
+          {
+            "rule_id": 379596134821889,
+            "type": 0,
+            "display_mode": 1,
+            "discount_off": 3500000,
+            "min_spend": {
+              "single_value": 0,
+              "range_min": -1,
+              "range_max": -1,
+              "price_mask": ""
+            },
+            "cap": 3500000
+          }
+        ],
+        "warning": {
+          "type": "",
+          "warning_msg": ""
+        },
+        "shipping_icon_type": null,
+        "lowest_bpsf_promotion_rule": null,
+        "service_type_info": "standard_local",
+        "is_integrated_channel": true,
+        "late_delivery_compensation": {
+          "type": 1,
+          "amount": 4000000,
+          "is_guaranteed_edt": true,
+          "compensation_amount": {
+            "value": 4000000
+          },
+          "text": "",
+          "max_coins_cap": null,
+          "coin_cap": 0
+        },
+        "is_sst_included": false,
+        "display_text": {
+          "late_delivery_compensation": {
+            "text": "Get up to {compensation_amount} if order arrives late",
+            "gdt_max": null,
+            "compensation_amount": {
+              "value": 4000000
+            },
+            "max_coins_cap": null,
+            "coins_amount": null,
+            "coin_interval_in_minutes": null
+          },
+          "direct_delivery": null,
+          "fulfilled_by_shopee": null,
+          "spx_instant_delivery": null
+        },
+        "rule_type": 0,
+        "is_xdd_channel": false,
+        "show_shopee_plus_icon": false,
+        "xdd_value": 0,
+        "hide_shipping_fee": null,
+        "edt_tracking_info": "{\"edt_min\":5,\"edt_max\":9,\"edt_min_hours\":120,\"edt_max_hours\":216,\"edt_min_minutes\":7200,\"edt_max_minutes\":12960,\"edt_display_identifier\":65541,\"buyer_address_hash\":\"X4hG79f\",\"is_cache_edt\":false}",
+        "subscription_icon": 0
+      },
+      "show_grouped_channel_first": false,
+      "is_item_with_price_range": true,
+      "also_available_channel_icon_type": null,
+      "pre_order_text": "",
+      "selected_late_delivery_compensation_for_drawer": {
+        "type": null,
+        "amount": null,
+        "is_guaranteed_edt": null,
+        "compensation_amount": {
+          "value": 4000000
+        },
+        "text": "Get up to {compensation_amount} discount voucher if your order arrives late.",
+        "max_coins_cap": null,
+        "coin_cap": null
+      },
+      "shipping_info_text": {
+        "text_template": null,
+        "shipping_fee": null,
+        "edt_from": null,
+        "edt_to": null,
+        "show_shipping_fee_suffix": false,
+        "formatted_text": {
+          "edt": {
+            "template": "{label_get_by++label_date_range_placeholder_underscore}",
+            "format": null,
+            "attributes": [
+              {
+                "type": 1,
+                "key": "label_get_by++label_date_range_placeholder_underscore",
+                "value": {
+                  "value_str": "7 - 11 Aug",
+                  "value_int": null
+                },
+                "format": [
+                  6
+                ],
+                "text_color": null,
+                "text_hex_color": "#000000de",
+                "url": null
+              }
+            ],
+            "text_color": null,
+            "text_hex_color": null
+          },
+          "shipping_fee": null,
+          "late_delivery_compensation": {
+            "template": "Get up to {compensation_amount} if order arrives late",
+            "format": null,
+            "attributes": [
+              {
+                "type": 2,
+                "key": "compensation_amount",
+                "value": {
+                  "value_str": null,
+                  "value_int": 4000000
+                },
+                "format": null,
+                "text_color": null,
+                "text_hex_color": null,
+                "url": null
+              }
+            ],
+            "text_color": null,
+            "text_hex_color": null
+          },
+          "fbs_description": null,
+          "display_edt_text_first_line": true,
+          "should_wrap_edt_text_by_attribute": true
+        },
+        "highlight_free_shipping": false
+      },
+      "formatted_pre_order_text": null,
+      "has_free_return": null,
+      "model_id": 198721540357,
+      "delivery_address": {
+        "state": "Mindanao",
+        "city": "Misamis Oriental",
+        "district": "Cagayan De Oro City",
+        "town": "Kauswagan",
+        "zip_code": "9000",
+        "address": null,
+        "region": null,
+        "longitude": 124.6320663,
+        "latitude": 8.5007023,
+        "vn_data_version": null
+      }
+    },
+    "shop_vouchers": [
+      {
+        "promotionid": 1474237169426432,
+        "voucher_code": "BEYOAU150",
+        "signature": "2167343bd4dd5a4f27c4a75b58a0ab9a5fcd6de7b9828c56138c4d56e555a475",
+        "use_type": 0,
+        "platform_type": null,
+        "voucher_market_type": 1,
+        "min_spend": 1500000000,
+        "used_price": 15000000,
+        "current_spend": null,
+        "product_limit": true,
+        "quota_type": 1,
+        "percentage_claimed": 0,
+        "percentage_used": 10,
+        "start_time": 1785513600,
+        "end_time": 1788191940,
+        "collect_time": 1785659349,
+        "claim_start_time": 0,
+        "valid_days": 0,
+        "reward_type": 0,
+        "reward_percentage": 0,
+        "reward_value": 15000000,
+        "reward_cap": 0,
+        "coin_earned": null,
+        "title": null,
+        "use_link": null,
+        "icon_hash": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "icon_text": "Beyond the Box",
+        "icon_url": null,
+        "customised_labels": [],
+        "customised_product_scope_tags": null,
+        "shop_id": 448087759,
+        "shop_name": "Beyond the Box",
+        "is_shop_preferred": false,
+        "is_shop_official": true,
+        "shop_count": null,
+        "ui_display_type": null,
+        "customised_mall_name": null,
+        "small_icon_list": null,
+        "dp_category_name": null,
+        "invalid_message_code": null,
+        "invalid_message": null,
+        "display_labels": null,
+        "wallet_redeemable": false,
+        "customer_reference_id": "SHOP-6B34D850162822280000001105505055",
+        "fully_redeemed": null,
+        "has_expired": null,
+        "disabled": null,
+        "voucher_external_market_type": null,
+        "now_food_extra_info": null,
+        "airpay_opv_extra_info": null,
+        "partner_extra_info": null,
+        "discount_value": 15000000,
+        "discount_percentage": 0,
+        "discount_cap": 0,
+        "coin_percentage": null,
+        "coin_cap": null,
+        "usage_limit": null,
+        "used_count": null,
+        "left_count": null,
+        "shopee_wallet_only": false,
+        "new_user_only": null,
+        "description": "This page is not supported on your version of Shopee app. Please update your app to view.",
+        "shop_logo": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "error_code": 0,
+        "is_claimed_before": true,
+        "customised_product_scope_tag_image_hash": null,
+        "usage_limit_per_user": 1,
+        "remaining_usage_limit": 1,
+        "action": null,
+        "sub_icon_text": null,
+        "is_customised_icon": null,
+        "fixed_flag": null,
+        "customised_flag": null,
+        "fsv_voucher_card_ui_info": null,
+        "min_item_quantity": null
+      },
+      {
+        "promotionid": 1474236774375424,
+        "voucher_code": "BEYOAU205",
+        "signature": "4487f503e7b98a9720c09716ff728f997e9b86f4ca9059fc5ad460e7e50ab781",
+        "use_type": 0,
+        "platform_type": null,
+        "voucher_market_type": 1,
+        "min_spend": 2000000000,
+        "used_price": 20500000,
+        "current_spend": null,
+        "product_limit": true,
+        "quota_type": 1,
+        "percentage_claimed": 0,
+        "percentage_used": 10,
+        "start_time": 1785513600,
+        "end_time": 1788191940,
+        "collect_time": 0,
+        "claim_start_time": 0,
+        "valid_days": 0,
+        "reward_type": 0,
+        "reward_percentage": 0,
+        "reward_value": 20500000,
+        "reward_cap": 0,
+        "coin_earned": null,
+        "title": null,
+        "use_link": null,
+        "icon_hash": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "icon_text": "Beyond the Box",
+        "icon_url": null,
+        "customised_labels": [],
+        "customised_product_scope_tags": null,
+        "shop_id": 448087759,
+        "shop_name": "Beyond the Box",
+        "is_shop_preferred": false,
+        "is_shop_official": true,
+        "shop_count": null,
+        "ui_display_type": null,
+        "customised_mall_name": null,
+        "small_icon_list": null,
+        "dp_category_name": null,
+        "invalid_message_code": null,
+        "invalid_message": null,
+        "display_labels": null,
+        "wallet_redeemable": false,
+        "customer_reference_id": "SHOP-3FFF1800162822280000001105505055",
+        "fully_redeemed": null,
+        "has_expired": null,
+        "disabled": null,
+        "voucher_external_market_type": null,
+        "now_food_extra_info": null,
+        "airpay_opv_extra_info": null,
+        "partner_extra_info": null,
+        "discount_value": 20500000,
+        "discount_percentage": 0,
+        "discount_cap": 0,
+        "coin_percentage": null,
+        "coin_cap": null,
+        "usage_limit": null,
+        "used_count": null,
+        "left_count": null,
+        "shopee_wallet_only": false,
+        "new_user_only": null,
+        "description": "This page is not supported on your version of Shopee app. Please update your app to view.",
+        "shop_logo": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "error_code": 9,
+        "is_claimed_before": false,
+        "customised_product_scope_tag_image_hash": null,
+        "usage_limit_per_user": 1,
+        "remaining_usage_limit": 1,
+        "action": null,
+        "sub_icon_text": null,
+        "is_customised_icon": null,
+        "fixed_flag": null,
+        "customised_flag": null,
+        "fsv_voucher_card_ui_info": null,
+        "min_item_quantity": null
+      },
+      {
+        "promotionid": 1474236280102920,
+        "voucher_code": "BEYOAU250",
+        "signature": "efa418448bdb67dbeae25bcfae03782399415302237868a517ce6ac91bb7a8fb",
+        "use_type": 0,
+        "platform_type": null,
+        "voucher_market_type": 1,
+        "min_spend": 2500000000,
+        "used_price": 26000000,
+        "current_spend": null,
+        "product_limit": true,
+        "quota_type": 1,
+        "percentage_claimed": 0,
+        "percentage_used": 10,
+        "start_time": 1785513600,
+        "end_time": 1788191940,
+        "collect_time": 0,
+        "claim_start_time": 0,
+        "valid_days": 0,
+        "reward_type": 0,
+        "reward_percentage": 0,
+        "reward_value": 26000000,
+        "reward_cap": 0,
+        "coin_earned": null,
+        "title": null,
+        "use_link": null,
+        "icon_hash": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "icon_text": "Beyond the Box",
+        "icon_url": null,
+        "customised_labels": [],
+        "customised_product_scope_tags": null,
+        "shop_id": 448087759,
+        "shop_name": "Beyond the Box",
+        "is_shop_preferred": false,
+        "is_shop_official": true,
+        "shop_count": null,
+        "ui_display_type": null,
+        "customised_mall_name": null,
+        "small_icon_list": null,
+        "dp_category_name": null,
+        "invalid_message_code": null,
+        "invalid_message": null,
+        "display_labels": null,
+        "wallet_redeemable": false,
+        "customer_reference_id": "SHOP-B40B5844162822680000001105505055",
+        "fully_redeemed": null,
+        "has_expired": null,
+        "disabled": null,
+        "voucher_external_market_type": null,
+        "now_food_extra_info": null,
+        "airpay_opv_extra_info": null,
+        "partner_extra_info": null,
+        "discount_value": 26000000,
+        "discount_percentage": 0,
+        "discount_cap": 0,
+        "coin_percentage": null,
+        "coin_cap": null,
+        "usage_limit": null,
+        "used_count": null,
+        "left_count": null,
+        "shopee_wallet_only": false,
+        "new_user_only": null,
+        "description": "This page is not supported on your version of Shopee app. Please update your app to view.",
+        "shop_logo": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "error_code": 9,
+        "is_claimed_before": false,
+        "customised_product_scope_tag_image_hash": null,
+        "usage_limit_per_user": 1,
+        "remaining_usage_limit": 1,
+        "action": null,
+        "sub_icon_text": null,
+        "is_customised_icon": null,
+        "fixed_flag": null,
+        "customised_flag": null,
+        "fsv_voucher_card_ui_info": null,
+        "min_item_quantity": null
+      },
+      {
+        "promotionid": 1474235919523852,
+        "voucher_code": "BEYOAU320",
+        "signature": "86bd4f6886a7be75614926ac5181f7caef0cc12fd4790bb3cf7f8c82d1bac6ac",
+        "use_type": 0,
+        "platform_type": null,
+        "voucher_market_type": 1,
+        "min_spend": 3000000000,
+        "used_price": 32000000,
+        "current_spend": null,
+        "product_limit": true,
+        "quota_type": 1,
+        "percentage_claimed": 0,
+        "percentage_used": 10,
+        "start_time": 1785513600,
+        "end_time": 1788191940,
+        "collect_time": 0,
+        "claim_start_time": 0,
+        "valid_days": 0,
+        "reward_type": 0,
+        "reward_percentage": 0,
+        "reward_value": 32000000,
+        "reward_cap": 0,
+        "coin_earned": null,
+        "title": null,
+        "use_link": null,
+        "icon_hash": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "icon_text": "Beyond the Box",
+        "icon_url": null,
+        "customised_labels": [],
+        "customised_product_scope_tags": null,
+        "shop_id": 448087759,
+        "shop_name": "Beyond the Box",
+        "is_shop_preferred": false,
+        "is_shop_official": true,
+        "shop_count": null,
+        "ui_display_type": null,
+        "customised_mall_name": null,
+        "small_icon_list": null,
+        "dp_category_name": null,
+        "invalid_message_code": null,
+        "invalid_message": null,
+        "display_labels": null,
+        "wallet_redeemable": false,
+        "customer_reference_id": "SHOP-12D21850162822780000001105505055",
+        "fully_redeemed": null,
+        "has_expired": null,
+        "disabled": null,
+        "voucher_external_market_type": null,
+        "now_food_extra_info": null,
+        "airpay_opv_extra_info": null,
+        "partner_extra_info": null,
+        "discount_value": 32000000,
+        "discount_percentage": 0,
+        "discount_cap": 0,
+        "coin_percentage": null,
+        "coin_cap": null,
+        "usage_limit": null,
+        "used_count": null,
+        "left_count": null,
+        "shopee_wallet_only": false,
+        "new_user_only": null,
+        "description": "This page is not supported on your version of Shopee app. Please update your app to view.",
+        "shop_logo": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "error_code": 9,
+        "is_claimed_before": false,
+        "customised_product_scope_tag_image_hash": null,
+        "usage_limit_per_user": 1,
+        "remaining_usage_limit": 1,
+        "action": null,
+        "sub_icon_text": null,
+        "is_customised_icon": null,
+        "fixed_flag": null,
+        "customised_flag": null,
+        "fsv_voucher_card_ui_info": null,
+        "min_item_quantity": null
+      },
+      {
+        "promotionid": 1474235457363972,
+        "voucher_code": "BEYOAU555",
+        "signature": "40f7a73eae2abeac98be1ae946b96edb2419a4437964b681907ebaeddcb16202",
+        "use_type": 0,
+        "platform_type": null,
+        "voucher_market_type": 1,
+        "min_spend": 5000000000,
+        "used_price": 55500000,
+        "current_spend": null,
+        "product_limit": true,
+        "quota_type": 1,
+        "percentage_claimed": 0,
+        "percentage_used": 10,
+        "start_time": 1785513600,
+        "end_time": 1788191940,
+        "collect_time": 0,
+        "claim_start_time": 0,
+        "valid_days": 0,
+        "reward_type": 0,
+        "reward_percentage": 0,
+        "reward_value": 55500000,
+        "reward_cap": 0,
+        "coin_earned": null,
+        "title": null,
+        "use_link": null,
+        "icon_hash": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "icon_text": "Beyond the Box",
+        "icon_url": null,
+        "customised_labels": [],
+        "customised_product_scope_tags": null,
+        "shop_id": 448087759,
+        "shop_name": "Beyond the Box",
+        "is_shop_preferred": false,
+        "is_shop_official": true,
+        "shop_count": null,
+        "ui_display_type": null,
+        "customised_mall_name": null,
+        "small_icon_list": null,
+        "dp_category_name": null,
+        "invalid_message_code": null,
+        "invalid_message": null,
+        "display_labels": null,
+        "wallet_redeemable": false,
+        "customer_reference_id": "SHOP-85285800162822380000001105505055",
+        "fully_redeemed": null,
+        "has_expired": null,
+        "disabled": null,
+        "voucher_external_market_type": null,
+        "now_food_extra_info": null,
+        "airpay_opv_extra_info": null,
+        "partner_extra_info": null,
+        "discount_value": 55500000,
+        "discount_percentage": 0,
+        "discount_cap": 0,
+        "coin_percentage": null,
+        "coin_cap": null,
+        "usage_limit": null,
+        "used_count": null,
+        "left_count": null,
+        "shopee_wallet_only": false,
+        "new_user_only": null,
+        "description": "This page is not supported on your version of Shopee app. Please update your app to view.",
+        "shop_logo": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "error_code": 9,
+        "is_claimed_before": false,
+        "customised_product_scope_tag_image_hash": null,
+        "usage_limit_per_user": 1,
+        "remaining_usage_limit": 1,
+        "action": null,
+        "sub_icon_text": null,
+        "is_customised_icon": null,
+        "fixed_flag": null,
+        "customised_flag": null,
+        "fsv_voucher_card_ui_info": null,
+        "min_item_quantity": null
+      }
+    ],
+    "free_return": null,
+    "coin_info": {
+      "spend_cash_unit": 100000,
+      "coin_earn_items": [],
+      "coin_earn_label": null
+    },
+    "product_attributes": {
+      "attrs": [
+        {
+          "name": "Stock",
+          "value": "IN STOCK",
+          "id": null,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 7,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Brand",
+          "value": "Apple",
+          "id": null,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": "/search?brands=1189223",
+          "brand_id": 1189223,
+          "full_url": "https://shopee.ph/search?brands=1189223",
+          "type": 1,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Warranty Type",
+          "value": "Supplier Warranty",
+          "id": 100370,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Warranty Duration",
+          "value": "12 Months",
+          "id": 100121,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Supported Operating System",
+          "value": "iOS",
+          "id": 100507,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Watch Features",
+          "value": "GPS, Notifications, Water Resistance",
+          "id": 100537,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Watch Connectivity",
+          "value": "GPS",
+          "id": 100512,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Condition",
+          "value": "New",
+          "id": 100413,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 5,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        },
+        {
+          "name": "Ships From",
+          "value": "Calamba City, Laguna",
+          "id": null,
+          "is_timestamp": null,
+          "brand_option": null,
+          "val_id": null,
+          "url": null,
+          "brand_id": null,
+          "full_url": null,
+          "type": 6,
+          "item_attribute_type": null,
+          "name_tr": null,
+          "value_tr": null
+        }
+      ],
+      "categories": [
+        {
+          "catid": 11021712,
+          "display_name": "Mobiles & Gadgets",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 11021733,
+          "display_name": "Wearables",
+          "no_sub": false,
+          "is_default_subcat": false
+        },
+        {
+          "catid": 11021734,
+          "display_name": "Smart Watches",
+          "no_sub": true,
+          "is_default_subcat": false
+        }
+      ],
+      "related_items": [],
+      "upfront_attrs": null
+    },
+    "shop_detailed": {
+      "shopid": 448087759,
+      "userid": 448107336,
+      "last_active_time": 1785672263,
+      "vacation": false,
+      "place": null,
+      "account": {
+        "portrait": "ph-11134216-7r98v-lq0c8n59gg57f3",
+        "username": "beyondtheboxph",
+        "status": 1
+      },
+      "is_shopee_verified": false,
+      "is_preferred_plus_seller": false,
+      "is_official_shop": true,
+      "shop_location": null,
+      "item_count": 1254,
+      "rating_star": 4.927937,
+      "response_rate": 100,
+      "session_info": null,
+      "name": "Beyond the Box",
+      "ctime": 1621557999,
+      "response_time": 8,
+      "follower_count": 1152649,
+      "show_official_shop_label": true,
+      "rating_bad": 1065,
+      "rating_good": 147919,
+      "rating_normal": 1371,
+      "session_infos": null,
+      "status": 1,
+      "is_individual_seller": null,
+      "is_mart": false,
+      "favorite_shop_info": null,
+      "is_3pf": false,
+      "sold_total": null,
+      "is_shopee_choice": false,
+      "is_high_end": false,
+      "banner": {
+        "shopee_choice": null
+      },
+      "authorized_brand": null,
+      "is_scs": false,
+      "shop_location_tr": null,
+      "sold_total_display": null,
+      "is_outlet": false,
+      "display_fbs_logo": true,
+      "is_chatroom_online": null,
+      "outlet_shop": null,
+      "vacation_status": null,
+      "display_shopee_choice_tick": false,
+      "is_smeter_shop": false,
+      "is_pharmacy": false
+    },
+    "age_gate_control": null,
+    "abnormal_popup": null,
+    "return_on_spot": null,
+    "display_sections": {
+      "add_on_deal": null,
+      "bundle_deal": null,
+      "exclusive_price_label": null,
+      "free_return": null,
+      "coin": null,
+      "wholesale": null
+    },
+    "ineligible_ep": null,
+    "tax_disclaimer": null,
+    "alcohol_disclaimer": null,
+    "design_control": {
+      "use_new_revamp_first_screen": null,
+      "display_on_time_delivery_guarantee": true,
+      "disable_price_with_variation": false,
+      "display_direct_delivery": false,
+      "use_new_featured_video_revamp": null,
+      "first_screen_revamp_abtest_group": null,
+      "display_choice_customised_section": false,
+      "is_support_fbs_enabled": false,
+      "top_section_featured_video_ab_test_group": null,
+      "enable_ksp_config": null,
+      "disable_main_page_select_variation": null,
+      "support_shop_review_preview": null,
+      "pdp_revamp_phase1_improvement_ui_review_down": null,
+      "display_fashion_attributes": null,
+      "display_fashion_review_section": null,
+      "display_fashion_first_screen": null,
+      "enable_fashion_review_improvements": null,
+      "display_fbs_floating_counter": null,
+      "display_shipping_drawer_new_free_shipping_text": false,
+      "display_shipping_drawer_new_free_shipping_ui": false,
+      "shift_featured_videos_above_review_ratings_section": null,
+      "enable_fashion_featured_videos_improvements": null,
+      "hide_shipping_channel_promotion_text": true,
+      "expand_size_guide_section_by_default": null
+    },
+    "shopee_free_return": null,
+    "detail_level": 0,
+    "removed_fields": null,
+    "size_guide": null,
+    "designer_info": null,
+    "shipping_info": null,
+    "vehicle_compatibility_info": null,
+    "nea": null,
+    "button_group": {
+      "buy_with_voucher": {
+        "price": 1584000000
+      },
+      "ineligible_user_platform_exclusive_sku": null
+    },
+    "installment_drawer": {
+      "priority": [
+        0,
+        1
+      ],
+      "spl": null,
+      "bank": {
+        "channels": null
+      },
+      "credit_card": null
+    },
+    "ongoing_banner": null,
+    "teaser_banner": null,
+    "price_breakdown": {
+      "price": {
+        "single_value": 1584000000,
+        "range_min": -1,
+        "range_max": -1,
+        "price_mask": null
+      },
+      "price_before_discount": {
+        "single_value": 1749000000,
+        "range_min": -1,
+        "range_max": -1,
+        "price_mask": null
+      },
+      "discount_breakdown": [
+        {
+          "type": 0,
+          "price_source": "Product Discount",
+          "discount_amount": 150000000,
+          "exclusive_price": null,
+          "shop_voucher": null,
+          "platform_voucher": null,
+          "ads_voucher": null,
+          "breakdown_text": null,
+          "icon_type": null
+        },
+        {
+          "type": 2,
+          "price_source": "Shop Voucher Discount",
+          "discount_amount": 15000000,
+          "exclusive_price": null,
+          "shop_voucher": {
+            "min_spend": 1500000000,
+            "discount_type": 0,
+            "discount_value": 15000000,
+            "discount_percentage": null
+          },
+          "platform_voucher": null,
+          "ads_voucher": null,
+          "breakdown_text": {
+            "template": "Buy {min_spend} get {discount_value} off",
+            "format": null,
+            "attributes": [
+              {
+                "type": 2,
+                "key": "min_spend",
+                "value": {
+                  "value_str": null,
+                  "value_int": 1500000000
+                },
+                "format": null,
+                "text_color": null,
+                "text_hex_color": null,
+                "url": null
+              },
+              {
+                "type": 2,
+                "key": "discount_value",
+                "value": {
+                  "value_str": null,
+                  "value_int": 15000000
+                },
+                "format": null,
+                "text_color": null,
+                "text_hex_color": null,
+                "url": null
+              }
+            ],
+            "text_color": null,
+            "text_hex_color": null
+          },
+          "icon_type": null
+        }
+      ]
+    },
+    "membership_exclusive": null,
+    "membership_exclusive_teaser": null,
+    "service_entrance": {
+      "services": [
+        {
+          "text": "100% Authentic",
+          "type": null,
+          "id": 43
+        },
+        {
+          "text": "Lowest Price Guaranteed",
+          "type": null,
+          "id": 47
+        },
+        {
+          "text": "Free & Easy Returns",
+          "type": null,
+          "id": 46
+        },
+        {
+          "text": "Fulfilled by Shopee",
+          "type": null,
+          "id": 49
+        }
+      ]
+    },
+    "service_drawer": {
+      "services": [
+        {
+          "title": "100% Authentic",
+          "description": "Shopee assures that all products listed in Shopee Mall are 100% authentic. If you receive a non-authentic product from Shopee Mall, Shopee will refund up to 3x the amount you paid for the products",
+          "type": null,
+          "free_return": null,
+          "insurance": null,
+          "id": 43,
+          "redirection_url": "",
+          "icon": "ph-11134258-7rasj-m17w3j735764a3",
+          "insurance_drawer": null,
+          "product_type": 0
+        },
+        {
+          "title": "Lowest Price Guaranteed",
+          "description": "Found a cheaper option? Claim for FREE Coins!",
+          "type": null,
+          "free_return": null,
+          "insurance": null,
+          "id": 47,
+          "redirection_url": "https://lpg-form-phbi.web.app",
+          "icon": "ph-11134258-7ras9-m17w3j9l1jl98e",
+          "insurance_drawer": null,
+          "product_type": 0
+        },
+        {
+          "title": "Free & Easy Returns",
+          "description": "Returns are completely free, with no need to contact sellers.\n*Terms and conditions apply",
+          "type": null,
+          "free_return": null,
+          "insurance": null,
+          "id": 46,
+          "redirection_url": "https://shopee.ph/m/free-and-easy-returns",
+          "icon": "ph-11134258-7rasc-m17w3j2dc3nw09",
+          "insurance_drawer": null,
+          "product_type": 0
+        },
+        {
+          "title": "Fulfilled by Shopee",
+          "description": "Fulfilled by Shopee is an exclusive service where users can enjoy these benefits:\n- Packed and shipped by Shopee\n- Faster & Free Shipping",
+          "type": null,
+          "free_return": null,
+          "insurance": null,
+          "id": 49,
+          "redirection_url": "",
+          "icon": "ph-11134258-7rasg-m17w3j873kod8b",
+          "insurance_drawer": null,
+          "product_type": 0
+        }
+      ]
+    },
+    "trade_in": null,
+    "product_description": {
+      "paragraph_list": [
+        {
+          "type": 0,
+          "text": "MODEL NUMBER: A3324 / A3325",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 10001,
+          "text": null,
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": 1
+        },
+        {
+          "type": 0,
+          "text": "Apple Watch SE 3 is packed with essentials like sleep score, Always-On display, Activity rings, and more. All for a great value.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 10001,
+          "text": null,
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": 1
+        },
+        {
+          "type": 0,
+          "text": "HEALTH ESSENTIALS — Temperature sensing⁴ enables richer insights in the Vitals app¹ and retrospective ovulation estimates. You’ll also get a daily sleep score and be alerted if you have a high or low heart rate or an irregular rhythm. ⁵",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "GREAT BATTERY LIFE — Enjoy all-day, 18-hour battery life. ³Then charge up to twice as fast as SE 26 and get up to 8 hours of battery in just 15 minutes. ³",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "ALWAYS-ON DISPLAY — Now you can read the time and see the watch face without raising your wrist to wake the display.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "A GREAT FITNESS PARTNER — SE 3 gives you a healthy number of ways to track your workouts. With real-time metrics, you’ll hit your goals like never before.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "STAY CONNECTED — Send a text, take a call, listen to music and podcasts, and get notifications. SE 3 (GPS) works with your iPhone or Wi-Fi to keep you connected. ⁷",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "SAFETY FEATURES — SE 3 can detect a hard fall or severe car crash, automatically help connect you with emergency services, and notify your emergency contacts. ⁸Check In can automatically notify a loved one when you’ve arrived at your destination.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "YOUR WATCH, YOUR WAY — Express yourself with dozens of easily customizable faces and a wide range of bands in different colors, styles, and materials.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 10001,
+          "text": null,
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": 1
+        },
+        {
+          "type": 0,
+          "text": "Apple Watch SE 3 requires iPhone 11 or later with iOS 26 or later.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "¹The Vitals app is for wellness purposes only and not for medical use.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "²Fast charging is compatible with Apple Watch Series 7 and later, any Apple Watch Ultra model, and Apple Watch SE 3.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "³Battery life varies by use and configuration. See apple.com/watch/battery for more information.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "⁴the temperature sensing feature is not intended for medical use. Temperature sensing is available only on Apple Watch Series 8 and later, Apple Watch SE 3, and all Apple Watch Ultra models.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "⁵Irregular rhythm notification requires the latest versions of watchOS and iOS. It is not intended for use by people under 22 years old or those who have been previously diagnosed with atrial fibrillation (AFib).",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "⁶Testing conducted by Apple in July and August 2025 using preproduction Apple Watch SE 3 (GPS + Cellular) and Apple Watch SE 2 (GPS + Cellular), each paired with an iPhone; all devices tested with prerelease software, Apple Watch Magnetic Fast Charger to USB-C Cable (Model A2515), and Apple 20W USB-C Power Adapter (Model A2305). Charge time varies with adapter, region, settings, initial battery levels, usage, and environmental factors; actual results will vary.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "⁷Wireless service plan required for cellular service. Contact your service provider for more details. Connection may vary based on network availability. Check apple.com/watch/cellular for participating wireless carriers and eligibility. See support.apple.com/HT207578 for additional setup instructions.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "⁸Emergency SOS requires a cellular connection or Wi-Fi calling with an internet connection from your Apple Watch or nearby iPhone. You can use cellular models of Apple Watch to make an emergency call in many locations, provided that cellular service is available. Some cellular networks may not accept an emergency call from your Apple Watch if your Apple Watch isn’t activated, if it isn’t compatible with or configured to operate on a particular cellular network, if it isn’t set up for cellular service, or if the cellular network does not support emergency calling over IMS. See support.apple.com/108374 and apple.com/watch/cellular for more information.",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 10001,
+          "text": null,
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": 2
+        },
+        {
+          "type": 0,
+          "text": "WHAT'S IN THE BOX",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "1x Apple Watch SE 3 GPS Aluminium Case Sport Band",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 0,
+          "text": "1x USB-C Magnetic Fast Charging Cable",
+          "img_id": null,
+          "ratio": null,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 1,
+          "text": null,
+          "img_id": "ph-11134208-81ztp-mf7vw92549vx40",
+          "ratio": 1,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 1,
+          "text": null,
+          "img_id": "ph-11134208-81ztf-mf7vw924eznv13",
+          "ratio": 1,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        },
+        {
+          "type": 1,
+          "text": null,
+          "img_id": "ph-11134208-81ztq-mf7vw924ge8b25",
+          "ratio": 1,
+          "description_type": 1,
+          "empty_paragraph_count": null
+        }
+      ],
+      "source_language": ""
+    },
+    "selected_tiers": null,
+    "size_info": null,
+    "size_recommendation": null,
+    "translation_status": 0,
+    "product_description_tr": null,
+    "default_warnings": null,
+    "bcrs_disclaimer": null,
+    "top_banner": null,
+    "bottom_banner": null
+  }
+}

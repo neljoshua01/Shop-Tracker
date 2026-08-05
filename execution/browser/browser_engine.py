@@ -1,3 +1,4 @@
+from core.runtime.async_runtime import AsyncRuntime
 from playwright.async_api import async_playwright
 
 
@@ -9,11 +10,21 @@ class BrowserEngine:
 
         self.playwright = None
         self.browser = None
+        self.runtime = AsyncRuntime.instance()
 
         #
-        # URL -> Playwright Page
+        # Owner -> Playwright Page
         #
         self.pages = {}
+
+        #
+        # Owner -> Response callback
+        #
+        self.response_callbacks = {}
+
+    # =====================================================
+    # Singleton
+    # =====================================================
 
     @classmethod
     def instance(cls):
@@ -22,6 +33,10 @@ class BrowserEngine:
             cls._instance = cls()
 
         return cls._instance
+
+    # =====================================================
+    # Browser Connection
+    # =====================================================
 
     async def connect(self):
 
@@ -42,71 +57,140 @@ class BrowserEngine:
 
         return self.browser
 
-    async def open_page(self, url):
+    # =====================================================
+    # Page Management
+    # =====================================================
 
-        #
-        # Ensure browser exists
-        #
+    async def open_page(
+        self,
+        owner,
+        url,
+    ):
+
         await self.connect()
 
         context = self.browser.contexts[0]
 
         page = await context.new_page()
 
-        await page.goto(
-            url,
-            wait_until="domcontentloaded"
+        #
+        # Listen for every network response.
+        #
+        page.on(
+            "response",
+            lambda response: self.runtime.submit(
+                self._handle_response(
+                    owner,
+                    response,
+                )
+            ),
         )
 
-        #
-        # Register page ownership
-        #
-        self.pages[url] = page
+        await page.goto(
+            url,
+            wait_until="domcontentloaded",
+        )
 
-        print(f"[BrowserEngine] Page opened: {url}")
+        self.pages[owner] = page
+
+        print(
+            f"[BrowserEngine] "
+            f"Page opened ({owner})"
+        )
 
         return page
-    
-    async def get_page(self, url):
 
-        #
-        # Already opened?
-        #
-        if url in self.pages:
+    async def get_page(
+        self,
+        owner,
+        url,
+    ):
 
-            page = self.pages[url]
+        if owner in self.pages:
 
-            #
-            # Ignore closed pages
-            #
+            page = self.pages[owner]
+
             if not page.is_closed():
-                print(f"[BrowserEngine] Reusing page: {url}")
+
+                print(
+                    f"[BrowserEngine] "
+                    f"Reusing page ({owner})"
+                )
+
                 return page
 
-            #
-            # Remove stale entry
-            #
-            del self.pages[url]
+            del self.pages[owner]
 
-        #
-        # Otherwise create one
-        #
-        return await self.open_page(url)
-    
-    async def close_page(self, page):
+        return await self.open_page(
+            owner,
+            url,
+        )
 
-        if not page:
+    async def close_page(
+        self,
+        owner,
+    ):
+
+        page = self.pages.get(owner)
+
+        if page is None:
             return
 
-        #
-        # Remove from registry
-        #
-        for url, registered_page in list(self.pages.items()):
+        if page.is_closed():
 
-            if registered_page == page:
-                del self.pages[url]
-                break
+            self.unregister_response_callback(owner)
+
+            self.pages.pop(owner, None)
+
+            return
 
         await page.close()
 
-        print("[BrowserEngine] Page closed.")
+        self.unregister_response_callback(owner)
+
+        self.pages.pop(owner, None)
+
+        print(
+            f"[BrowserEngine] "
+            f"Page closed ({owner})"
+        )
+
+    # =====================================================
+    # Response Callbacks
+    # =====================================================
+
+    def register_response_callback(
+        self,
+        owner,
+        callback,
+    ):
+
+        self.response_callbacks[owner] = callback
+
+    def unregister_response_callback(
+        self,
+        owner,
+    ):
+
+        self.response_callbacks.pop(owner, None)
+
+    async def _handle_response(
+        self,
+        owner,
+        response,
+    ):
+
+        callback = self.response_callbacks.get(owner)
+
+        if callback is None:
+            return
+
+        try:
+
+            await callback(response)
+
+        except Exception as e:
+
+            print(
+                f"[BrowserEngine] Response callback error: {e}"
+            )

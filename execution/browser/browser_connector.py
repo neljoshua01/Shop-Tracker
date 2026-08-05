@@ -32,12 +32,19 @@ class BrowserConnector:
     # Open Monitoring Tab
     # =====================================================
 
-    def open_tab(self, url):
+    def open_page(
+        self,
+        owner,
+        url,
+    ):
 
-        print("[BrowserConnector] Opening monitoring tab...")
+        print("[BrowserConnector] Opening monitoring page...")
 
         future = self.runtime.submit(
-            self.engine.get_page(url)
+            self.engine.get_page(
+                owner,
+                url,
+            )
         )
 
         page = future.result(timeout=30)
@@ -50,16 +57,19 @@ class BrowserConnector:
     # Close
     # =====================================================
 
-    def close(self, page=None):
+    def close(
+        self,
+        owner=None,
+    ):
 
         #
         # BrowserEngine owns page lifecycle.
         #
-        if page is None:
+        if owner is None:
             return
 
         future = self.runtime.submit(
-            self.engine.close_page(page)
+            self.engine.close_page(owner)
         )
 
         future.result(timeout=10)

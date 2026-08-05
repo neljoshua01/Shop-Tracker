@@ -45,3 +45,22 @@ runtime/temp/
 # Python
 __pycache__/
 *.py[cod]
+
+# Runtime
+runtime/logs/
+runtime/cache/
+runtime/browser/
+runtime/downloads/
+runtime/temp/
+api_logs/
+
+# Developer experiments
+devtools/inspect_sale_api.py
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+
