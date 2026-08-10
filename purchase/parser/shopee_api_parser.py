@@ -125,36 +125,29 @@ class ShopeeAPIParser:
                     tier_variations,
                 ),
 
+                options=self._build_variation_options(
+                    model,
+                    tier_variations,
+                ),
+
                 price=self._convert_price(
-                    model["price"]
+                    model["price"],
                 ),
 
                 price_before_discount=self._convert_price(
-                    model["price_before_discount"]
+                    model["price_before_discount"],
                 ),
 
                 has_stock=model["has_stock"],
 
-                tier_index=model.get(
+                tier_index=model["extinfo"]["tier_index"],
+
+                sku_image=model.get(
                     "extinfo",
                     {},
                 ).get(
-                    "tier_index",
-                    [],
-                ),
-
-                sku_image=(
-                    model.get(
-                        "extinfo",
-                        {},
-                    ).get(
-                        "sku_image",
-                        ""
-                    )
-                    or item.get(
-                        "image",
-                        ""
-                    )
+                    "sku_image",
+                    "",
                 ),
             )
 
@@ -208,6 +201,56 @@ class ShopeeAPIParser:
         return " / ".join(
             selected_options
         )
+    def _build_variation_options(
+        self,
+        model,
+        tier_variations,
+    ):
+        """
+        Builds structured variation options.
+
+        Example:
+            {
+                "Color": "Midnight",
+                "Size": "44MM S M",
+            }
+        """
+
+        tier_index = model.get(
+            "extinfo",
+            {},
+        ).get(
+            "tier_index",
+            [],
+        )
+
+        options = {}
+
+        for option_index, tier in zip(
+            tier_index,
+            tier_variations,
+        ):
+
+            values = tier.get(
+                "options",
+                [],
+            )
+
+            if (
+                option_index is None
+                or option_index < 0
+                or option_index >= len(values)
+            ):
+                continue
+
+            options[
+                tier.get(
+                    "name",
+                    "",
+                )
+            ] = values[option_index]
+
+        return options
 
     def _convert_price(
         self,

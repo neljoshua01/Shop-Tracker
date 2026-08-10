@@ -32,7 +32,7 @@ class BrowserConnector:
     # Open Monitoring Tab
     # =====================================================
 
-    def open_page(
+    def open_session(
         self,
         owner,
         url,
@@ -41,23 +41,23 @@ class BrowserConnector:
         print("[BrowserConnector] Opening monitoring page...")
 
         future = self.runtime.submit(
-            self.engine.get_page(
+            self.engine.get_session(
                 owner,
                 url,
             )
         )
 
-        page = future.result(timeout=30)
+        session = future.result(timeout=30)
 
         print("[BrowserConnector] Navigation complete.")
 
-        return page
+        return session
 
     # =====================================================
     # Close
     # =====================================================
 
-    def close(
+    def close_session(
         self,
         owner=None,
     ):
@@ -69,7 +69,15 @@ class BrowserConnector:
             return
 
         future = self.runtime.submit(
-            self.engine.close_page(owner)
+            self.engine.close_session(owner)
         )
 
         future.result(timeout=10)
+
+    def disconnect(self):
+
+        future = self.runtime.submit(
+            self.engine.disconnect()
+        )
+
+        future.result(timeout=15)

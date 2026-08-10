@@ -7,23 +7,18 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class Variation:
-    """
-    Represents one purchasable product variation returned
-    by Shopee's Product API.
 
-    Example:
-        Starlight / 40MM M/L
-    """
-
-    #
-    # Shopee model identifier
-    #
     model_id: int
 
     #
-    # Human-readable variation name
+    # Human-readable variation
     #
     name: str
+
+    #
+    # Structured options
+    #
+    options: dict[str, str]
 
     #
     # Pricing
@@ -37,11 +32,8 @@ class Variation:
     has_stock: bool
 
     #
-    # Selected option indexes
+    # Original Shopee data
     #
     tier_index: list[int]
 
-    #
-    # Variation-specific image
-    #
-    sku_image: str = ""
+    sku_image: str

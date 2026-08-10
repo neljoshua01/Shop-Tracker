@@ -14,7 +14,7 @@ class IMELoader:
 
         self.product = None
 
-        self.page = None
+        self.session = None
         self.parser = ShopeeAPIParser()
 
     def load(
@@ -42,9 +42,9 @@ class IMELoader:
         )
 
         #
-        # Open temporary page
+        # Open temporary session
         #
-        self.page = self.browser.open_page(
+        self.session = self.browser.open_session(
             self,
             url,
         )
@@ -55,9 +55,9 @@ class IMELoader:
         self.loaded.wait(timeout=15)
 
         #
-        # Close temporary page
+        # Close temporary session
         #
-        self.browser.close(self)
+        self.browser.close_session(self)
 
         return self.product
 

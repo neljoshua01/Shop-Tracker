@@ -18,32 +18,101 @@ class CheckoutVerifier:
         body = await page.locator("body").inner_text()
 
         #
-        # Try to locate the final payment amount.
+        # -------------------------------------------------
+        # FIND TOTAL PAYMENT
+        # -------------------------------------------------
         #
-        matches = re.findall(r"₱[\d,]+(?:\.\d{2})?", body)
-
-        if not matches:
-            print("❌ Could not locate any prices on checkout page.")
-            return False
-
+        # Shopee renders the label and amount on separate
+        # lines:
         #
-        # Usually the last peso amount is the final payment.
+        # Total Payment:
+        # ₱16,679
         #
-        final_price = matches[-1]
+        # Therefore we allow whitespace/newlines between
+        # the label and the amount.
+        #
 
-        print(f"Checkout Total: {final_price}")
-
-        checkout_total = float(
-            final_price.replace("₱", "").replace(",", "")
+        total_match = re.search(
+            r"Total Payment:\s*₱\s*([\d,]+(?:\.\d{2})?)",
+            body,
+            re.IGNORECASE,
         )
 
-        print(f"Target Price : {product.target_price}")
+        if not total_match:
 
-        if checkout_total > product.target_price:
-            print("❌ Checkout total exceeds target.")
+            print(
+                "❌ Could not locate 'Total Payment' "
+                "on checkout page."
+            )
+
             return False
 
-        print("✓ Checkout total is within target.")
+        #
+        # Extract displayed checkout total.
+        #
+
+        checkout_display_price = total_match.group(1)
+
+        print(
+            f"Checkout Total: ₱{checkout_display_price}"
+        )
+
+        #
+        # -------------------------------------------------
+        # CONVERT TO INTERNAL PRICE UNIT
+        # -------------------------------------------------
+        #
+
+        checkout_pesos = float(
+            checkout_display_price.replace(",", "")
+        )
+
+        checkout_total = int(
+            checkout_pesos * 100_000
+        )
+
+        print(
+            f"Checkout Total (internal): "
+            f"{checkout_total}"
+        )
+
+        #
+        # -------------------------------------------------
+        # TARGET PRICE
+        # -------------------------------------------------
+        #
+
+        if product.target_price is None:
+
+            print(
+                "❌ No target price configured."
+            )
+
+            return False
+
+        print(
+            f"Target Price (internal): "
+            f"{product.target_price}"
+        )
+
+        #
+        # -------------------------------------------------
+        # SAFETY CHECK
+        # -------------------------------------------------
+        #
+
+        if checkout_total > product.target_price:
+
+            print(
+                "❌ Checkout total exceeds "
+                "target price."
+            )
+
+            return False
+
+        print(
+            "✓ Checkout total is within target."
+        )
 
         return True
 
@@ -392,12 +461,50 @@ class CheckoutVerifier:
 
         return True
 
+    async def verify_payment(self, expected_payment):
+
+        print()
+        print("========== VERIFY PAYMENT ==========")
+
+        if self.selected_payment is None:
+
+            print("❌ No payment method has been selected.")
+
+            return False
+
+        print(
+            f"Selected Payment: {self.selected_payment}"
+        )
+
+        print(
+            f"Expected Payment: {expected_payment}"
+        )
+
+        if self.selected_payment != expected_payment:
+
+            print(
+                "❌ Selected payment does not match "
+                "expected payment."
+            )
+
+            return False
+
+        print("✓ Payment method matches expected payment.")
+
+        return True
+
     async def collect_order_summary(self, page):
 
         print()
         print("========== ORDER SUMMARY ==========")
 
         body = await page.locator("body").inner_text()
+
+        lines = [
+            line.strip()
+            for line in body.splitlines()
+            if line.strip()
+        ]
 
         summary = {
             "product": None,
@@ -415,46 +522,121 @@ class CheckoutVerifier:
         # Seller
         # --------------------------
         #
-        seller_match = re.search(
-            r"Item Subtotal\s+(.+?)\s+\|",
-            body,
-            re.S
-        )
 
-        if seller_match:
-            summary["seller"] = seller_match.group(1).strip()
+        for line in lines:
+
+            if line.startswith("Sold by "):
+
+                summary["seller"] = line[
+                    len("Sold by "):
+                ].strip()
+
+                break
 
         #
         # --------------------------
         # Product
         # --------------------------
         #
-        product_match = re.search(
-            r"chat now\s+([^\n]+)",
-            body
-        )
 
-        if product_match:
-            summary["product"] = product_match.group(1).strip()
+        try:
+
+            products_index = lines.index(
+                "Products Ordered"
+            )
+
+        except ValueError:
+
+            products_index = -1
+
+        if products_index != -1:
+
+            for i in range(
+                products_index + 1,
+                len(lines)
+            ):
+
+                line = lines[i]
+
+                #
+                # Stop once we reach seller information.
+                #
+                if line.startswith("Sold by "):
+                    break
+
+                #
+                # Ignore checkout table headers.
+                #
+                if line in {
+                    "Unit Price",
+                    "Quantity",
+                    "Item Subtotal",
+                    "Fulfilled - Local",
+                    "Parcel 1",
+                }:
+                    continue
+
+                #
+                # Ignore payment promotion text.
+                #
+                if "SPayLater" in line:
+                    continue
+
+                #
+                # Ignore delivery-date lines.
+                #
+                if (
+                    " - " in line
+                    and any(
+                        char.isdigit()
+                        for char in line
+                    )
+                ):
+                    continue
+
+                #
+                # Ignore prices.
+                #
+                if line.startswith("₱"):
+                    continue
+
+                #
+                # Ignore quantity.
+                #
+                if line.isdigit():
+                    continue
+
+                #
+                # First remaining meaningful line
+                # is the product name.
+                #
+                summary["product"] = line
+
+                break
 
         #
         # --------------------------
         # Variation
         # --------------------------
         #
+
         variation_match = re.search(
             r"Variation:\s*(.+)",
             body
         )
 
         if variation_match:
-            summary["variation"] = variation_match.group(1).strip()
+
+            summary["variation"] = (
+                variation_match.group(1).strip()
+            )
 
         #
         # --------------------------
         # Quantity
         # --------------------------
         #
+
         quantity_match = re.search(
             r"Variation:.*?\n.*?\n.*?\n(\d+)\n",
             body,
@@ -462,6 +644,7 @@ class CheckoutVerifier:
         )
 
         if quantity_match:
+
             summary["quantity"] = int(
                 quantity_match.group(1)
             )
@@ -471,14 +654,19 @@ class CheckoutVerifier:
         # Merchandise Subtotal
         # --------------------------
         #
+
         subtotal_match = re.search(
             r"Merchandise Subtotal\s*₱([\d,]+)",
             body
         )
 
         if subtotal_match:
+
             summary["subtotal"] = float(
-                subtotal_match.group(1).replace(",", "")
+                subtotal_match.group(1).replace(
+                    ",",
+                    ""
+                )
             )
 
         #
@@ -486,14 +674,19 @@ class CheckoutVerifier:
         # Shipping
         # --------------------------
         #
+
         shipping_match = re.search(
             r"Shipping Subtotal\s*₱([\d,]+)",
             body
         )
 
         if shipping_match:
+
             summary["shipping"] = float(
-                shipping_match.group(1).replace(",", "")
+                shipping_match.group(1).replace(
+                    ",",
+                    ""
+                )
             )
 
         #
@@ -501,23 +694,206 @@ class CheckoutVerifier:
         # Total
         # --------------------------
         #
+
         total_match = re.search(
             r"Total Payment:\s*₱([\d,]+)",
             body
         )
 
         if total_match:
+
             summary["total"] = float(
-                total_match.group(1).replace(",", "")
+                total_match.group(1).replace(
+                    ",",
+                    ""
+                )
             )
-        summary["payment"] = self.selected_payment or "Unknown"
+
+        #
+        # --------------------------
+        # Payment
+        # --------------------------
+        #
+
+        summary["payment"] = (
+            self.selected_payment or "Unknown"
+        )
 
         #
         # --------------------------
         # Print nicely
         # --------------------------
         #
+
         for key, value in summary.items():
-            print(f"{key:12}: {value}")
+
+            print(
+                f"{key:12}: {value}"
+            )
 
         return summary
+
+    async def verify_order_summary(
+        self,
+        page,
+        product,
+        summary,
+    ):
+
+        print()
+        print("========== VERIFY ORDER SUMMARY ==========")
+
+        passed = True
+
+        #
+        # --------------------------
+        # PRODUCT
+        # --------------------------
+        #
+
+        expected_product = product.product_name
+        actual_product = summary.get("product")
+
+        print(f"Product:")
+        print(f"  Expected: {expected_product}")
+        print(f"  Actual:   {actual_product}")
+
+        if actual_product != expected_product:
+
+            print("  ❌ Product does not match.")
+            passed = False
+
+        else:
+
+            print("  ✓ Product matches.")
+
+        #
+        # --------------------------
+        # QUANTITY
+        # --------------------------
+        #
+
+        expected_quantity = 1
+        actual_quantity = summary.get("quantity")
+
+        print()
+        print("Quantity:")
+        print(f"  Expected: {expected_quantity}")
+        print(f"  Actual:   {actual_quantity}")
+
+        if actual_quantity != expected_quantity:
+
+            print("  ❌ Quantity does not match.")
+            passed = False
+
+        else:
+
+            print("  ✓ Quantity matches.")
+
+        #
+        # --------------------------
+        # SUBTOTAL
+        # --------------------------
+        #
+
+        actual_subtotal = summary.get("subtotal")
+
+        print()
+        print("Subtotal:")
+        print(f"  Actual:   ₱{actual_subtotal}")
+
+        if actual_subtotal is None:
+
+            print("  ❌ Subtotal could not be determined.")
+            passed = False
+
+        else:
+
+            print("  ✓ Subtotal detected.")
+
+        #
+        # --------------------------
+        # SHIPPING
+        # --------------------------
+        #
+
+        actual_shipping = summary.get("shipping")
+
+        print()
+        print("Shipping:")
+        print(f"  Actual:   ₱{actual_shipping}")
+
+        if actual_shipping is None:
+
+            print("  ❌ Shipping could not be determined.")
+            passed = False
+
+        else:
+
+            print("  ✓ Shipping detected.")
+
+        #
+        # --------------------------
+        # TOTAL
+        # --------------------------
+        #
+
+        actual_total = summary.get("total")
+
+        print()
+        print("Total:")
+        print(f"  Actual:   ₱{actual_total}")
+
+        if actual_total is None:
+
+            print("  ❌ Total could not be determined.")
+            passed = False
+
+        else:
+
+            print("  ✓ Total detected.")
+
+        #
+        # --------------------------
+        # PAYMENT
+        # --------------------------
+        #
+
+        expected_payment = self.selected_payment
+        actual_payment = summary.get("payment")
+
+        print()
+        print("Payment:")
+        print(f"  Expected: {expected_payment}")
+        print(f"  Actual:   {actual_payment}")
+
+        if actual_payment != expected_payment:
+
+            print("  ❌ Payment does not match.")
+            passed = False
+
+        else:
+
+            print("  ✓ Payment matches.")
+
+        #
+        # --------------------------
+        # FINAL RESULT
+        # --------------------------
+        #
+
+        print()
+
+        if not passed:
+
+            print(
+                "❌ ORDER SUMMARY VALIDATION FAILED."
+            )
+
+            return False
+
+        print(
+            "✓ ORDER SUMMARY VALIDATION PASSED."
+        )
+
+        return True

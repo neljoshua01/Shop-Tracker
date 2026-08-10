@@ -33,6 +33,7 @@ def main():
         print("------------------------------")
 
         print(f"Name       : {variation.name}")
+        print(f"Options    : {variation.options}")
         print(f"Model ID   : {variation.model_id}")
         print(f"Price      : {variation.price}")
         print(f"Old Price  : {variation.price_before_discount}")

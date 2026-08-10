@@ -1,5 +1,6 @@
 from core.runtime.async_runtime import AsyncRuntime
 from playwright.async_api import async_playwright
+from execution.browser.browser_session import BrowserSession
 
 
 class BrowserEngine:
@@ -15,7 +16,7 @@ class BrowserEngine:
         #
         # Owner -> Playwright Page
         #
-        self.pages = {}
+        self.sessions = {}
 
         #
         # Owner -> Response callback
@@ -61,7 +62,7 @@ class BrowserEngine:
     # Page Management
     # =====================================================
 
-    async def open_page(
+    async def open_session(
         self,
         owner,
         url,
@@ -72,6 +73,11 @@ class BrowserEngine:
         context = self.browser.contexts[0]
 
         page = await context.new_page()
+
+        session = BrowserSession(
+            context=context,
+            page=page,
+        )
 
         #
         # Listen for every network response.
@@ -91,68 +97,68 @@ class BrowserEngine:
             wait_until="domcontentloaded",
         )
 
-        self.pages[owner] = page
+        self.sessions[owner] = session
 
         print(
             f"[BrowserEngine] "
-            f"Page opened ({owner})"
+            f"Session opened ({owner})"
         )
 
-        return page
+        return session
 
-    async def get_page(
+    async def get_session(
         self,
         owner,
         url,
     ):
 
-        if owner in self.pages:
+        if owner in self.sessions:
 
-            page = self.pages[owner]
+            session = self.sessions[owner]
 
-            if not page.is_closed():
+            if not session.page.is_closed():
 
                 print(
                     f"[BrowserEngine] "
-                    f"Reusing page ({owner})"
+                    f"Reusing session ({owner})"
                 )
 
-                return page
+                return session
 
-            del self.pages[owner]
+            del self.sessions[owner]
 
-        return await self.open_page(
+        return await self.open_session(
             owner,
             url,
         )
 
-    async def close_page(
+    async def close_session(
         self,
         owner,
     ):
 
-        page = self.pages.get(owner)
+        session = self.sessions.get(owner)
 
-        if page is None:
+        if session is None:
             return
 
-        if page.is_closed():
+        if session.page.is_closed():
 
             self.unregister_response_callback(owner)
 
-            self.pages.pop(owner, None)
+            self.sessions.pop(owner, None)
 
             return
 
-        await page.close()
+        await session.close()
 
         self.unregister_response_callback(owner)
 
-        self.pages.pop(owner, None)
+        self.sessions.pop(owner, None)
 
         print(
             f"[BrowserEngine] "
-            f"Page closed ({owner})"
+            f"Session closed ({owner})"
         )
 
     # =====================================================
@@ -194,3 +200,29 @@ class BrowserEngine:
             print(
                 f"[BrowserEngine] Response callback error: {e}"
             )
+
+    async def disconnect(self):
+
+        #
+        # Close every open session.
+        #
+        for owner in list(self.sessions.keys()):
+            await self.close_session(owner)
+
+        #
+        # Disconnect browser.
+        #
+        if self.browser is not None:
+
+            await self.browser.close()
+            self.browser = None
+
+        #
+        # Stop Playwright.
+        #
+        if self.playwright is not None:
+
+            await self.playwright.stop()
+            self.playwright = None
+
+        print("[BrowserEngine] Disconnected.")
