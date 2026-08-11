@@ -113,7 +113,8 @@ class ProductCard(ctk.CTkFrame):
         self.thumbnail_label = ctk.CTkLabel(
             thumbnail,
             text="📱",
-            font=("Segoe UI", 22)
+            # line ~116
+            font=fonts.PRODUCT_PRICE,
         )
         self.thumbnail_label.pack(expand=True)
 
@@ -185,7 +186,7 @@ class ProductCard(ctk.CTkFrame):
             text=stock_text,
             height=28,
             corner_radius=14,
-            font=("Segoe UI", 11, "bold"),
+            font=fonts.BADGE,
             fg_color=badge_bg,
             text_color=badge_color
         )
@@ -420,7 +421,7 @@ class ProductCard(ctk.CTkFrame):
             width=44,
             height=20,
             corner_radius=10,
-            font=("Segoe UI", 10, "bold"),
+            font=fonts.SMALL_BOLD,
             fg_color=badge_bg,
             text_color=badge_color
         )

@@ -24,7 +24,7 @@ class StatusBar(ctk.CTkFrame):
             text="●  IDLE",
             width=72,
             height=28,
-            font=("Segoe UI", 12, "bold"),
+            font=fonts.STATUS,
             text_color=colors.DANGER,
             fg_color=colors.DANGER_BG,
             corner_radius=8

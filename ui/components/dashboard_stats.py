@@ -24,7 +24,12 @@ class StatCard(ctk.CTkFrame):
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
-        self.image = image
+
+        self.image = icons.load_icon(
+            image,
+            colors.TEXT_PRIMARY,
+            icons.SIZE_DEFAULT,
+        )
 
         self.icon = ctk.CTkLabel(
             self,
@@ -59,7 +64,7 @@ class StatCard(ctk.CTkFrame):
         self.value = ctk.CTkLabel(
             self,
             text=value,
-            font=("Segoe UI", 22, "bold"),
+            font=fonts.STAT_VALUE,
             text_color=colors.TEXT_PRIMARY
         )
 

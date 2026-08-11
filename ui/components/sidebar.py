@@ -1,7 +1,7 @@
 import customtkinter as ctk
 
-from ui import colors, fonts
 from core.config.config_service import ConfigService
+from ui import colors, fonts, icons
 
 
 class Sidebar(ctk.CTkFrame):
@@ -42,7 +42,7 @@ class Sidebar(ctk.CTkFrame):
             height=34,
             fg_color=colors.DANGER,
             corner_radius=10,
-            font=("Segoe UI", 18, "bold"),
+            font=fonts.HEADING,
             text_color=colors.TEXT_PRIMARY
         )
 
@@ -51,7 +51,7 @@ class Sidebar(ctk.CTkFrame):
         title = ctk.CTkLabel(
             brand_frame,
             text="Shopee\nPrice Tracker",
-            font=("Segoe UI", 17, "bold"),
+            font=fonts.BRAND,
             justify="left",
             text_color=colors.TEXT_PRIMARY
         )
@@ -59,25 +59,37 @@ class Sidebar(ctk.CTkFrame):
         title.pack(side="left", anchor="w")
 
         buttons = [
-            ("⌂", "Dashboard", True),
-            ("▣", "Products", False),
-            ("◴", "Activity Logs", False),
-            ("♢", "Alerts &\nAuto Checkout", False),
-            ("ⓘ", "About", False)
+            (icons.DASHBOARD, "Dashboard", True),
+            (icons.PRODUCTS, "Products", False),
+            (icons.LOGS, "Activity Logs", False),
+            (icons.ALERT, "Alerts &\nAuto Checkout", False),
+            (icons.SETTINGS, "Settings", False),
         ]
 
-        for icon, text, selected in buttons:
+        for icon_path, text, selected in buttons:
+
+            icon_image = icons.load_icon(
+                icon_path,
+                colors.TEXT_PRIMARY,
+                icons.SIZE_DEFAULT,
+            )
 
             button = ctk.CTkButton(
                 self,
-                text=f"{icon}   {text}",
+                text=text,
+                image=icon_image,
+                compound="left",
                 anchor="w",
                 height=44,
-                fg_color=colors.PRIMARY_SOFT if selected else "transparent",
+                fg_color=(
+                    colors.PRIMARY_SOFT
+                    if selected
+                    else "transparent"
+                ),
                 hover_color=colors.CARD_HOVER,
                 text_color=colors.TEXT_PRIMARY,
                 font=fonts.BUTTON,
-                command=lambda: None
+                command=lambda: None,
             )
 
             button.pack(
@@ -108,7 +120,7 @@ class Sidebar(ctk.CTkFrame):
         ctk.CTkLabel(
             self.armed_card,
             text="⚡ ARMED MODE",
-            font=("Segoe UI", 11, "bold"),
+            font=fonts.BADGE,
             text_color=colors.TEXT_PRIMARY
         ).pack(
             anchor="w",
