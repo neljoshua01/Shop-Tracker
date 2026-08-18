@@ -41,23 +41,19 @@ class IMELoader:
             self.on_response,
         )
 
-        #
-        # Open temporary session
-        #
-        self.session = self.browser.open_session(
-            self,
-            url,
-        )
+        try:
+            # This is a discovery-only tab. It is intentionally not
+            # placed on PurchaseSession and must not outlive this call.
+            self.session = self.browser.open_session(
+                self,
+                url,
+            )
 
-        #
-        # Wait until ProductInfo is ready
-        #
-        self.loaded.wait(timeout=15)
-
-        #
-        # Close temporary session
-        #
-        self.browser.close_session(self)
+            if not self.loaded.wait(timeout=15):
+                raise TimeoutError("Timed out waiting for Shopee product data.")
+        finally:
+            self.browser.close_session(self)
+            self.session = None
 
         return self.product
 

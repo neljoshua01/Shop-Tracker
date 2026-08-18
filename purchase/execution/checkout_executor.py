@@ -1,4 +1,6 @@
 from execution.browser.browser_action import BrowserActions
+from core.runtime.async_runtime import AsyncRuntime
+from execution.checkout.checkout_verifier import CheckoutVerifier
 
 
 class CheckoutExecutor:
@@ -36,16 +38,21 @@ class CheckoutExecutor:
         )
 
         #
-        # We expect to start on the cart.
+        # Monitoring deliberately uses this same page on the PDP.
+        # Return it to cart instead of creating a competing session.
         #
         if "/cart" not in page.url:
 
             print(
                 "[CheckoutExecutor] "
-                "Not on cart page."
+                "Returning existing session to cart."
             )
 
-            return False
+            actions.goto("https://shopee.ph/cart")
+
+            if "/cart" not in page.url:
+                print("[CheckoutExecutor] Cart page was not reached.")
+                return False
 
         print(
             "[CheckoutExecutor] "
@@ -443,27 +450,11 @@ class CheckoutExecutor:
         # This keeps the executor safe during testing.
         #
 
-        place_order_buttons = actions.find_all(
-            "button:has-text('Place Order')"
-        )
+        verified = AsyncRuntime.instance().submit(
+            CheckoutVerifier().verify_place_order(page)
+        ).result(timeout=15)
 
-        place_order_count = actions.count(
-            place_order_buttons
-        )
-
-        print(
-            "[CheckoutExecutor] "
-            f"Place Order buttons found: "
-            f"{place_order_count}"
-        )
-
-        if place_order_count == 0:
-
-            print(
-                "[CheckoutExecutor] "
-                "Place Order button not found."
-            )
-
+        if not verified:
             return False
 
         print(

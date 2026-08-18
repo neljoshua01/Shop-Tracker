@@ -3,11 +3,15 @@ Coordinates the purchase execution pipeline.
 
 The pipeline prepares the cart, starts SKU monitoring,
 waits for the purchase trigger, and hands control to
-the next execution stage.
+the checkout execution stage.
 """
 
+import threading
+
 from purchase.models.purchase_session import PurchaseSession
+from purchase.models.purchase_status import PurchaseStatus
 from purchase.execution.cart_preparer import CartPreparer
+from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.services.sku_price_monitor import SkuPriceMonitor
 
 
@@ -17,98 +21,74 @@ class PurchasePipeline:
 
         self.cart_preparer = CartPreparer()
         self.sku_monitor = SkuPriceMonitor()
+        self.checkout_executor = CheckoutExecutor()
 
     def run(
         self,
         session: PurchaseSession,
     ):
-
         print()
         print(
             "[PurchasePipeline] "
             "========== STARTING PURCHASE PIPELINE =========="
         )
-
-        #
-        # 1. Prepare the cart.
-        #
-        print(
-            "[PurchasePipeline] "
-            "Preparing cart..."
-        )
-
-        self.cart_preparer.prepare(
-            session,
-        )
-
-        print(
-            "[PurchasePipeline] "
-            "Cart preparation complete."
-        )
-
-        #
-        # 2. Start SKU monitoring.
-        #
-        print()
-        print(
-            "[PurchasePipeline] "
-            "Starting SKU monitor..."
-        )
-
-        self.sku_monitor.start(
-            session,
-        )
-
-        #
-        # 3. Wait for the purchase trigger.
-        #
-        print()
-        print(
-            "[PurchasePipeline] "
-            "Waiting for purchase trigger..."
-        )
-
+        monitor_thread = None
         try:
+            print("[PurchasePipeline] Preparing cart...")
+            self.cart_preparer.prepare(session)
+            print("[PurchasePipeline] Cart preparation complete.")
 
+            # Monitor the PDP with the same BrowserSession used for cart
+            # preparation. The monitor moves it to the PDP; checkout
+            # returns it to cart after the trigger.
+            print("[PurchasePipeline] Starting SKU monitor...")
+            monitor_thread = threading.Thread(
+                target=self.sku_monitor.monitor,
+                args=(session,),
+                kwargs={"poll_interval": 5},
+                daemon=True,
+            )
+            monitor_thread.start()
+
+            print("[PurchasePipeline] Waiting for purchase trigger...")
             triggered = self.sku_monitor.wait_for_trigger()
 
             if not triggered:
-
-                print(
-                    "[PurchasePipeline] "
-                    "Purchase trigger not received."
-                )
-
+                print("[PurchasePipeline] Purchase trigger not received.")
+                session.status = PurchaseStatus.FAILED
                 return False
 
-            #
-            # 4. Trigger received.
-            #
-            print()
-            print(
-                "[PurchasePipeline] "
-                "========== PURCHASE TRIGGER RECEIVED =========="
-            )
+            print("[PurchasePipeline] ========== PURCHASE TRIGGER RECEIVED ==========")
+            print("[PurchasePipeline] Stopping SKU monitor...")
 
-            print(
-                "[PurchasePipeline] "
-                "SKU target reached."
-            )
+            self.sku_monitor.stop()
+            monitor_thread.join(timeout=10)
 
-            #
-            # Checkout will be connected here later.
-            #
-            print(
-                "[PurchasePipeline] "
-                "Ready for checkout."
-            )
+            session.status = PurchaseStatus.CHECKING_OUT
+            print("[PurchasePipeline] Starting checkout execution...")
+            checkout_success = self.checkout_executor.execute(session)
 
+            if not checkout_success:
+                print("[PurchasePipeline] Checkout execution failed.")
+                session.status = PurchaseStatus.FAILED
+                return False
+
+            session.status = PurchaseStatus.COMPLETED
+            print("[PurchasePipeline] Checkout page reached and verified.")
             return True
 
-        finally:
+        except Exception:
+            session.status = PurchaseStatus.FAILED
+            raise
 
-            #
-            # Monitoring stops only after the trigger
-            # or if the pipeline exits unexpectedly.
-            #
+        finally:
             self.sku_monitor.stop()
+
+            if monitor_thread is not None and monitor_thread.is_alive():
+                monitor_thread.join(timeout=10)
+
+            # Release this purchase attempt only; do not disconnect the
+            # shared Chrome/CDP engine used by other services.
+            if session.browser_session is not None:
+                self.cart_preparer.browser.close_session(session.browser_owner)
+                session.browser_session = None

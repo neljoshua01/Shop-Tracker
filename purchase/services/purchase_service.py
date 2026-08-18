@@ -2,16 +2,8 @@
 Coordinates the purchase workflow.
 """
 
-from urllib import request
-
-from models import product
-from purchase.models import variation
-from purchase.models.purchase_request import PurchaseRequest
-from purchase.models.product_info import ProductInfo
 from purchase.models.purchase_request import PurchaseRequest
 from purchase.models.purchase_session import PurchaseSession
-from purchase.models.purchase_status import PurchaseStatus
-
 from purchase.models.purchase_status import PurchaseStatus
 from purchase.services.product_loader import ProductLoader
 from purchase.services.selection_resolver import SelectionResolver

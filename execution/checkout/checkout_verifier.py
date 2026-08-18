@@ -267,12 +267,13 @@ class CheckoutVerifier:
             name="Place Order"
         )
 
-        if await place_order.count() == 0:
-            print("❌ Place Order button not found.")
-            return False
-
-        if not await place_order.first.is_visible():
-            print("❌ Place Order button is not visible.")
+        try:
+            await place_order.first.wait_for(
+                state="visible",
+                timeout=10_000,
+            )
+        except Exception:
+            print("❌ Place Order button not found or not visible.")
             return False
 
         print("✓ Place Order button found.")

@@ -74,7 +74,10 @@ class VariationSelector:
                     f"{title} -> {value}"
                 )
 
-            browser.click(
+            # Shopee can leave a transient promotional layer over PDP
+            # controls. These locators are already scoped to the exact
+            # requested variation button, so force is safe here.
+            browser.force_click(
                 button["locator"]
             )
 
@@ -84,23 +87,6 @@ class VariationSelector:
                 f"[VariationSelector] Selected: "
                 f"{title} -> {value}"
             )
-
-    def _print_sections(
-        self,
-        sections,
-    ):
-
-        print()
-        print("========== VARIATION SECTIONS ==========")
-
-        for section in sections:
-
-            print(section["title"])
-
-            for value in section["values"]:
-                print(f"   - {value}")
-
-            print()
 
     def _get_sections(
         self,

@@ -66,6 +66,58 @@ class BrowserActions:
             timeout=(timeout / 1000) + 5,
         )
 
+    def request(
+        self,
+        url: str,
+        method: str = "GET",
+        headers: dict | None = None,
+        params: dict | None = None,
+        timeout: int = 30000,
+    ):
+        """
+        Performs an HTTP request through the existing
+        Playwright browser context.
+
+        The request uses the same browser context as the
+        current session, preserving the browser's cookies
+        and authentication state.
+
+        The visible page is not navigated.
+        """
+
+        async def _request():
+
+            response = await self.session.context.request.fetch(
+                url,
+                method=method,
+                headers=headers,
+                params=params,
+                timeout=timeout,
+            )
+
+            return response
+
+        return self._submit(
+            _request(),
+            timeout=(timeout / 1000) + 5,
+        )
+
+    def goto(
+        self,
+        url: str,
+        wait_until: str = "domcontentloaded",
+        timeout: int = 30000,
+    ):
+
+        return self._submit(
+            self.session.page.goto(
+                url,
+                wait_until=wait_until,
+                timeout=timeout,
+            ),
+            timeout=(timeout / 1000) + 5,
+        )
+
     def find_all(
         self,
         selector: str,
@@ -114,6 +166,16 @@ class BrowserActions:
 
         return self._submit(
             locator.click(),
+            timeout=10,
+        )
+
+    def force_click(
+        self,
+        locator,
+    ):
+        """Click a known interactive control despite transient overlays."""
+        return self._submit(
+            locator.click(force=True),
             timeout=10,
         )
 
