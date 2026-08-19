@@ -18,6 +18,8 @@ class Sidebar(ctk.CTkFrame):
         self.pack_propagate(False)
         self.nav_callback = nav_callback
         self.nav_buttons = {}
+        self.nav_icon_paths = {}
+        self.selected_page = "Dashboard"
 
         self.config_service = ConfigService()
         self.config = self.config_service.load()
@@ -67,43 +69,25 @@ class Sidebar(ctk.CTkFrame):
         title.pack(side="left", anchor="w")
 
         buttons = [
-            (icons.DASHBOARD, "Dashboard", True),
-            (icons.PRODUCTS, "Products", False),
-            (icons.LOGS, "Activity Logs", False),
-            (icons.ALERT, "Alerts &\nAuto Checkout", False),
-            (icons.SETTINGS, "Settings", False),
+            (icons.DASHBOARD, "Dashboard"),
+            (icons.PRODUCTS, "Products"),
+            (icons.LOGS, "Activity Logs"),
+            (icons.ALERT, "Alerts &\nAuto Checkout"),
+            (icons.SETTINGS, "Settings"),
         ]
 
-        for icon_path, text, selected in buttons:
+        for icon_path, text in buttons:
 
-            icon_color = colors.PRIMARY_HOVER if selected else colors.TEXT_MUTED
-            icon_image = icons.load_icon(
-                icon_path,
-                icon_color,
-                icons.SIZE_DEFAULT,
-            )
+            self.nav_icon_paths[text] = icon_path
 
             button = ctk.CTkButton(
                 self,
                 text=text,
-                image=icon_image,
                 compound="left",
                 anchor="w",
                 height=44,
-                fg_color=(
-                    colors.PRIMARY_SOFT
-                    if selected
-                    else "transparent"
-                ),
                 hover_color=colors.CARD_HOVER,
-                text_color=(
-                    colors.TEXT_PRIMARY
-                    if selected
-                    else colors.TEXT_SECONDARY
-                ),
                 font=fonts.BUTTON,
-                border_width=1 if selected else 0,
-                border_color=colors.PRIMARY_GLOW if selected else "transparent",
                 command=lambda page=text: self.navigate(page),
             )
 
@@ -114,6 +98,8 @@ class Sidebar(ctk.CTkFrame):
             )
 
             self.nav_buttons[text] = button
+
+        self._update_selected_navigation()
 
         # =====================================================
         # Armed Mode Card
@@ -177,8 +163,31 @@ class Sidebar(ctk.CTkFrame):
 
     def navigate(self, page):
 
+        self.selected_page = page
+        self._update_selected_navigation()
+
         if self.nav_callback:
             self.nav_callback(page)
+
+    def _update_selected_navigation(self):
+
+        for page, button in self.nav_buttons.items():
+
+            selected = page == self.selected_page
+            icon_color = colors.PRIMARY_HOVER if selected else colors.TEXT_MUTED
+            icon_image = icons.load_icon(
+                self.nav_icon_paths[page],
+                icon_color,
+                icons.SIZE_DEFAULT,
+            )
+
+            button.configure(
+                image=icon_image,
+                fg_color=colors.PRIMARY_SOFT if selected else "transparent",
+                text_color=colors.TEXT_PRIMARY if selected else colors.TEXT_SECONDARY,
+                border_width=1 if selected else 0,
+                border_color=colors.PRIMARY_GLOW if selected else "transparent",
+            )
 
     def _update_armed_status(self):
 
