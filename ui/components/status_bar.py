@@ -10,7 +10,9 @@ class StatusBar(ctk.CTkFrame):
         super().__init__(
             master,
             fg_color=colors.SURFACE,
-            corner_radius=12,
+            border_width=1,
+            border_color=colors.BORDER,
+            corner_radius=10,
             height=50
         )
 
@@ -19,20 +21,34 @@ class StatusBar(ctk.CTkFrame):
         self.build_ui()
 
     def build_ui(self):
+        self.activity_rail = ctk.CTkFrame(
+            self,
+            width=4,
+            height=28,
+            fg_color=colors.INFO,
+            corner_radius=2
+        )
+
+        self.activity_rail.pack(
+            side="left",
+            padx=(10, 8),
+            pady=11
+        )
+
         self.live_label = ctk.CTkLabel(
             self,
             text="●  IDLE",
             width=72,
             height=28,
             font=fonts.STATUS,
-            text_color=colors.DANGER,
-            fg_color=colors.DANGER_BG,
+            text_color=colors.INFO,
+            fg_color=colors.INFO_BG,
             corner_radius=8
         )
 
         self.live_label.pack(
             side="left",
-            padx=(18, 12)
+            padx=(0, 12)
         )
 
         self.status_label = ctk.CTkLabel(
@@ -49,13 +65,13 @@ class StatusBar(ctk.CTkFrame):
         self.last_update = ctk.CTkLabel(
             self,
             text="Last updated: --",
-            font=fonts.BODY,
+            font=fonts.SMALL,
             text_color=colors.TEXT_SECONDARY
         )
 
         self.last_update.pack(
             side="right",
-            padx=(0, 20)
+            padx=(0, 12)
         )
 
         self.refresh_icon = ctk.CTkButton(
@@ -66,6 +82,9 @@ class StatusBar(ctk.CTkFrame):
             fg_color="transparent",
             hover_color=colors.CARD_HOVER,
             text_color=colors.TEXT_SECONDARY,
+            border_width=1,
+            border_color=colors.BORDER,
+            font=fonts.BODY,
             command=lambda: None
         )
 
@@ -76,16 +95,22 @@ class StatusBar(ctk.CTkFrame):
 
     def update_product_count(self, count):
         if count > 0:
+            self.activity_rail.configure(
+                fg_color=colors.SUCCESS
+            )
             self.live_label.configure(
                 text="●  LIVE",
                 text_color=colors.SUCCESS,
                 fg_color=colors.SUCCESS_BG
             )
         else:
+            self.activity_rail.configure(
+                fg_color=colors.INFO
+            )
             self.live_label.configure(
                 text="●  IDLE",
-                text_color=colors.DANGER,
-                fg_color=colors.DANGER_BG
+                text_color=colors.INFO,
+                fg_color=colors.INFO_BG
             )
 
         self.status_label.configure(
