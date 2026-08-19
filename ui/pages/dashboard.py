@@ -30,37 +30,37 @@ class DashboardPage(ctk.CTkFrame):
         self.grid_rowconfigure(0, weight=0)
         self.grid_rowconfigure(1, weight=0)
         self.grid_rowconfigure(2, weight=0)
-        self.grid_rowconfigure(3, weight=0)
-        self.grid_rowconfigure(4, weight=1)
-        self.grid_rowconfigure(5, weight=0)
+        self.grid_rowconfigure(3, weight=1)
+        self.grid_rowconfigure(4, weight=0)
 
         content_pad = 18
 
         header_row = ctk.CTkFrame(self, fg_color="transparent")
-        header_row.grid(row=0, column=0, sticky="ew", padx=content_pad, pady=(14, 7))
+        header_row.grid(row=0, column=0, sticky="ew", padx=content_pad, pady=(14, 9))
         header_row.grid_columnconfigure(0, weight=1)
 
         self.dashboard_header = DashboardHeader(header_row)
         self.dashboard_header.grid(row=0, column=0, sticky="w")
         self.build_engine_status(header_row)
 
-        # Keep the existing purchase-profile action, but make the control
-        # row visually secondary to the dashboard header and metrics.
+        # Keep the legacy TopBar object available for MainWindow compatibility
+        # and existing programmatic monitoring methods, but remove it from the
+        # visible Dashboard composition. Purchase Profile is exposed by the
+        # Active Products CTA below.
         self.topbar = TopBar(
             self,
             add_callback=self.start_monitoring_callback,
             purchase_profile_callback=self.purchase_profile_callback,
         )
-        self.topbar.grid(row=1, column=0, sticky="ew", padx=content_pad, pady=(0, 7))
 
         self.status_bar = StatusBar(self)
-        self.status_bar.grid(row=2, column=0, sticky="ew", padx=content_pad, pady=(0, 9))
+        self.status_bar.grid(row=1, column=0, sticky="ew", padx=content_pad, pady=(0, 10))
 
         self.stats = DashboardStats(self)
-        self.stats.grid(row=3, column=0, sticky="ew", padx=content_pad, pady=(0, 11))
+        self.stats.grid(row=2, column=0, sticky="ew", padx=content_pad, pady=(0, 12))
 
         workspace = ctk.CTkFrame(self, fg_color="transparent")
-        workspace.grid(row=4, column=0, sticky="nsew", padx=content_pad, pady=(0, 10))
+        workspace.grid(row=3, column=0, sticky="nsew", padx=content_pad, pady=(0, 10))
         workspace.grid_columnconfigure(0, weight=3, uniform="workspace")
         workspace.grid_columnconfigure(1, weight=1, uniform="workspace")
         workspace.grid_rowconfigure(0, weight=0)
@@ -71,7 +71,7 @@ class DashboardPage(ctk.CTkFrame):
         self.build_pipeline_panel(workspace)
 
         bottom = ctk.CTkFrame(self, fg_color="transparent", height=172)
-        bottom.grid(row=5, column=0, sticky="ew", padx=content_pad, pady=(0, 9))
+        bottom.grid(row=4, column=0, sticky="ew", padx=content_pad, pady=(0, 9))
         bottom.grid_propagate(False)
         bottom.grid_columnconfigure(0, weight=1, uniform="console")
         bottom.grid_columnconfigure(1, weight=1, uniform="console")

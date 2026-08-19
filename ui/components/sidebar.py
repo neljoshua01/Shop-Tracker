@@ -20,12 +20,26 @@ class Sidebar(ctk.CTkFrame):
         brand_frame = ctk.CTkFrame(self, fg_color="transparent")
         brand_frame.pack(fill="x", padx=18, pady=(20, 24))
 
-        logo = ctk.CTkFrame(brand_frame, width=36, height=36, fg_color="transparent", border_width=1, border_color=colors.PRIMARY, corner_radius=10)
+        logo = ctk.CTkFrame(
+            brand_frame,
+            width=36,
+            height=36,
+            fg_color="transparent",
+            border_width=1,
+            border_color=colors.PRIMARY,
+            corner_radius=10,
+        )
         logo.pack_propagate(False)
         logo.pack(side="left", padx=(0, 10))
         ctk.CTkLabel(logo, text="S", font=fonts.HEADING, text_color=colors.PRIMARY_HOVER).pack(expand=True)
 
-        ctk.CTkLabel(brand_frame, text="Shopee\nPrice Tracker", font=fonts.BRAND, justify="left", text_color=colors.TEXT_PRIMARY).pack(side="left", anchor="w")
+        ctk.CTkLabel(
+            brand_frame,
+            text="Shopee\nPrice Tracker",
+            font=fonts.BRAND,
+            justify="left",
+            text_color=colors.TEXT_PRIMARY,
+        ).pack(side="left", anchor="w")
 
         buttons = [
             (icons.DASHBOARD, "Dashboard"),
@@ -50,26 +64,34 @@ class Sidebar(ctk.CTkFrame):
             self.nav_buttons[text] = button
         self._update_selected_navigation()
 
-        self.armed_card = ctk.CTkFrame(
+        # Keep Armed Mode available as a compact safety control rather than a
+        # large legacy card competing with the Dashboard workspace.
+        self.armed_control = ctk.CTkFrame(
             self,
-            fg_color=colors.SURFACE,
-            border_width=1,
-            border_color=colors.BORDER_STRONG,
-            corner_radius=9,
+            fg_color="transparent",
+            height=38,
         )
-        self.armed_card.pack(side="bottom", fill="x", padx=14, pady=(0, 14))
+        self.armed_control.pack(side="bottom", fill="x", padx=14, pady=(0, 12))
+        self.armed_control.pack_propagate(False)
 
-        ctk.CTkLabel(self.armed_card, text="ARMED MODE", font=fonts.BADGE, text_color=colors.TEXT_PRIMARY).pack(anchor="w", padx=12, pady=(10, 2))
-        self.armed_status = ctk.CTkLabel(self.armed_card, text="", font=fonts.SMALL_BOLD)
-        self.armed_status.pack(anchor="w", padx=12, pady=(0, 5))
         self.armed_var = ctk.BooleanVar(value=self.config["armed_mode"])
         self.armed_switch = ctk.CTkSwitch(
-            self.armed_card,
-            text="Enable Live Purchases",
+            self.armed_control,
+            text="Armed Mode",
             variable=self.armed_var,
             command=self.toggle_armed_mode,
+            font=fonts.SMALL_BOLD,
+            text_color=colors.TEXT_SECONDARY,
+            width=30,
         )
-        self.armed_switch.pack(anchor="w", padx=12, pady=(0, 10))
+        self.armed_switch.pack(side="left", anchor="center")
+
+        self.armed_status = ctk.CTkLabel(
+            self.armed_control,
+            text="",
+            font=fonts.BADGE,
+        )
+        self.armed_status.pack(side="right", anchor="center", padx=(6, 0))
         self._update_armed_status()
 
     def navigate(self, page):
@@ -93,9 +115,11 @@ class Sidebar(ctk.CTkFrame):
 
     def _update_armed_status(self):
         if self.config["armed_mode"]:
-            self.armed_status.configure(text="●  LIVE PURCHASE", text_color=colors.DANGER)
+            self.armed_status.configure(text="LIVE", text_color=colors.DANGER)
+            self.armed_switch.configure(text_color=colors.TEXT_PRIMARY)
         else:
-            self.armed_status.configure(text="●  SAFE MODE", text_color=colors.SUCCESS)
+            self.armed_status.configure(text="SAFE", text_color=colors.SUCCESS)
+            self.armed_switch.configure(text_color=colors.TEXT_SECONDARY)
 
     def toggle_armed_mode(self):
         self.config["armed_mode"] = self.armed_var.get()
