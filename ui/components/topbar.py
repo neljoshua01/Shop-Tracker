@@ -8,10 +8,14 @@ class TopBar(ctk.CTkFrame):
     def __init__(self, master, add_callback, purchase_profile_callback=None):
         super().__init__(
             master,
-            fg_color=colors.BACKGROUND,
-            corner_radius=0
+            fg_color=colors.TOPBAR,
+            border_width=1,
+            border_color=colors.BORDER,
+            corner_radius=10,
+            height=62
         )
 
+        self.pack_propagate(False)
         self.add_callback = add_callback
         self.purchase_profile_callback = purchase_profile_callback
 
@@ -20,10 +24,11 @@ class TopBar(ctk.CTkFrame):
     def build_ui(self):
         self.url_entry = ctk.CTkEntry(
             self,
-            height=44,
+            height=42,
             font=fonts.BODY,
             fg_color=colors.INPUT,
-            border_color=colors.BORDER,
+            border_color=colors.INPUT_BORDER,
+            border_width=1,
             placeholder_text="Quick monitor a Shopee Product URL..."
         )
 
@@ -31,21 +36,29 @@ class TopBar(ctk.CTkFrame):
             side="left",
             fill="x",
             expand=True,
-            padx=(0, 15)
+            padx=(10, 10),
+            pady=9
         )
 
         self.add_button = ctk.CTkButton(
             self,
             text="+  Add Purchase Profile",
-            width=190,
-            height=44,
+            width=194,
+            height=42,
             fg_color=colors.PRIMARY,
             hover_color=colors.PRIMARY_HOVER,
+            border_width=1,
+            border_color=colors.PRIMARY_GLOW,
+            text_color=colors.BUTTON_TEXT,
             font=fonts.BUTTON,
             command=self.purchase_profile_callback or self.add_callback
         )
 
-        self.add_button.pack(side="right")
+        self.add_button.pack(
+            side="right",
+            padx=(0, 10),
+            pady=9
+        )
 
     def get_url(self):
         return self.url_entry.get()
