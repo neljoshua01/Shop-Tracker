@@ -64,35 +64,11 @@ class Sidebar(ctk.CTkFrame):
             self.nav_buttons[text] = button
         self._update_selected_navigation()
 
-        # Keep Armed Mode available as a compact safety control rather than a
-        # large legacy card competing with the Dashboard workspace.
-        self.armed_control = ctk.CTkFrame(
-            self,
-            fg_color="transparent",
-            height=38,
-        )
-        self.armed_control.pack(side="bottom", fill="x", padx=14, pady=(0, 12))
-        self.armed_control.pack_propagate(False)
-
+        # Armed Mode remains backed by the existing configuration/state methods,
+        # but its legacy sidebar control is intentionally not part of the V2 shell.
         self.armed_var = ctk.BooleanVar(value=self.config["armed_mode"])
-        self.armed_switch = ctk.CTkSwitch(
-            self.armed_control,
-            text="Armed Mode",
-            variable=self.armed_var,
-            command=self.toggle_armed_mode,
-            font=fonts.SMALL_BOLD,
-            text_color=colors.TEXT_SECONDARY,
-            width=30,
-        )
-        self.armed_switch.pack(side="left", anchor="center")
-
-        self.armed_status = ctk.CTkLabel(
-            self.armed_control,
-            text="",
-            font=fonts.BADGE,
-        )
-        self.armed_status.pack(side="right", anchor="center", padx=(6, 0))
-        self._update_armed_status()
+        self.armed_switch = None
+        self.armed_status = None
 
     def navigate(self, page):
         self.selected_page = page
@@ -114,12 +90,15 @@ class Sidebar(ctk.CTkFrame):
             )
 
     def _update_armed_status(self):
-        if self.config["armed_mode"]:
-            self.armed_status.configure(text="LIVE", text_color=colors.DANGER)
-            self.armed_switch.configure(text_color=colors.TEXT_PRIMARY)
-        else:
-            self.armed_status.configure(text="SAFE", text_color=colors.SUCCESS)
-            self.armed_switch.configure(text_color=colors.TEXT_SECONDARY)
+        # Retain the method for compatibility with the existing Armed Mode
+        # state flow. There is intentionally no visible sidebar control now.
+        if self.armed_switch is not None and self.armed_status is not None:
+            if self.config["armed_mode"]:
+                self.armed_status.configure(text="LIVE", text_color=colors.DANGER)
+                self.armed_switch.configure(text_color=colors.TEXT_PRIMARY)
+            else:
+                self.armed_status.configure(text="SAFE", text_color=colors.SUCCESS)
+                self.armed_switch.configure(text_color=colors.TEXT_SECONDARY)
 
     def toggle_armed_mode(self):
         self.config["armed_mode"] = self.armed_var.get()
