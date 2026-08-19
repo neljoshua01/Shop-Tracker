@@ -117,7 +117,7 @@ class DashboardPage(ctk.CTkFrame):
             text_color=colors.TEXT_SECONDARY,
         ).place(x=34, y=27)
 
-    def panel(self, parent, row, column, title, subtitle=None):
+    def panel(self, parent, row, column, title, subtitle=None, action_text=None, action_command=None):
         frame = ctk.CTkFrame(
             parent,
             fg_color=colors.CARD,
@@ -144,7 +144,22 @@ class DashboardPage(ctk.CTkFrame):
             text_color=colors.TEXT_PRIMARY,
         ).pack(side="left", anchor="center")
 
-        if subtitle:
+        if action_text and action_command:
+            ctk.CTkButton(
+                header,
+                text=action_text,
+                command=action_command,
+                width=126,
+                height=28,
+                corner_radius=6,
+                fg_color=colors.PRIMARY,
+                hover_color=colors.PRIMARY_HOVER,
+                border_width=1,
+                border_color=colors.PRIMARY_HOVER,
+                font=fonts.SMALL_BOLD,
+                text_color=colors.TEXT_PRIMARY,
+            ).pack(side="right", anchor="center")
+        elif subtitle:
             ctk.CTkLabel(
                 header,
                 text=subtitle,
@@ -201,7 +216,14 @@ class DashboardPage(ctk.CTkFrame):
             ctk.CTkLabel(card, text=text, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=53, y=29)
 
     def build_products_panel(self, parent):
-        frame = self.panel(parent, 1, 0, "Active Products", "LIVE WORKSPACE")
+        frame = self.panel(
+            parent,
+            1,
+            0,
+            "Active Products",
+            action_text="Add Purchase Profile",
+            action_command=self.purchase_profile_callback,
+        )
         frame.grid_configure(pady=(9, 0))
         self.products_frame = ProductList(
             frame,
