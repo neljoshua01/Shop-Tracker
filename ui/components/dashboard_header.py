@@ -4,7 +4,6 @@ from ui import colors, fonts
 
 
 class DashboardHeader(ctk.CTkFrame):
-
     def __init__(self, master):
         super().__init__(
             master,
@@ -13,31 +12,31 @@ class DashboardHeader(ctk.CTkFrame):
         )
 
         self.grid_columnconfigure(0, weight=1)
+        self.build_ui()
 
-        accent = ctk.CTkFrame(
-            self,
-            width=4,
-            height=46,
+    def build_ui(self):
+        title_row = ctk.CTkFrame(self, fg_color="transparent")
+        title_row.grid(row=0, column=0, sticky="ew")
+        title_row.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkFrame(
+            title_row,
+            width=3,
+            height=34,
             fg_color=colors.PRIMARY,
             corner_radius=2
-        )
-        accent.grid(row=0, column=0, rowspan=2, sticky="nsw", pady=2)
+        ).grid(row=0, column=0, sticky="ns", padx=(0, 10))
 
-        content = ctk.CTkFrame(self, fg_color="transparent")
-        content.grid(row=0, column=0, rowspan=2, sticky="ew", padx=(14, 0))
-
-        title = ctk.CTkLabel(
-            content,
+        ctk.CTkLabel(
+            title_row,
             text="Dashboard",
             font=fonts.TITLE,
             text_color=colors.TEXT_PRIMARY
-        )
-        title.pack(anchor="w")
+        ).grid(row=0, column=1, sticky="w")
 
-        subtitle = ctk.CTkLabel(
-            content,
-            text="Track prices and get notified on deals",
+        ctk.CTkLabel(
+            self,
+            text="Overview of your tracking and automation system",
             font=fonts.BODY,
             text_color=colors.TEXT_SECONDARY
-        )
-        subtitle.pack(anchor="w", pady=(2, 0))
+        ).grid(row=1, column=0, sticky="w", padx=(13, 0), pady=(1, 0))
