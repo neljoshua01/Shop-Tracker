@@ -75,7 +75,7 @@ class DashboardPage(ctk.CTkFrame):
         bottom.grid_propagate(False)
         bottom.grid_columnconfigure(0, weight=1, uniform="console")
         bottom.grid_columnconfigure(1, weight=1, uniform="console")
-        bottom.grid_columnconfigure(2, weight=1.25, uniform="console")
+        bottom.grid_columnconfigure(2, weight=2, uniform="console")
         bottom.grid_rowconfigure(0, weight=1)
 
         self.build_alerts_panel(bottom)
