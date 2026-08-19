@@ -36,7 +36,7 @@ class DashboardPage(ctk.CTkFrame):
         content_pad = 18
 
         header_row = ctk.CTkFrame(self, fg_color="transparent")
-        header_row.grid(row=0, column=0, sticky="ew", padx=content_pad, pady=(14, 9))
+        header_row.grid(row=0, column=0, sticky="ew", padx=content_pad, pady=(14, 8))
         header_row.grid_columnconfigure(0, weight=1)
 
         self.dashboard_header = DashboardHeader(header_row)
@@ -54,13 +54,13 @@ class DashboardPage(ctk.CTkFrame):
         )
 
         self.status_bar = StatusBar(self)
-        self.status_bar.grid(row=1, column=0, sticky="ew", padx=content_pad, pady=(0, 10))
+        self.status_bar.grid(row=1, column=0, sticky="ew", padx=content_pad, pady=(0, 9))
 
         self.stats = DashboardStats(self)
-        self.stats.grid(row=2, column=0, sticky="ew", padx=content_pad, pady=(0, 12))
+        self.stats.grid(row=2, column=0, sticky="ew", padx=content_pad, pady=(0, 11))
 
         workspace = ctk.CTkFrame(self, fg_color="transparent")
-        workspace.grid(row=3, column=0, sticky="nsew", padx=content_pad, pady=(0, 10))
+        workspace.grid(row=3, column=0, sticky="nsew", padx=content_pad, pady=(0, 9))
         workspace.grid_columnconfigure(0, weight=3, uniform="workspace")
         workspace.grid_columnconfigure(1, weight=1, uniform="workspace")
         workspace.grid_rowconfigure(0, weight=0)
@@ -89,8 +89,8 @@ class DashboardPage(ctk.CTkFrame):
             border_width=1,
             border_color=colors.BORDER,
             corner_radius=9,
-            width=214,
-            height=52,
+            width=228,
+            height=60,
         )
         engine_status.grid(row=0, column=1, sticky="e", padx=(18, 0))
         engine_status.grid_propagate(False)
@@ -101,21 +101,21 @@ class DashboardPage(ctk.CTkFrame):
             height=10,
             fg_color=colors.SUCCESS,
             corner_radius=5,
-        ).place(x=14, y=20)
+        ).place(x=14, y=25)
 
         ctk.CTkLabel(
             engine_status,
             text="Engine Status",
             font=fonts.SMALL_BOLD,
             text_color=colors.TEXT_PRIMARY,
-        ).place(x=34, y=8)
+        ).place(x=34, y=10)
 
         ctk.CTkLabel(
             engine_status,
             text="All Systems Operational",
             font=fonts.SMALL,
             text_color=colors.TEXT_SECONDARY,
-        ).place(x=34, y=27)
+        ).place(x=34, y=33)
 
     def panel(self, parent, row, column, title, subtitle=None, action_text=None, action_command=None):
         frame = ctk.CTkFrame(
@@ -176,7 +176,7 @@ class DashboardPage(ctk.CTkFrame):
             text="Analyzing  •  Detecting  •  Deciding  •  Triggering",
             font=fonts.SMALL,
             text_color=colors.TEXT_SECONDARY,
-        ).pack(anchor="w", padx=14, pady=(0, 7))
+        ).pack(anchor="w", padx=14, pady=(0, 8))
 
         modules = ctk.CTkFrame(frame, fg_color="transparent")
         modules.pack(fill="x", padx=14, pady=(0, 10))
@@ -195,7 +195,7 @@ class DashboardPage(ctk.CTkFrame):
                 border_width=1,
                 border_color=colors.DIVIDER,
                 corner_radius=7,
-                height=58,
+                height=64,
             )
             card.grid(row=0, column=index, sticky="ew", padx=(0, 7) if index < 2 else 0)
             card.grid_propagate(False)
@@ -209,11 +209,11 @@ class DashboardPage(ctk.CTkFrame):
                 border_color=accent,
                 corner_radius=7,
             )
-            icon_box.place(x=8, y=10)
+            icon_box.place(x=8, y=14)
             icon_image = icons.load_icon(icon, accent, icons.SIZE_SMALL)
             ctk.CTkLabel(icon_box, text="", image=icon_image).place(relx=0.5, rely=0.5, anchor="center")
-            ctk.CTkLabel(card, text=title, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=53, y=8)
-            ctk.CTkLabel(card, text=text, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=53, y=29)
+            ctk.CTkLabel(card, text=title, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=53, y=11)
+            ctk.CTkLabel(card, text=text, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=53, y=34)
 
     def build_products_panel(self, parent):
         frame = self.panel(
@@ -240,7 +240,7 @@ class DashboardPage(ctk.CTkFrame):
         frame = self.panel(parent, 0, 1, "System Pipeline", "LIVE")
         frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0)
         pipeline = ctk.CTkFrame(frame, fg_color="transparent")
-        pipeline.pack(fill="both", expand=True, padx=10, pady=(0, 9))
+        pipeline.pack(fill="both", expand=True, padx=10, pady=(0, 8))
 
         stages = [
             ("Shopee Product", "Input source", colors.INFO),
@@ -256,20 +256,20 @@ class DashboardPage(ctk.CTkFrame):
                 border_width=1,
                 border_color=colors.DIVIDER,
                 corner_radius=7,
-                height=42,
+                height=46,
             )
-            row.pack(fill="x", pady=(0, 3))
+            row.pack(fill="x", pady=(0, 2))
             row.pack_propagate(False)
-            ctk.CTkFrame(row, width=3, height=24, fg_color=accent, corner_radius=2).place(x=9, y=8)
-            ctk.CTkLabel(row, text=name, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=20, y=6)
-            ctk.CTkLabel(row, text=detail, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=20, y=23)
+            ctk.CTkFrame(row, width=3, height=28, fg_color=accent, corner_radius=2).place(x=9, y=8)
+            ctk.CTkLabel(row, text=name, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=20, y=7)
+            ctk.CTkLabel(row, text=detail, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=20, y=27)
             if index < len(stages) - 1:
                 ctk.CTkLabel(
                     pipeline,
                     text="↓",
                     font=(fonts.FONT_FAMILY, 10),
                     text_color=colors.TEXT_MUTED,
-                ).pack(pady=(0, 1))
+                ).pack(pady=(1, 2))
 
     def build_alerts_panel(self, parent):
         frame = self.panel(parent, 0, 0, "Recent Alerts", "VIEW ALL")
