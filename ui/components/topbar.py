@@ -4,61 +4,39 @@ from ui import colors, fonts
 
 
 class TopBar(ctk.CTkFrame):
-
     def __init__(self, master, add_callback, purchase_profile_callback=None):
-        super().__init__(
-            master,
-            fg_color=colors.TOPBAR,
-            border_width=1,
-            border_color=colors.BORDER,
-            corner_radius=10,
-            height=62
-        )
-
+        super().__init__(master, fg_color=colors.TOPBAR, border_width=1, border_color=colors.BORDER, corner_radius=9, height=58)
         self.pack_propagate(False)
         self.add_callback = add_callback
         self.purchase_profile_callback = purchase_profile_callback
-
         self.build_ui()
 
     def build_ui(self):
         self.url_entry = ctk.CTkEntry(
             self,
-            height=42,
+            height=40,
             font=fonts.BODY,
             fg_color=colors.INPUT,
             border_color=colors.INPUT_BORDER,
             border_width=1,
-            placeholder_text="Quick monitor a Shopee Product URL..."
+            placeholder_text="Quick monitor a Shopee Product URL...",
         )
-
-        self.url_entry.pack(
-            side="left",
-            fill="x",
-            expand=True,
-            padx=(10, 10),
-            pady=9
-        )
+        self.url_entry.pack(side="left", fill="x", expand=True, padx=(9, 9), pady=8)
 
         self.add_button = ctk.CTkButton(
             self,
             text="+  Add Purchase Profile",
-            width=194,
-            height=42,
+            width=188,
+            height=40,
             fg_color=colors.PRIMARY,
             hover_color=colors.PRIMARY_HOVER,
             border_width=1,
             border_color=colors.PRIMARY_GLOW,
             text_color=colors.BUTTON_TEXT,
             font=fonts.BUTTON,
-            command=self.purchase_profile_callback or self.add_callback
+            command=self.purchase_profile_callback or self.add_callback,
         )
-
-        self.add_button.pack(
-            side="right",
-            padx=(0, 10),
-            pady=9
-        )
+        self.add_button.pack(side="right", padx=(0, 9), pady=8)
 
     def get_url(self):
         return self.url_entry.get()

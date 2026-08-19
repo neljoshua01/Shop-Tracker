@@ -5,68 +5,27 @@ from ui import colors, fonts, icons
 
 
 class Sidebar(ctk.CTkFrame):
-
     def __init__(self, master, nav_callback=None):
-
-        super().__init__(
-            master,
-            width=232,
-            fg_color=colors.SIDEBAR,
-            corner_radius=0
-        )
-
+        super().__init__(master, width=232, fg_color=colors.SIDEBAR, corner_radius=0)
         self.pack_propagate(False)
         self.nav_callback = nav_callback
         self.nav_buttons = {}
         self.nav_icon_paths = {}
         self.selected_page = "Dashboard"
-
         self.config_service = ConfigService()
         self.config = self.config_service.load()
-
         self.build_ui()
 
     def build_ui(self):
+        brand_frame = ctk.CTkFrame(self, fg_color="transparent")
+        brand_frame.pack(fill="x", padx=18, pady=(20, 24))
 
-        brand_frame = ctk.CTkFrame(
-            self,
-            fg_color="transparent"
-        )
-
-        brand_frame.pack(
-            fill="x",
-            padx=18,
-            pady=(22, 28)
-        )
-
-        logo = ctk.CTkFrame(
-            brand_frame,
-            width=38,
-            height=38,
-            fg_color="transparent",
-            border_width=1,
-            border_color=colors.PRIMARY,
-            corner_radius=11
-        )
+        logo = ctk.CTkFrame(brand_frame, width=36, height=36, fg_color="transparent", border_width=1, border_color=colors.PRIMARY, corner_radius=10)
         logo.pack_propagate(False)
-        logo.pack(side="left", padx=(0, 11))
+        logo.pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(logo, text="S", font=fonts.HEADING, text_color=colors.PRIMARY_HOVER).pack(expand=True)
 
-        ctk.CTkLabel(
-            logo,
-            text="S",
-            font=fonts.HEADING,
-            text_color=colors.PRIMARY_HOVER
-        ).pack(expand=True)
-
-        title = ctk.CTkLabel(
-            brand_frame,
-            text="Shopee\nPrice Tracker",
-            font=fonts.BRAND,
-            justify="left",
-            text_color=colors.TEXT_PRIMARY
-        )
-
-        title.pack(side="left", anchor="w")
+        ctk.CTkLabel(brand_frame, text="Shopee\nPrice Tracker", font=fonts.BRAND, justify="left", text_color=colors.TEXT_PRIMARY).pack(side="left", anchor="w")
 
         buttons = [
             (icons.DASHBOARD, "Dashboard"),
@@ -75,112 +34,55 @@ class Sidebar(ctk.CTkFrame):
             (icons.ALERT, "Alerts &\nAuto Checkout"),
             (icons.SETTINGS, "Settings"),
         ]
-
         for icon_path, text in buttons:
-
             self.nav_icon_paths[text] = icon_path
-
             button = ctk.CTkButton(
                 self,
                 text=text,
                 compound="left",
                 anchor="w",
-                height=44,
+                height=42,
                 hover_color=colors.CARD_HOVER,
                 font=fonts.BUTTON,
                 command=lambda page=text: self.navigate(page),
             )
-
-            button.pack(
-                fill="x",
-                padx=14,
-                pady=4
-            )
-
+            button.pack(fill="x", padx=14, pady=3)
             self.nav_buttons[text] = button
-
         self._update_selected_navigation()
-
-        # =====================================================
-        # Armed Mode Card
-        # =====================================================
 
         self.armed_card = ctk.CTkFrame(
             self,
-            fg_color=colors.CARD,
+            fg_color=colors.SURFACE,
             border_width=1,
             border_color=colors.BORDER_STRONG,
-            corner_radius=10
+            corner_radius=9,
         )
+        self.armed_card.pack(side="bottom", fill="x", padx=14, pady=(0, 14))
 
-        self.armed_card.pack(
-            side="bottom",
-            fill="x",
-            padx=14,
-            pady=(0, 18)
-        )
-
-        ctk.CTkLabel(
-            self.armed_card,
-            text="⚡  ARMED MODE",
-            font=fonts.BADGE,
-            text_color=colors.TEXT_PRIMARY
-        ).pack(
-            anchor="w",
-            padx=14,
-            pady=(13, 5)
-        )
-
-        self.armed_status = ctk.CTkLabel(
-            self.armed_card,
-            text="",
-            font=fonts.BODY
-        )
-
-        self.armed_status.pack(
-            anchor="w",
-            padx=14,
-            pady=(0, 9)
-        )
-
-        self.armed_var = ctk.BooleanVar(
-            value=self.config["armed_mode"]
-        )
+        ctk.CTkLabel(self.armed_card, text="ARMED MODE", font=fonts.BADGE, text_color=colors.TEXT_PRIMARY).pack(anchor="w", padx=12, pady=(10, 2))
+        self.armed_status = ctk.CTkLabel(self.armed_card, text="", font=fonts.SMALL_BOLD)
+        self.armed_status.pack(anchor="w", padx=12, pady=(0, 5))
+        self.armed_var = ctk.BooleanVar(value=self.config["armed_mode"])
         self.armed_switch = ctk.CTkSwitch(
             self.armed_card,
             text="Enable Live Purchases",
             variable=self.armed_var,
-            command=self.toggle_armed_mode
+            command=self.toggle_armed_mode,
         )
-
-        self.armed_switch.pack(
-            anchor="w",
-            padx=14,
-            pady=(0, 13)
-        )
-
+        self.armed_switch.pack(anchor="w", padx=12, pady=(0, 10))
         self._update_armed_status()
 
     def navigate(self, page):
-
         self.selected_page = page
         self._update_selected_navigation()
-
         if self.nav_callback:
             self.nav_callback(page)
 
     def _update_selected_navigation(self):
-
         for page, button in self.nav_buttons.items():
-
             selected = page == self.selected_page
             icon_color = colors.PRIMARY_HOVER if selected else colors.TEXT_MUTED
-            icon_image = icons.load_icon(
-                self.nav_icon_paths[page],
-                icon_color,
-                icons.SIZE_DEFAULT,
-            )
-
+            icon_image = icons.load_icon(self.nav_icon_paths[page], icon_color, icons.SIZE_DEFAULT)
             button.configure(
                 image=icon_image,
                 fg_color=colors.PRIMARY_SOFT if selected else "transparent",
@@ -190,31 +92,15 @@ class Sidebar(ctk.CTkFrame):
             )
 
     def _update_armed_status(self):
-
         if self.config["armed_mode"]:
-
-            self.armed_status.configure(
-                text="●  LIVE PURCHASE",
-                text_color=colors.DANGER
-            )
-
+            self.armed_status.configure(text="●  LIVE PURCHASE", text_color=colors.DANGER)
         else:
-
-            self.armed_status.configure(
-                text="●  SAFE MODE",
-                text_color=colors.SUCCESS
-            )
+            self.armed_status.configure(text="●  SAFE MODE", text_color=colors.SUCCESS)
 
     def toggle_armed_mode(self):
-
         self.config["armed_mode"] = self.armed_var.get()
-
-        self.config_service.save(
-            self.config
-        )
-
+        self.config_service.save(self.config)
         self._update_armed_status()
-
         if self.config["armed_mode"]:
             print("[Sidebar] Armed Mode ENABLED")
         else:
