@@ -88,7 +88,7 @@ class Sidebar(ctk.CTkFrame):
                 fg_color=colors.PRIMARY_SOFT if selected else "transparent",
                 text_color=colors.TEXT_PRIMARY if selected else colors.TEXT_SECONDARY,
                 border_width=1 if selected else 0,
-                border_color=colors.PRIMARY_GLOW if selected else "transparent",
+                border_color=colors.PRIMARY_GLOW if selected else colors.SIDEBAR,
             )
 
     def _update_armed_status(self):
