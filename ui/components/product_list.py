@@ -27,6 +27,10 @@ class ProductList(ctk.CTkScrollableFrame):
             "Product", "Stock", "Auto Checkout", "Target Price",
             "Current Price", "Last Checked", "Actions"
         ]
+        weights = [6, 2, 2, 2, 2, 2, 1]
+        for index, weight in enumerate(weights):
+            self.header.grid_columnconfigure(index, weight=weight)
+
         for index, label in enumerate(columns):
             ctk.CTkLabel(
                 self.header,
