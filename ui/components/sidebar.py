@@ -6,7 +6,7 @@ from ui import colors, fonts, icons
 
 class Sidebar(ctk.CTkFrame):
 
-    def __init__(self, master):
+    def __init__(self, master, nav_callback=None):
 
         super().__init__(
             master,
@@ -16,6 +16,8 @@ class Sidebar(ctk.CTkFrame):
         )
 
         self.pack_propagate(False)
+        self.nav_callback = nav_callback
+        self.nav_buttons = {}
 
         self.config_service = ConfigService()
         self.config = self.config_service.load()
@@ -89,7 +91,7 @@ class Sidebar(ctk.CTkFrame):
                 hover_color=colors.CARD_HOVER,
                 text_color=colors.TEXT_PRIMARY,
                 font=fonts.BUTTON,
-                command=lambda: None,
+                command=lambda page=text: self.navigate(page),
             )
 
             button.pack(
@@ -97,6 +99,8 @@ class Sidebar(ctk.CTkFrame):
                 padx=15,
                 pady=5
             )
+
+            self.nav_buttons[text] = button
 
         # =====================================================
         # Armed Mode Card
@@ -168,6 +172,11 @@ class Sidebar(ctk.CTkFrame):
                 text="🟢 SAFE MODE",
                 text_color=colors.SUCCESS
             )
+
+    def navigate(self, page):
+
+        if self.nav_callback:
+            self.nav_callback(page)
 
     def toggle_armed_mode(self):
 

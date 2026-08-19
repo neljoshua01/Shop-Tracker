@@ -5,7 +5,7 @@ from ui import colors, fonts
 
 class TopBar(ctk.CTkFrame):
 
-    def __init__(self, master, add_callback):
+    def __init__(self, master, add_callback, purchase_profile_callback=None):
         super().__init__(
             master,
             fg_color=colors.BACKGROUND,
@@ -13,6 +13,7 @@ class TopBar(ctk.CTkFrame):
         )
 
         self.add_callback = add_callback
+        self.purchase_profile_callback = purchase_profile_callback
 
         self.build_ui()
 
@@ -23,7 +24,7 @@ class TopBar(ctk.CTkFrame):
             font=fonts.BODY,
             fg_color=colors.INPUT,
             border_color=colors.BORDER,
-            placeholder_text="Search or paste Shopee Product URL here..."
+            placeholder_text="Quick monitor a Shopee Product URL..."
         )
 
         self.url_entry.pack(
@@ -35,13 +36,13 @@ class TopBar(ctk.CTkFrame):
 
         self.add_button = ctk.CTkButton(
             self,
-            text="+  Add Product",
-            width=150,
+            text="+  Add Purchase Profile",
+            width=190,
             height=44,
             fg_color=colors.PRIMARY,
             hover_color=colors.PRIMARY_HOVER,
             font=fonts.BUTTON,
-            command=self.add_callback
+            command=self.purchase_profile_callback or self.add_callback
         )
 
         self.add_button.pack(side="right")

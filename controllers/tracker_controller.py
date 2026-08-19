@@ -1,5 +1,6 @@
 from monitoring.services.monitoring_service import MonitoringService
 from core.config.settings_service import SettingsService
+from purchase.services.purchase_profile_coordinator import PurchaseProfileCoordinator
 
 
 class TrackerController:
@@ -29,6 +30,8 @@ class TrackerController:
         # ==========================
 
         self.settings = SettingsService()
+        self.purchase_profiles = self.settings.load_purchase_profiles()
+        self.purchase_profile_coordinator = PurchaseProfileCoordinator(logger=self.logger)
 
         # ==========================
         # Monitoring Engine
@@ -191,3 +194,9 @@ class TrackerController:
             )
 
         return self.products
+
+    def create_purchase_profile(self, profile):
+        session = self.purchase_profile_coordinator.start(profile)
+        self.purchase_profiles.append(profile)
+        self.settings.save_purchase_profiles(self.purchase_profiles)
+        return session

@@ -34,9 +34,10 @@ class PurchasePipeline:
         )
         monitor_thread = None
         try:
-            print("[PurchasePipeline] Preparing cart...")
-            self.cart_preparer.prepare(session)
-            print("[PurchasePipeline] Cart preparation complete.")
+            if session.request.auto_checkout:
+                print("[PurchasePipeline] Preparing cart...")
+                self.cart_preparer.prepare(session)
+                print("[PurchasePipeline] Cart preparation complete.")
 
             # Monitor the PDP with the same BrowserSession used for cart
             # preparation. The monitor moves it to the PDP; checkout
@@ -45,7 +46,7 @@ class PurchasePipeline:
             monitor_thread = threading.Thread(
                 target=self.sku_monitor.monitor,
                 args=(session,),
-                kwargs={"poll_interval": 5},
+                kwargs={"poll_interval": session.request.polling_interval},
                 daemon=True,
             )
             monitor_thread.start()
@@ -63,6 +64,11 @@ class PurchasePipeline:
 
             self.sku_monitor.stop()
             monitor_thread.join(timeout=10)
+
+            if not session.request.auto_checkout:
+                session.status = PurchaseStatus.COMPLETED
+                print("[PurchasePipeline] Trigger recorded; Auto Checkout is disabled.")
+                return True
 
             session.status = PurchaseStatus.CHECKING_OUT
             print("[PurchasePipeline] Starting checkout execution...")

@@ -62,7 +62,7 @@ class ProductCard(ctk.CTkFrame):
         # Table Layout
         #
 
-        self.grid_columnconfigure(0, weight=5)   # Product
+        self.grid_columnconfigure(0, weight=6)   # Product
         self.grid_columnconfigure(1, weight=2)   # Stock
         self.grid_columnconfigure(2, weight=2)   # Auto Checkout
         self.grid_columnconfigure(3, weight=2)   # Target

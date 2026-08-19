@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from purchase.models.product_reference import ProductReference
+from purchase.models.trigger_condition import TriggerCondition
 
 
 @dataclass(slots=True)
@@ -18,3 +19,9 @@ class PurchaseRequest:
     auto_checkout: bool = True
 
     target_price: int | None = None
+
+    trigger: TriggerCondition = TriggerCondition.PRICE_TARGET
+
+    polling_interval: int = 30
+
+    lock_selected_variations: bool = True

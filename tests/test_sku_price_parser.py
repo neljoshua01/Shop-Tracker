@@ -68,6 +68,46 @@ def main():
         f"{result.promotion_types}"
     )
 
+    print(
+        f"Deep Discount: "
+        f"{result.deep_discount}"
+    )
+
+    print(
+        f"Promotion Price: "
+        f"{result.promotion_price}"
+    )
+
+    print(
+        f"Promotion Event Status: "
+        f"{result.promotion_event_status}"
+    )
+
+    print(
+        f"Seconds Until Start: "
+        f"{result.promotion_seconds_until_start}"
+    )
+
+    print(
+        f"Seconds Until End: "
+        f"{result.promotion_seconds_until_end}"
+    )
+
+    print(
+        f"Promotion Skin: "
+        f"{result.promotion_skin}"
+    )
+
+    print(
+        f"Promotion Reminder Event: "
+        f"{result.promotion_reminder_event}"
+    )
+
+    print(
+        f"Promotion Is LPP: "
+        f"{result.promotion_is_lpp}"
+    )
+
 
 if __name__ == "__main__":
     main()

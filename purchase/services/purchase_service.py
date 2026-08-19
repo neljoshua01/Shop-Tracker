@@ -36,13 +36,16 @@ class PurchaseService:
             request.reference,
         )
 
-        #
-        # Resolve the requested variation
-        #
-        variation = self.selection.resolve(
-            product,
-            request.options,
-        )
+        return self.prepare_from_product(request, product)
+
+    def prepare_from_product(
+        self,
+        request: PurchaseRequest,
+        product,
+    ) -> PurchaseSession:
+        """Create a session from product data already discovered by the UI."""
+
+        variation = self.selection.resolve(product, request.options)
 
         if variation is None:
 
