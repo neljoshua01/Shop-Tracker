@@ -17,7 +17,7 @@ class StatCard(ctk.CTkFrame):
         super().__init__(
             master,
             fg_color=colors.CARD,
-            corner_radius=8,
+            corner_radius=10,
             border_width=1,
             border_color=colors.BORDER
         )
@@ -27,7 +27,7 @@ class StatCard(ctk.CTkFrame):
 
         self.image = icons.load_icon(
             image,
-            colors.TEXT_PRIMARY,
+            colors.INFO,
             icons.SIZE_DEFAULT,
         )
 
@@ -35,30 +35,32 @@ class StatCard(ctk.CTkFrame):
             self,
             text="",
             image=self.image,
+            fg_color=colors.SURFACE_LIGHT,
+            corner_radius=8,
+            width=40,
+            height=40
         )
-
         self.icon.grid(
             row=0,
             column=0,
             rowspan=3,
-            padx=18,
-            pady=18,
+            padx=(14, 12),
+            pady=14,
             sticky="n"
         )
 
         self.title = ctk.CTkLabel(
             self,
             text=title,
-            font=fonts.BODY,
-            text_color=colors.TEXT_PRIMARY
+            font=fonts.SMALL_BOLD,
+            text_color=colors.TEXT_SECONDARY
         )
-
         self.title.grid(
             row=0,
             column=1,
             sticky="sw",
-            padx=(0, 20),
-            pady=(18, 0)
+            padx=(0, 14),
+            pady=(13, 0)
         )
 
         self.value = ctk.CTkLabel(
@@ -67,27 +69,26 @@ class StatCard(ctk.CTkFrame):
             font=fonts.STAT_VALUE,
             text_color=colors.TEXT_PRIMARY
         )
-
         self.value.grid(
             row=1,
             column=1,
             sticky="nw",
-            padx=(0, 20)
+            padx=(0, 14),
+            pady=(0, 0)
         )
 
         self.subtitle = ctk.CTkLabel(
             self,
             text=subtitle,
             font=fonts.SMALL,
-            text_color=colors.TEXT_SECONDARY
+            text_color=colors.TEXT_MUTED
         )
-
         self.subtitle.grid(
             row=2,
             column=1,
             sticky="nw",
-            padx=(0, 20),
-            pady=(0, 18)
+            padx=(0, 14),
+            pady=(0, 13)
         )
 
     def update(self, value):
@@ -97,11 +98,7 @@ class StatCard(ctk.CTkFrame):
 class DashboardStats(ctk.CTkFrame):
 
     def __init__(self, master):
-        super().__init__(
-            master,
-            fg_color="transparent"
-        )
-
+        super().__init__(master, fg_color="transparent")
         self.build_ui()
 
     def build_ui(self):
@@ -137,21 +134,15 @@ class DashboardStats(ctk.CTkFrame):
             image=icons.TIME
         )
 
-        cards = [
-            self.products,
-            self.Purchased,
-            self.lowest,
-            self.Response_time
-        ]
-
+        cards = [self.products, self.Purchased, self.lowest, self.Response_time]
         for index, card in enumerate(cards):
-            card.configure(height=96)
+            card.configure(height=104)
             card.grid(
                 row=0,
                 column=index,
-                padx=(0, 14) if index < len(cards) - 1 else 0,
+                padx=(0, 10) if index < len(cards) - 1 else 0,
                 sticky="nsew"
             )
 
         for index in range(4):
-            self.grid_columnconfigure(index, weight=1)
+            self.grid_columnconfigure(index, weight=1, uniform="stat")
