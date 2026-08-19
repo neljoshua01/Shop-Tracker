@@ -10,7 +10,7 @@ class Sidebar(ctk.CTkFrame):
 
         super().__init__(
             master,
-            width=220,
+            width=232,
             fg_color=colors.SIDEBAR,
             corner_radius=0
         )
@@ -34,21 +34,27 @@ class Sidebar(ctk.CTkFrame):
         brand_frame.pack(
             fill="x",
             padx=18,
-            pady=(24, 28)
+            pady=(22, 28)
         )
 
-        logo = ctk.CTkLabel(
+        logo = ctk.CTkFrame(
             brand_frame,
-            text="S",
-            width=34,
-            height=34,
-            fg_color=colors.DANGER,
-            corner_radius=10,
-            font=fonts.HEADING,
-            text_color=colors.TEXT_PRIMARY
+            width=38,
+            height=38,
+            fg_color="transparent",
+            border_width=1,
+            border_color=colors.PRIMARY,
+            corner_radius=11
         )
+        logo.pack_propagate(False)
+        logo.pack(side="left", padx=(0, 11))
 
-        logo.pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(
+            logo,
+            text="S",
+            font=fonts.HEADING,
+            text_color=colors.PRIMARY_HOVER
+        ).pack(expand=True)
 
         title = ctk.CTkLabel(
             brand_frame,
@@ -70,9 +76,10 @@ class Sidebar(ctk.CTkFrame):
 
         for icon_path, text, selected in buttons:
 
+            icon_color = colors.PRIMARY_HOVER if selected else colors.TEXT_MUTED
             icon_image = icons.load_icon(
                 icon_path,
-                colors.TEXT_PRIMARY,
+                icon_color,
                 icons.SIZE_DEFAULT,
             )
 
@@ -89,15 +96,21 @@ class Sidebar(ctk.CTkFrame):
                     else "transparent"
                 ),
                 hover_color=colors.CARD_HOVER,
-                text_color=colors.TEXT_PRIMARY,
+                text_color=(
+                    colors.TEXT_PRIMARY
+                    if selected
+                    else colors.TEXT_SECONDARY
+                ),
                 font=fonts.BUTTON,
+                border_width=1 if selected else 0,
+                border_color=colors.PRIMARY_GLOW if selected else "transparent",
                 command=lambda page=text: self.navigate(page),
             )
 
             button.pack(
                 fill="x",
-                padx=15,
-                pady=5
+                padx=14,
+                pady=4
             )
 
             self.nav_buttons[text] = button
@@ -110,26 +123,26 @@ class Sidebar(ctk.CTkFrame):
             self,
             fg_color=colors.CARD,
             border_width=1,
-            border_color=colors.BORDER,
-            corner_radius=8
+            border_color=colors.BORDER_STRONG,
+            corner_radius=10
         )
 
         self.armed_card.pack(
             side="bottom",
             fill="x",
-            padx=15,
-            pady=(0, 20)
+            padx=14,
+            pady=(0, 18)
         )
 
         ctk.CTkLabel(
             self.armed_card,
-            text="⚡ ARMED MODE",
+            text="⚡  ARMED MODE",
             font=fonts.BADGE,
             text_color=colors.TEXT_PRIMARY
         ).pack(
             anchor="w",
             padx=14,
-            pady=(14, 6)
+            pady=(13, 5)
         )
 
         self.armed_status = ctk.CTkLabel(
@@ -141,8 +154,9 @@ class Sidebar(ctk.CTkFrame):
         self.armed_status.pack(
             anchor="w",
             padx=14,
-            pady=(0, 10)
+            pady=(0, 9)
         )
+
         self.armed_var = ctk.BooleanVar(
             value=self.config["armed_mode"]
         )
@@ -156,27 +170,31 @@ class Sidebar(ctk.CTkFrame):
         self.armed_switch.pack(
             anchor="w",
             padx=14,
-            pady=(0, 14)
+            pady=(0, 13)
         )
-        
+
+        self._update_armed_status()
+
+    def navigate(self, page):
+
+        if self.nav_callback:
+            self.nav_callback(page)
+
+    def _update_armed_status(self):
+
         if self.config["armed_mode"]:
 
             self.armed_status.configure(
-                text="🔴 LIVE PURCHASE",
+                text="●  LIVE PURCHASE",
                 text_color=colors.DANGER
             )
 
         else:
 
             self.armed_status.configure(
-                text="🟢 SAFE MODE",
+                text="●  SAFE MODE",
                 text_color=colors.SUCCESS
             )
-
-    def navigate(self, page):
-
-        if self.nav_callback:
-            self.nav_callback(page)
 
     def toggle_armed_mode(self):
 
@@ -186,20 +204,9 @@ class Sidebar(ctk.CTkFrame):
             self.config
         )
 
+        self._update_armed_status()
+
         if self.config["armed_mode"]:
-
-            self.armed_status.configure(
-                text="🔴 LIVE PURCHASE",
-                text_color=colors.DANGER
-            )
-
             print("[Sidebar] Armed Mode ENABLED")
-
         else:
-
-            self.armed_status.configure(
-                text="🟢 SAFE MODE",
-                text_color=colors.SUCCESS
-            )
-
             print("[Sidebar] Armed Mode DISABLED")
