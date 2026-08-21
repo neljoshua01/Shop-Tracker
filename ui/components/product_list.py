@@ -7,9 +7,10 @@ from ui import colors, fonts
 
 
 class ProductList(ctk.CTkScrollableFrame):
-    def __init__(self, master, stop_callback=None, **kwargs):
+    def __init__(self, master, stop_callback=None, purchase_stop_callback=None, **kwargs):
         super().__init__(master, **kwargs)
         self.stop_callback = stop_callback
+        self.purchase_stop_callback = purchase_stop_callback
         self.set_target_callback = None
         self.cards = {}
         self.profile_cards = {}
@@ -78,10 +79,16 @@ class ProductList(ctk.CTkScrollableFrame):
             self.profile_cards[key].update_data(product)
             return
 
-        card = ProductCard(self, product, stop_callback=None, set_target_callback=None)
-        # Purchase Profile execution has its own coordinator/pipeline lifecycle;
-        # its stop/target controls remain disabled until that runtime exposes a
-        # safe profile-specific callback. Details remain an ordinary ProductCard action.
+        card = ProductCard(
+            self,
+            product,
+            stop_callback=self.purchase_stop_callback,
+            set_target_callback=None,
+        )
+        # Purchase Profile execution has its own coordinator/pipeline lifecycle.
+        # Stop is routed through the profile-specific coordinator callback; target
+        # and checkout controls remain disabled until their runtime APIs expose
+        # safe profile-specific mutation behavior.
         card.checkout_switch.configure(state="disabled")
         card.target_entry.configure(state="disabled")
         card.lock_button.configure(state="disabled")
@@ -92,6 +99,11 @@ class ProductList(ctk.CTkScrollableFrame):
     def _profile_key(profile):
         variation = profile.selected_variations[0]
         return f"profile://{profile.product.shop_id}:{profile.product.item_id}:{variation.model_id}"
+
+    @staticmethod
+    def _runtime_profile_key(profile):
+        variation = profile.selected_variations[0]
+        return f"{profile.product.shop_id}:{profile.product.item_id}:{variation.model_id}"
 
     @staticmethod
     def _normalize_profile_image(image, product_url):
@@ -134,6 +146,7 @@ class ProductList(ctk.CTkScrollableFrame):
         is_monitoring = event != "MONITORING_STOPPED" and status not in {"COMPLETED", "FAILED"}
         return SimpleNamespace(
             url=ProductList._profile_key(profile),
+            profile_key=ProductList._runtime_profile_key(profile),
             shop_id=str(profile.product.shop_id),
             item_id=str(profile.product.item_id),
             name=profile.product.product_name,
