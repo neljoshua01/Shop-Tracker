@@ -32,6 +32,7 @@ class PurchaseProfileCoordinator:
         self.active_profiles = {}
         self.active_sessions = {}
         self.threads = {}
+        self.pipelines = {}
         self._watchers = {}
 
     def start(self, profile: PurchaseProfile):
@@ -72,6 +73,7 @@ class PurchaseProfileCoordinator:
         self.active_profiles[key] = profile
         self.active_sessions[key] = session
         self.threads[key] = thread
+        self.pipelines[key] = pipeline
 
         self._notify_status(profile, session)
         self._notify_event(profile, session, "MONITORING")
@@ -92,6 +94,22 @@ class PurchaseProfileCoordinator:
         self._log(f"Purchase profile started: {profile.product.product_name}")
         return session
 
+    def stop(self, profile: PurchaseProfile):
+        """Request a real stop for one Purchase Profile runtime session."""
+        return self.stop_by_key(self._key(profile))
+
+    def stop_by_key(self, key):
+        pipeline = self.pipelines.get(key)
+        thread = self.threads.get(key)
+
+        if pipeline is None and thread is None:
+            return False
+
+        if pipeline is not None:
+            pipeline.stop()
+
+        return True
+
     def _run_pipeline(self, key, pipeline, session):
         try:
             pipeline.run(
@@ -105,6 +123,7 @@ class PurchaseProfileCoordinator:
             self._log(f"Purchase profile failed: {exc}")
         finally:
             self.threads.pop(key, None)
+            self.pipelines.pop(key, None)
             self._notify_event_by_key(key, "MONITORING_STOPPED")
 
     def _watch_session(self, key, profile, session):
