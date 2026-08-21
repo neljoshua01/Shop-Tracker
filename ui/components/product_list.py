@@ -79,8 +79,9 @@ class ProductList(ctk.CTkScrollableFrame):
             return
 
         card = ProductCard(self, product, stop_callback=None, set_target_callback=None)
-        card.stop_button.configure(state="disabled")
-        card.details_button.configure(state="disabled")
+        # Purchase Profile execution has its own coordinator/pipeline lifecycle;
+        # its stop/target controls remain disabled until that runtime exposes a
+        # safe profile-specific callback. Details remain an ordinary ProductCard action.
         card.checkout_switch.configure(state="disabled")
         card.target_entry.configure(state="disabled")
         card.lock_button.configure(state="disabled")
@@ -117,10 +118,7 @@ class ProductList(ctk.CTkScrollableFrame):
     def _profile_view_model(profile, session, event=None):
         variation = profile.selected_variations[0]
         status = session.status.value.replace("_", " ").upper()
-        if event:
-            runtime_status = str(event).replace("_", " ").upper()
-        else:
-            runtime_status = status
+        runtime_status = str(event).replace("_", " ").upper() if event else status
 
         if status == "COMPLETED":
             stock = "COMPLETED"
@@ -133,6 +131,7 @@ class ProductList(ctk.CTkScrollableFrame):
         if variation.price_before_discount and variation.price_before_discount > variation.price:
             discount = f"-{round((1 - variation.price / variation.price_before_discount) * 100)}%"
 
+        is_monitoring = event != "MONITORING_STOPPED" and status not in {"COMPLETED", "FAILED"}
         return SimpleNamespace(
             url=ProductList._profile_key(profile),
             shop_id=str(profile.product.shop_id),
@@ -150,7 +149,7 @@ class ProductList(ctk.CTkScrollableFrame):
             target_locked=profile.lock_selected_variations,
             auto_checkout=profile.auto_checkout,
             purchased=status == "COMPLETED",
-            is_monitoring=status not in {"COMPLETED", "FAILED"},
+            is_monitoring=is_monitoring,
             runtime_status=runtime_status,
         )
 
