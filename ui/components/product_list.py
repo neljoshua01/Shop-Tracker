@@ -7,10 +7,10 @@ from ui import colors, fonts
 
 
 class ProductList(ctk.CTkScrollableFrame):
-    def __init__(self, master, stop_callback=None, **kwargs):
+    def __init__(self, master, stop_callback=None, purchase_stop_callback=None, **kwargs):
         super().__init__(master, **kwargs)
         self.stop_callback = stop_callback
-        self.purchase_stop_callback = None
+        self.purchase_stop_callback = purchase_stop_callback
         self.set_target_callback = None
         self.cards = {}
         self.profile_cards = {}

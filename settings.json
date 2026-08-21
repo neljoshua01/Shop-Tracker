@@ -1,3 +1,590 @@
 {
-    "products": []
+    "products": [],
+    "purchase_profiles": [
+        {
+            "profile_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+            "product": {
+                "item_id": 25043516142,
+                "shop_id": 264015657,
+                "product_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/Orashare-DF07-Small-High-Speed-Desk-Fan-100-Speed-Wind-Cooling-Silent-3000mAh-Rechargeable-Table-Fan-i.264015657.25043516142?extraParams=%7B%22display_model_id%22%3A243072491377%2C%22model_selection_logic%22%3A3%7D",
+                "currency": "PHP",
+                "image": "ph-11134207-7rash-m8x2nid62utpfc",
+                "available_variations": [
+                    {
+                        "model_id": 243072491378,
+                        "name": "DF07 Black",
+                        "options": {
+                            "Color": "DF07 Black"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 243072491377,
+                        "name": "DF07 Rock White",
+                        "options": {
+                            "Color": "DF07 Rock White"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                243072491377
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 100.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+            "product": {
+                "item_id": 25043516142,
+                "shop_id": 264015657,
+                "product_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/Orashare-DF07-Small-High-Speed-Desk-Fan-100-Speed-Wind-Cooling-Silent-3000mAh-Rechargeable-Table-Fan-i.264015657.25043516142?extraParams=%7B%22display_model_id%22%3A243072491377%2C%22model_selection_logic%22%3A3%7D",
+                "currency": "PHP",
+                "image": "ph-11134207-7rash-m8x2nid62utpfc",
+                "available_variations": [
+                    {
+                        "model_id": 243072491378,
+                        "name": "DF07 Black",
+                        "options": {
+                            "Color": "DF07 Black"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 243072491377,
+                        "name": "DF07 Rock White",
+                        "options": {
+                            "Color": "DF07 Rock White"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                243072491378
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 100.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "Apple Watch SE 3 GPS Aluminium Case Sport Band",
+            "product": {
+                "item_id": 42720981321,
+                "shop_id": 448087759,
+                "product_name": "Apple Watch SE 3 GPS Aluminium Case Sport Band",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/Apple-Watch-SE-3-GPS-Aluminium-Case-Sport-Band-i.448087759.42720981321?xptdk=3a2d277f-5455-4200-8db5-9dba8605f8a3",
+                "currency": "PHP",
+                "image": "ph-11134207-81zte-mf7vyfgtjtaid8",
+                "available_variations": [
+                    {
+                        "model_id": 198721540360,
+                        "name": "Starlight / 44MM M L",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "44MM M L"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            3
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552326,
+                        "name": "Midnight / 40MM S M",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "40MM S M"
+                        },
+                        "price": 15490.0,
+                        "price_before_discount": 17490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            0
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552327,
+                        "name": "Midnight / 40MM M L",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "40MM M L"
+                        },
+                        "price": 17490.0,
+                        "price_before_discount": 0.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            0,
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552328,
+                        "name": "Midnight / 44MM S M",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "44MM S M"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            2
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540356,
+                        "name": "Midnight / 44MM M L",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "44MM M L"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            3
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540357,
+                        "name": "Starlight / 40MM S M",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "40MM S M"
+                        },
+                        "price": 17490.0,
+                        "price_before_discount": 0.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            1,
+                            0
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540358,
+                        "name": "Starlight / 40MM M L",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "40MM M L"
+                        },
+                        "price": 15490.0,
+                        "price_before_discount": 17490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540359,
+                        "name": "Starlight / 44MM S M",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "44MM S M"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            2
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                198721540357
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 10000.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "Apple Watch SE 3 GPS Aluminium Case Sport Band",
+            "product": {
+                "item_id": 42720981321,
+                "shop_id": 448087759,
+                "product_name": "Apple Watch SE 3 GPS Aluminium Case Sport Band",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/Apple-Watch-SE-3-GPS-Aluminium-Case-Sport-Band-i.448087759.42720981321?xptdk=3a2d277f-5455-4200-8db5-9dba8605f8a3",
+                "currency": "PHP",
+                "image": "ph-11134207-81zte-mf7vyfgtjtaid8",
+                "available_variations": [
+                    {
+                        "model_id": 198721540356,
+                        "name": "Midnight / 44MM M L",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "44MM M L"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            3
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540357,
+                        "name": "Starlight / 40MM S M",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "40MM S M"
+                        },
+                        "price": 17490.0,
+                        "price_before_discount": 0.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            1,
+                            0
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540358,
+                        "name": "Starlight / 40MM M L",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "40MM M L"
+                        },
+                        "price": 15490.0,
+                        "price_before_discount": 17490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540359,
+                        "name": "Starlight / 44MM S M",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "44MM S M"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            2
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 198721540360,
+                        "name": "Starlight / 44MM M L",
+                        "options": {
+                            "Color": "Starlight",
+                            "Watch Size": "44MM M L"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1,
+                            3
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552326,
+                        "name": "Midnight / 40MM S M",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "40MM S M"
+                        },
+                        "price": 15490.0,
+                        "price_before_discount": 17490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            0
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552327,
+                        "name": "Midnight / 40MM M L",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "40MM M L"
+                        },
+                        "price": 17490.0,
+                        "price_before_discount": 0.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            0,
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 208721552328,
+                        "name": "Midnight / 44MM S M",
+                        "options": {
+                            "Color": "Midnight",
+                            "Watch Size": "44MM S M"
+                        },
+                        "price": 16990.0,
+                        "price_before_discount": 19490.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0,
+                            2
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                198721540360
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 10000.0,
+            "polling_interval": 10,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+            "product": {
+                "item_id": 25043516142,
+                "shop_id": 264015657,
+                "product_name": "Orashare DF07 Small High Speed Desk Fan 100 Speed Wind Cooling Silent 3000mAh Rechargeable Table Fan",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/Orashare-DF07-Small-High-Speed-Desk-Fan-100-Speed-Wind-Cooling-Silent-3000mAh-Rechargeable-Table-Fan-i.264015657.25043516142?extraParams=%7B%22display_model_id%22%3A243072491377%2C%22model_selection_logic%22%3A3%7D",
+                "currency": "PHP",
+                "image": "ph-11134207-7rash-m8x2nid62utpfc",
+                "available_variations": [
+                    {
+                        "model_id": 243072491378,
+                        "name": "DF07 Black",
+                        "options": {
+                            "Color": "DF07 Black"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 243072491377,
+                        "name": "DF07 Rock White",
+                        "options": {
+                            "Color": "DF07 Rock White"
+                        },
+                        "price": 659.0,
+                        "price_before_discount": 3499.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                243072491377
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 1000.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "BAVIN BF005 High Speed Desk Fan 120 Gears Strong Wind/3600mAh Rechargeable Digital Display Table Fan",
+            "product": {
+                "item_id": 40628965139,
+                "shop_id": 5095176,
+                "product_name": "BAVIN BF005 High Speed Desk Fan 120 Gears Strong Wind/3600mAh Rechargeable Digital Display Table Fan",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/BAVIN-BF005-High-Speed-Desk-Fan-120-Gears-Strong-Wind-3600mAh-Rechargeable-Digital-Display-Table-Fan-i.5095176.40628965139?extraParams=%7B%22display_model_id%22%3A395590818850%2C%22model_selection_logic%22%3A3%7D",
+                "currency": "PHP",
+                "image": "ph-11134207-81ztj-ml920pl1k7i948",
+                "available_variations": [
+                    {
+                        "model_id": 395590818850,
+                        "name": "Black",
+                        "options": {
+                            "Color": "Black"
+                        },
+                        "price": 688.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 395590818851,
+                        "name": "White",
+                        "options": {
+                            "Color": "White"
+                        },
+                        "price": 729.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 395590818852,
+                        "name": "Pink",
+                        "options": {
+                            "Color": "Pink"
+                        },
+                        "price": 715.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            2
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                395590818852
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 500.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        },
+        {
+            "profile_name": "BAVIN BF005 High Speed Desk Fan 120 Gears Strong Wind/3600mAh Rechargeable Digital Display Table Fan",
+            "product": {
+                "item_id": 40628965139,
+                "shop_id": 5095176,
+                "product_name": "BAVIN BF005 High Speed Desk Fan 120 Gears Strong Wind/3600mAh Rechargeable Digital Display Table Fan",
+                "shop_name": "",
+                "product_url": "https://shopee.ph/BAVIN-BF005-High-Speed-Desk-Fan-120-Gears-Strong-Wind-3600mAh-Rechargeable-Digital-Display-Table-Fan-i.5095176.40628965139?extraParams=%7B%22display_model_id%22%3A395590818850%2C%22model_selection_logic%22%3A3%7D",
+                "currency": "PHP",
+                "image": "ph-11134207-81ztj-ml920pl1k7i948",
+                "available_variations": [
+                    {
+                        "model_id": 395590818851,
+                        "name": "White",
+                        "options": {
+                            "Color": "White"
+                        },
+                        "price": 729.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": false,
+                        "tier_index": [
+                            1
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 395590818852,
+                        "name": "Pink",
+                        "options": {
+                            "Color": "Pink"
+                        },
+                        "price": 715.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            2
+                        ],
+                        "sku_image": ""
+                    },
+                    {
+                        "model_id": 395590818850,
+                        "name": "Black",
+                        "options": {
+                            "Color": "Black"
+                        },
+                        "price": 688.0,
+                        "price_before_discount": 2899.0,
+                        "has_stock": true,
+                        "tier_index": [
+                            0
+                        ],
+                        "sku_image": ""
+                    }
+                ]
+            },
+            "selected_model_ids": [
+                395590818851
+            ],
+            "quantity": 1,
+            "trigger": "price_target",
+            "target_price": 500.0,
+            "polling_interval": 30,
+            "auto_checkout": false,
+            "lock_selected_variations": true
+        }
+    ]
 }

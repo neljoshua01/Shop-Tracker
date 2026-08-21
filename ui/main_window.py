@@ -162,6 +162,16 @@ class MainWindow(ctk.CTk):
                 self.products_frame.remove_purchase_profile(
                     self.products_frame._profile_key(profile)
                 )
+                self.dashboard_page._set_pipeline_stage(
+                    "Purchase Profile",
+                    "No active profile",
+                    colors.TEXT_MUTED,
+                )
+                self.dashboard_page._set_pipeline_stage(
+                    "Monitoring / Purchase",
+                    "Monitoring stopped",
+                    colors.TEXT_MUTED,
+                )
                 self._set_dashboard_product_stage(
                     "SKU monitoring stopped",
                     colors.TEXT_MUTED,

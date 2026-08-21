@@ -135,9 +135,13 @@ class TrackerController:
             self.settings.save_purchase_profiles(self.purchase_profiles)
         return session
 
-    def stop_purchase_profile(self, profile_key):
-        """Request cancellation of one Purchase Profile runtime by its UI key."""
-        return self.purchase_profile_coordinator.stop_by_key(profile_key)
+    def stop_purchase_profile(self, profile):
+        """Request cancellation of one Purchase Profile runtime."""
+        if not self.purchase_profile_coordinator.stop_by_key(
+            self.purchase_profile_coordinator.key_for(profile)
+        ):
+            return False, "Purchase profile is not being monitored."
+        return True, "Purchase profile stop requested."
 
     def on_purchase_status_change(self, profile, session):
         if self.purchase_status_callback:
