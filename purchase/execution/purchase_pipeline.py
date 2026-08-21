@@ -18,7 +18,6 @@ from purchase.services.sku_price_monitor import SkuPriceMonitor
 class PurchasePipeline:
 
     def __init__(self):
-
         self.cart_preparer = CartPreparer()
         self.sku_monitor = SkuPriceMonitor()
         self.checkout_executor = CheckoutExecutor()
@@ -26,6 +25,7 @@ class PurchasePipeline:
     def run(
         self,
         session: PurchaseSession,
+        on_trigger=None,
     ):
         print()
         print(
@@ -35,13 +35,11 @@ class PurchasePipeline:
         monitor_thread = None
         try:
             if session.request.auto_checkout:
+                session.status = PurchaseStatus.PREPARING
                 print("[PurchasePipeline] Preparing cart...")
                 self.cart_preparer.prepare(session)
                 print("[PurchasePipeline] Cart preparation complete.")
 
-            # Monitor the PDP with the same BrowserSession used for cart
-            # preparation. The monitor moves it to the PDP; checkout
-            # returns it to cart after the trigger.
             print("[PurchasePipeline] Starting SKU monitor...")
             monitor_thread = threading.Thread(
                 target=self.sku_monitor.monitor,
@@ -60,8 +58,10 @@ class PurchasePipeline:
                 return False
 
             print("[PurchasePipeline] ========== PURCHASE TRIGGER RECEIVED ==========")
-            print("[PurchasePipeline] Stopping SKU monitor...")
+            if on_trigger:
+                on_trigger()
 
+            print("[PurchasePipeline] Stopping SKU monitor...")
             self.sku_monitor.stop()
             monitor_thread.join(timeout=10)
 
@@ -93,8 +93,6 @@ class PurchasePipeline:
             if monitor_thread is not None and monitor_thread.is_alive():
                 monitor_thread.join(timeout=10)
 
-            # Release this purchase attempt only; do not disconnect the
-            # shared Chrome/CDP engine used by other services.
             if session.browser_session is not None:
                 self.cart_preparer.browser.close_session(session.browser_owner)
                 session.browser_session = None

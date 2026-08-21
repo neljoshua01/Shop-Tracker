@@ -1,4 +1,5 @@
 import customtkinter as ctk
+from types import SimpleNamespace
 
 from ui.components.product_card import ProductCard
 from ui import colors, fonts
@@ -7,228 +8,144 @@ from ui import colors, fonts
 class ProductList(ctk.CTkScrollableFrame):
     def __init__(self, master, stop_callback=None, **kwargs):
         super().__init__(master, **kwargs)
-
         self.stop_callback = stop_callback
         self.set_target_callback = None
         self.cards = {}
-
-        # =====================================================
-        # Product Table Header
-        # =====================================================
+        self.profile_cards = {}
 
         self.header = ctk.CTkFrame(
-            self,
-            fg_color=colors.SURFACE,
-            border_width=1,
-            border_color=colors.DIVIDER,
-            corner_radius=6,
-            height=44,
+            self, fg_color=colors.SURFACE, border_width=1,
+            border_color=colors.DIVIDER, corner_radius=6, height=44,
         )
-
-        self.header.pack(
-            fill="x",
-            padx=4,
-            pady=(4, 5),
-        )
-
+        self.header.pack(fill="x", padx=4, pady=(4, 5))
         self.header.pack_propagate(False)
 
         columns = [
-            "Product",
-            "Stock",
-            "Auto Checkout",
-            "Target Price",
-            "Current Price",
-            "Last Checked",
-            "Actions",
+            "Product", "Stock", "Auto Checkout", "Target Price",
+            "Current Price", "Last Checked", "Actions",
         ]
-
-        # Keep Product dominant without creating excessive
-        # spacing between Product and Stock.
         weights = [4, 2, 2, 2, 2, 2, 1]
-
-        # =====================================================
-        # Header Inner Content
-        # =====================================================
-
-        # The header itself owns the border.
-        # This transparent container keeps the labels away
-        # from that border and provides consistent vertical
-        # and horizontal breathing room.
-        header_content = ctk.CTkFrame(
-            self.header,
-            fg_color="transparent",
-        )
-
-        header_content.pack(
-            fill="both",
-            expand=True,
-            padx=8,
-            pady=6,
-        )
-
-        # =====================================================
-        # Header Column Configuration
-        # =====================================================
-
+        header_content = ctk.CTkFrame(self.header, fg_color="transparent")
+        header_content.pack(fill="both", expand=True, padx=8, pady=6)
         for index, weight in enumerate(weights):
-            header_content.grid_columnconfigure(
-                index,
-                weight=weight,
-            )
-
-        header_content.grid_rowconfigure(
-            0,
-            weight=1,
-        )
-
-        # =====================================================
-        # Header Labels
-        # =====================================================
-
+            header_content.grid_columnconfigure(index, weight=weight)
+        header_content.grid_rowconfigure(0, weight=1)
         for index, label in enumerate(columns):
             ctk.CTkLabel(
-                header_content,
-                text=label,
-                font=fonts.SMALL_BOLD,
-                text_color=colors.TEXT_MUTED,
-                anchor="w",
-                fg_color="transparent",
-            ).grid(
-                row=0,
-                column=index,
-                sticky="w",
-                padx=(4, 4),
-            )
-
-        # =====================================================
-        # Empty State
-        # =====================================================
+                header_content, text=label, font=fonts.SMALL_BOLD,
+                text_color=colors.TEXT_MUTED, anchor="w", fg_color="transparent",
+            ).grid(row=0, column=index, sticky="w", padx=(4, 4))
 
         self.empty_state = ctk.CTkFrame(
-            self,
-            fg_color=colors.SURFACE,
-            border_width=1,
-            border_color=colors.DIVIDER,
-            corner_radius=8,
+            self, fg_color=colors.SURFACE, border_width=1,
+            border_color=colors.DIVIDER, corner_radius=8,
         )
-
-        # Transparent container centered with padding
-        # to provide natural height and spacing.
-        content_box = ctk.CTkFrame(
-            self.empty_state,
-            fg_color="transparent",
-        )
-
-        content_box.pack(
-            pady=24,
-            padx=14,
-        )
-
-        # Blue accent line indicator
-        ctk.CTkFrame(
-            content_box,
-            width=3,
-            height=24,
-            fg_color=colors.INFO,
-            corner_radius=2,
-        ).pack(
-            pady=(0, 6),
-        )
-
-        # Empty-state icon
-        self.empty_icon = ctk.CTkLabel(
-            content_box,
-            text="▣",
-            font=(fonts.FONT_FAMILY, 20),
-            text_color=colors.INFO,
-        )
-
-        self.empty_icon.pack(
-            pady=(0, 6),
-        )
-
-        # Main empty-state text
+        content_box = ctk.CTkFrame(self.empty_state, fg_color="transparent")
+        content_box.pack(pady=24, padx=14)
+        ctk.CTkFrame(content_box, width=3, height=24, fg_color=colors.INFO, corner_radius=2).pack(pady=(0, 6))
+        self.empty_icon = ctk.CTkLabel(content_box, text="▣", font=(fonts.FONT_FAMILY, 20), text_color=colors.INFO)
+        self.empty_icon.pack(pady=(0, 6))
         self.empty_title = ctk.CTkLabel(
-            content_box,
-            text="No products being monitored",
-            font=fonts.SUBTITLE,
-            text_color=colors.TEXT_PRIMARY,
+            content_box, text="No products being monitored", font=fonts.SUBTITLE, text_color=colors.TEXT_PRIMARY
         )
-
         self.empty_title.pack()
-
-        # Empty-state description
         self.empty_description = ctk.CTkLabel(
             content_box,
-            text=(
-                "Add a Shopee product above to start monitoring "
-                "its price and stock."
-            ),
-            font=fonts.SMALL,
-            text_color=colors.TEXT_SECONDARY,
+            text="Add a Shopee product above to start monitoring its price and stock.",
+            font=fonts.SMALL, text_color=colors.TEXT_SECONDARY,
         )
-
-        self.empty_description.pack(
-            pady=(4, 0),
-        )
-
-        self.empty_state.pack(
-            fill="x",
-            padx=4,
-            pady=3,
-        )
-
-    # =========================================================
-    # Product Management
-    # =========================================================
+        self.empty_description.pack(pady=(4, 0))
+        self.empty_state.pack(fill="x", padx=4, pady=3)
 
     def update_product(self, product):
         self.empty_state.pack_forget()
-
         if product.url in self.cards:
             self.cards[product.url].update_data(product)
             return
-
         card = ProductCard(
-            self,
-            product,
-            stop_callback=self.stop_callback,
-            set_target_callback=self.set_target_callback,
+            self, product, stop_callback=self.stop_callback, set_target_callback=self.set_target_callback
         )
-
-        card.pack(
-            fill="x",
-            padx=4,
-            pady=3,
-        )
-
+        card.pack(fill="x", padx=4, pady=3)
         self.cards[product.url] = card
+
+    def update_purchase_profile(self, profile, session):
+        key = self._profile_key(profile)
+        product = self._profile_view_model(profile, session)
+        self.empty_state.pack_forget()
+
+        if key in self.profile_cards:
+            self.profile_cards[key].update_data(product)
+            return
+
+        card = ProductCard(self, product, stop_callback=None, set_target_callback=None)
+        card.stop_button.configure(state="disabled")
+        card.details_button.configure(state="disabled")
+        card.checkout_switch.configure(state="disabled")
+        card.target_entry.configure(state="disabled")
+        card.lock_button.configure(state="disabled")
+        card.pack(fill="x", padx=4, pady=3)
+        self.profile_cards[key] = card
+
+    @staticmethod
+    def _profile_key(profile):
+        variation = profile.selected_variations[0]
+        return f"profile://{profile.product.shop_id}:{profile.product.item_id}:{variation.model_id}"
+
+    @staticmethod
+    def _profile_view_model(profile, session):
+        variation = profile.selected_variations[0]
+        status = session.status.value.replace("_", " ").upper()
+        if status == "COMPLETED":
+            stock = "COMPLETED"
+        elif status == "FAILED":
+            stock = "FAILED"
+        else:
+            stock = "IN STOCK" if variation.has_stock else "OUT OF STOCK"
+
+        discount = ""
+        if variation.price_before_discount and variation.price_before_discount > variation.price:
+            discount = f"-{round((1 - variation.price / variation.price_before_discount) * 100)}%"
+
+        return SimpleNamespace(
+            url=ProductList._profile_key(profile),
+            shop_id=str(profile.product.shop_id),
+            item_id=str(profile.product.item_id),
+            name=profile.product.product_name,
+            image_url=profile.product.image,
+            current_price=variation.price,
+            original_price=variation.price_before_discount,
+            discount=discount,
+            stock=stock,
+            target_price=profile.target_price,
+            target_locked=profile.lock_selected_variations,
+            auto_checkout=profile.auto_checkout,
+            purchased=status == "COMPLETED",
+            is_monitoring=status not in {"COMPLETED", "FAILED"},
+            runtime_status=status,
+        )
 
     def remove_product(self, url):
         card = self.cards.pop(url, None)
-
         if card:
             card.destroy()
+        if not self.cards and not self.profile_cards:
+            self.empty_state.pack(fill="x", padx=4, pady=3)
 
-        if not self.cards:
-            self.empty_state.pack(
-                fill="x",
-                padx=4,
-                pady=3,
-            )
+    def remove_purchase_profile(self, profile_key):
+        card = self.profile_cards.pop(profile_key, None)
+        if card:
+            card.destroy()
+        if not self.cards and not self.profile_cards:
+            self.empty_state.pack(fill="x", padx=4, pady=3)
 
     def clear(self):
         for card in self.cards.values():
             card.destroy()
-
+        for card in self.profile_cards.values():
+            card.destroy()
         self.cards.clear()
-
-        self.empty_state.pack(
-            fill="x",
-            padx=4,
-            pady=3,
-        )
+        self.profile_cards.clear()
+        self.empty_state.pack(fill="x", padx=4, pady=3)
 
     def count(self):
         return len(self.cards)

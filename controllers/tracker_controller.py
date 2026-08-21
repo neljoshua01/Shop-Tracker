@@ -6,59 +6,68 @@ from purchase.services.purchase_profile_coordinator import PurchaseProfileCoordi
 class TrackerController:
 
     def __init__(self, logger=None):
-
-        # ==========================
-        # Product Data
-        # ==========================
-
         self.products = []
-
-        # ==========================
-        # UI Callback
-        # ==========================
-
         self.ui_callback = None
-
-        # ==========================
-        # Logger
-        # ==========================
-
+        self.monitoring_state_callback = None
+        self.monitoring_event_callback = None
+        self.purchase_status_callback = None
+        self.purchase_event_callback = None
+        self.error_callback = None
         self.logger = logger
-
-        # ==========================
-        # Settings Service
-        # ==========================
 
         self.settings = SettingsService()
         self.purchase_profiles = self.settings.load_purchase_profiles()
-        self.purchase_profile_coordinator = PurchaseProfileCoordinator(logger=self.logger)
 
-        # ==========================
-        # Monitoring Engine
-        # (Will become multi-worker later)
-        # ==========================
+        self.purchase_profile_coordinator = PurchaseProfileCoordinator(
+            logger=self.logger,
+            on_status_change=self.on_purchase_status_change,
+            on_event=self.on_purchase_event,
+            on_error=self.on_purchase_error,
+        )
 
         self.monitoring_service = MonitoringService(
             logger=self.logger,
-            on_product_update=self.on_product_update
+            on_product_update=self.on_product_update,
+            on_event=self.on_monitoring_event,
+            on_state_change=self.on_monitoring_state_change,
+            on_error=self.on_monitoring_error,
         )
 
-    # =====================================================
-    # UI
-    # =====================================================
-
     def set_ui_callback(self, callback):
-
         self.ui_callback = callback
 
-    # =====================================================
-    # Monitoring Updates
-    # =====================================================
+    def set_monitoring_state_callback(self, callback):
+        self.monitoring_state_callback = callback
+
+    def set_monitoring_event_callback(self, callback):
+        self.monitoring_event_callback = callback
+
+    def set_purchase_status_callback(self, callback):
+        self.purchase_status_callback = callback
+
+    def set_purchase_event_callback(self, callback):
+        self.purchase_event_callback = callback
+
+    def set_error_callback(self, callback):
+        self.error_callback = callback
+
+    def on_monitoring_state_change(self, state, url=None, error=None):
+        if self.monitoring_state_callback:
+            self.monitoring_state_callback(state, url, error)
+
+    def on_monitoring_event(self, url, event, product=None):
+        if self.monitoring_event_callback:
+            self.monitoring_event_callback(url, event, product)
+
+    def on_monitoring_error(self, url, error):
+        if self.error_callback:
+            self.error_callback("monitoring", url, error)
 
     def on_product_update(self, product):
-
         if product.url not in self.monitoring_service.workers:
-            return   # stopped/removed since this update was queued — drop it
+            return
+
+        product.runtime_status = "MONITORING"
 
         for index, existing in enumerate(self.products):
             if existing.url == product.url:
@@ -72,62 +81,24 @@ class TrackerController:
 
         self.save_products()
 
-        # =====================================================
-        # Target / Auto Checkout Updated
-        # =====================================================
-
-    def on_target_updated(
-        self,
-        product,
-        target_price,
-        auto_checkout,
-        target_locked
-    ):
-
-            #
-            # ProductCard already updated the live Product object.
-            # We only need to persist it immediately.
-            #
-
+    def on_target_updated(self, product, target_price, auto_checkout, target_locked):
         self.save_products()
 
-    def set_target(
-        self,
-        product,
-        target_price,
-        auto_checkout,
-        target_locked
-    ):
-
-        #
-        # Update running monitor immediately
-        #
-
+    def set_target(self, product, target_price, auto_checkout, target_locked):
         self.monitoring_service.set_target(
             product.url,
             target_price,
             auto_checkout,
             target_locked
         )
-
-        #
-        # Persist immediately
-        #
-
         self.save_products()
-    # =====================================================
-    # Add Product
-    # =====================================================
 
     def add_product(self, url):
-
         url = url.strip()
 
-        # Empty textbox
         if url == "":
             return False, "Please enter a Shopee URL."
 
-        # Basic Shopee URL validation
         if "shopee." not in url.lower():
             return False, "Please enter a valid Shopee product URL."
 
@@ -137,17 +108,9 @@ class TrackerController:
 
         return True, "Product added successfully."
 
-    # =====================================================
-    # Remove Product
-    # =====================================================
-
     def remove_product(self, product):
-
         existing = next(
-            (
-                p for p in self.products
-                if p.url == product.url
-            ),
+            (p for p in self.products if p.url == product.url),
             None
         )
 
@@ -155,48 +118,49 @@ class TrackerController:
             return False, "Product is not being monitored."
 
         success = self.monitoring_service.stop(existing.url)
-
         if not success:
             return False, "Failed to stop monitoring."
 
         self.products.remove(existing)
-
         self.save_products()
-
         return True, "Monitoring stopped successfully."
-    
-
-    # =====================================================
-    # Get Products
-    # =====================================================
 
     def get_products(self):
-
         return self.products
-    
-    # =====================================================
-    # Persistence
-    # =====================================================
-    
+
+    def create_purchase_profile(self, profile):
+        session = self.purchase_profile_coordinator.start(profile)
+        if profile not in self.purchase_profiles:
+            self.purchase_profiles.append(profile)
+            self.settings.save_purchase_profiles(self.purchase_profiles)
+        return session
+
+    def on_purchase_status_change(self, profile, session):
+        if self.purchase_status_callback:
+            self.purchase_status_callback(profile, session)
+
+    def on_purchase_event(self, profile, session, event):
+        if self.purchase_event_callback:
+            self.purchase_event_callback(profile, session, event)
+
+    def on_purchase_error(self, profile, session, error):
+        if self.error_callback:
+            self.error_callback("purchase", profile, error)
+
+    def get_active_purchase_profiles(self):
+        return self.purchase_profile_coordinator.active_profiles
+
     def save_products(self):
         print(f"[TrackerController] Saving {len(self.products)} products")
         self.settings.save_products(self.products)
 
     def load_products(self):
-
         self.products = self.settings.load_products()
 
         for product in self.products:
-
             self.monitoring_service.start(
                 product.url,
                 initial_product=product
             )
 
         return self.products
-
-    def create_purchase_profile(self, profile):
-        session = self.purchase_profile_coordinator.start(profile)
-        self.purchase_profiles.append(profile)
-        self.settings.save_purchase_profiles(self.purchase_profiles)
-        return session
