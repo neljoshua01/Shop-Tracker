@@ -76,6 +76,7 @@ class MainWindow(ctk.CTk):
         self.controller.load_products()
         self.refresh_products()
         self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
+        self._update_runtime_product_count()
 
     def log(self, message):
         self.after(0, lambda: self._append_log(message))
@@ -98,16 +99,23 @@ class MainWindow(ctk.CTk):
             return "log_info"
         return "log_success"
 
+    def _update_runtime_product_count(self):
+        count = self.controller.get_runtime_monitoring_count()
+        self.status_bar.update_product_count(count)
+        self.stats.products.update(str(count))
+
     def on_monitoring_state_change(self, state, url=None, error=None):
         def update():
             runtime_state = self.controller.get_runtime_monitoring_state()
             self.dashboard_page.set_engine_state(runtime_state, error=error)
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
         self.after(0, update)
 
     def on_monitoring_event(self, url, event, product=None):
         def update():
             self._append_log(f"{event.event_type}: {event.old_value} → {event.new_value}")
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -121,6 +129,7 @@ class MainWindow(ctk.CTk):
                     "ERROR",
                     error=error if source == "monitoring" else None,
                 )
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -139,13 +148,20 @@ class MainWindow(ctk.CTk):
                 f"Purchase profile '{profile.profile_name}': "
                 f"{session.status.value.replace('_', ' ').title()}"
             )
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
             self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
         self.after(0, update)
 
     def on_purchase_event(self, profile, session, event):
         def update():
-            if event != "MONITORING_STOPPED":
+            if event == "MONITORING_STOPPED":
+                self.products_frame.update_purchase_profile(profile, session, event=event)
+                self._set_dashboard_product_stage(
+                    "SKU monitoring stopped",
+                    colors.TEXT_MUTED,
+                )
+            else:
                 self.dashboard_page.set_purchase_state(session.status, event=event)
                 self.products_frame.update_purchase_profile(profile, session, event=event)
                 self._set_dashboard_product_stage(
@@ -155,6 +171,7 @@ class MainWindow(ctk.CTk):
 
             self._append_log(f"Purchase profile '{profile.profile_name}': {event}")
             self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -184,6 +201,7 @@ class MainWindow(ctk.CTk):
             count = len(self.controller.get_products())
             self.status_bar.update_product_count(count)
             self.stats.products.update(str(count))
+            self._update_runtime_product_count()
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -195,7 +213,7 @@ class MainWindow(ctk.CTk):
                 self.products_frame.remove_product(url)
         for product in products:
             self.products_frame.update_product(product)
-        self.status_bar.update_product_count(len(products))
+        self._update_runtime_product_count()
         self.status_bar.update_timestamp()
 
     def stop_monitoring(self, product):
@@ -204,9 +222,7 @@ class MainWindow(ctk.CTk):
         if not success:
             return
         self.products_frame.remove_product(product.url)
-        count = len(self.controller.get_products())
-        self.status_bar.update_product_count(count)
-        self.stats.products.update(str(count))
+        self._update_runtime_product_count()
         self.status_bar.update_timestamp()
 
     def handle_navigation(self, page):
