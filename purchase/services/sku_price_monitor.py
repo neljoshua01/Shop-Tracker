@@ -89,9 +89,17 @@ class SkuPriceMonitor:
         self,
         session: PurchaseSession,
         poll_interval: int = 5,
+        cancellation_event: Event | None = None,
     ):
 
+        if cancellation_event is not None and cancellation_event.is_set():
+            return
+
         self.start(session)
+
+        if cancellation_event is not None and cancellation_event.is_set():
+            self.stop()
+            return
 
         self.poll_interval = poll_interval
         self.monitoring = True
@@ -150,6 +158,9 @@ class SkuPriceMonitor:
                 actions.goto(session.request.reference.url)
 
             while self.monitoring:
+
+                if cancellation_event is not None and cancellation_event.is_set():
+                    break
 
                 if self.triggered.is_set():
 
@@ -392,7 +403,6 @@ class SkuPriceMonitor:
             )
 
     def stop(self):
-
         if self._stopped:
             return
 
@@ -417,11 +427,22 @@ class SkuPriceMonitor:
     def wait_for_trigger(
         self,
         timeout: float | None = None,
+        cancellation_event: Event | None = None,
     ) -> bool:
+        if cancellation_event is None:
+            return self.triggered.wait(timeout=timeout)
 
-        return self.triggered.wait(
-            timeout=timeout,
-        )
+        # Event has no multi-wait primitive. A short wait keeps the pipeline
+        # responsive to cancellation without changing trigger semantics.
+        elapsed = 0.0
+        while not cancellation_event.is_set():
+            if self.triggered.wait(timeout=0.05):
+                return True
+            if timeout is not None:
+                elapsed += 0.05
+                if elapsed >= timeout:
+                    return False
+        return False
 
     async def on_browser_response(
         self,

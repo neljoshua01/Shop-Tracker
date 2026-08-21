@@ -74,6 +74,7 @@ class MainWindow(ctk.CTk):
         self.controller.set_purchase_event_callback(self.on_purchase_event)
         self.controller.set_error_callback(self.on_runtime_error)
         self.products_frame.set_target_callback = self.controller.set_target
+        self.products_frame.purchase_stop_callback = self.stop_purchase_profile
 
         self.controller.load_products()
         self.refresh_products()
@@ -158,7 +159,9 @@ class MainWindow(ctk.CTk):
     def on_purchase_event(self, profile, session, event):
         def update():
             if event == "MONITORING_STOPPED":
-                self.products_frame.update_purchase_profile(profile, session, event=event)
+                self.products_frame.remove_purchase_profile(
+                    self.products_frame._profile_key(profile)
+                )
                 self._set_dashboard_product_stage(
                     "SKU monitoring stopped",
                     colors.TEXT_MUTED,
@@ -239,6 +242,13 @@ class MainWindow(ctk.CTk):
         self.products_frame.remove_product(product.url)
         self._update_runtime_product_count()
         self.status_bar.update_timestamp()
+
+    def stop_purchase_profile(self, profile):
+        success, message = self.controller.stop_purchase_profile(profile)
+        self.log(message)
+        if success:
+            self._update_runtime_product_count()
+            self.status_bar.update_timestamp()
 
     def handle_navigation(self, page):
         selected_page = self.pages.get(page)

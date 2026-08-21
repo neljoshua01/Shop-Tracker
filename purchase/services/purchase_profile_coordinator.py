@@ -94,22 +94,6 @@ class PurchaseProfileCoordinator:
         self._log(f"Purchase profile started: {profile.product.product_name}")
         return session
 
-    def stop(self, profile: PurchaseProfile):
-        """Request a real stop for one Purchase Profile runtime session."""
-        return self.stop_by_key(self._key(profile))
-
-    def stop_by_key(self, key):
-        pipeline = self.pipelines.get(key)
-        thread = self.threads.get(key)
-
-        if pipeline is None and thread is None:
-            return False
-
-        if pipeline is not None:
-            pipeline.stop()
-
-        return True
-
     def _run_pipeline(self, key, pipeline, session):
         try:
             pipeline.run(
@@ -122,9 +106,22 @@ class PurchaseProfileCoordinator:
             self._notify_error_by_key(key, exc)
             self._log(f"Purchase profile failed: {exc}")
         finally:
+            profile = self.active_profiles.get(key)
             self.threads.pop(key, None)
             self.pipelines.pop(key, None)
-            self._notify_event_by_key(key, "MONITORING_STOPPED")
+            self.active_sessions.pop(key, None)
+            self.active_profiles.pop(key, None)
+            if profile is not None:
+                self._notify_event(profile, session, "MONITORING_STOPPED")
+
+    def stop_by_key(self, key):
+        """Cancel exactly one active Purchase Profile runtime."""
+        pipeline = self.pipelines.get(key)
+        thread = self.threads.get(key)
+        if pipeline is None or thread is None or not thread.is_alive():
+            return False
+        pipeline.stop()
+        return True
 
     def _watch_session(self, key, profile, session):
         last_status = session.status
@@ -173,6 +170,9 @@ class PurchaseProfileCoordinator:
     @staticmethod
     def _key(profile):
         return f"{profile.product.shop_id}:{profile.product.item_id}:{profile.selected_variations[0].model_id}"
+
+    def key_for(self, profile):
+        return self._key(profile)
 
     def _log(self, message):
         if self.logger:

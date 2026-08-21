@@ -54,7 +54,7 @@ class DashboardPage(ctk.CTkFrame):
         self.build_products_panel(workspace)
         self.build_pipeline_panel(workspace)
 
-        bottom = ctk.CTkFrame(self, fg_color="transparent", height=172)
+        bottom = ctk.CTkFrame(self, fg_color="transparent", height=120)
         bottom.grid(row=4, column=0, sticky="ew", padx=content_pad, pady=(0, 9))
         bottom.grid_propagate(False)
         bottom.grid_columnconfigure(0, weight=1, uniform="console")
@@ -218,7 +218,7 @@ class DashboardPage(ctk.CTkFrame):
             if index < len(stages) - 1:
                 ctk.CTkLabel(
                     pipeline, text="↓", font=(fonts.FONT_FAMILY, 10), text_color=colors.TEXT_MUTED,
-                ).pack(pady=(0, 3))
+                ).pack(pady=(0, 0))
 
     def set_engine_state(self, state, error=None):
         self.engine_state = state
@@ -278,7 +278,16 @@ class DashboardPage(ctk.CTkFrame):
                 detail = str(error)[:35] + ("..." if len(str(error)) > 35 else "")
             self._set_pipeline_stage("System Response Log", detail, colors.DANGER)
         elif state == "IDLE":
-            self._set_pipeline_stage("Monitoring Controller", "Waiting for workers", colors.TEXT_MUTED)
+            self._set_pipeline_stage(
+                "Monitoring Controller",
+                "Waiting for workers",
+                colors.TEXT_MUTED,
+            )
+            self._set_pipeline_stage(
+                "Monitoring / Purchase",
+                "Monitoring stopped",
+                colors.TEXT_MUTED,
+            )
 
     def _set_pipeline_stage(self, stage, detail, accent):
         labels = self.pipeline_stage_labels.get(stage)

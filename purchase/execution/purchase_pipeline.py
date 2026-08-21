@@ -21,7 +21,12 @@ class PurchasePipeline:
         self.cart_preparer = CartPreparer()
         self.sku_monitor = SkuPriceMonitor()
         self.checkout_executor = CheckoutExecutor()
-        self.stop_event = threading.Event()
+        self._cancelled = threading.Event()
+
+    def stop(self):
+        """Cooperatively cancel the SKU monitor and wake the pipeline waiter."""
+        self._cancelled.set()
+        self.sku_monitor.stop()
 
     def run(
         self,
@@ -35,35 +40,35 @@ class PurchasePipeline:
         )
         monitor_thread = None
         try:
+            if self._cancelled.is_set():
+                return False
+
             if session.request.auto_checkout:
                 session.status = PurchaseStatus.PREPARING
                 print("[PurchasePipeline] Preparing cart...")
                 self.cart_preparer.prepare(session)
                 print("[PurchasePipeline] Cart preparation complete.")
 
-            if self.stop_event.is_set():
-                print("[PurchasePipeline] Stop requested before SKU monitoring started.")
-                return False
-
             print("[PurchasePipeline] Starting SKU monitor...")
             monitor_thread = threading.Thread(
                 target=self.sku_monitor.monitor,
                 args=(session,),
-                kwargs={"poll_interval": session.request.polling_interval},
+                kwargs={
+                    "poll_interval": session.request.polling_interval,
+                    "cancellation_event": self._cancelled,
+                },
                 daemon=True,
             )
             monitor_thread.start()
 
             print("[PurchasePipeline] Waiting for purchase trigger...")
-            while not self.stop_event.is_set() and not self.sku_monitor.triggered.is_set():
-                self.stop_event.wait(timeout=0.1)
+            triggered = self.sku_monitor.wait_for_trigger(
+                cancellation_event=self._cancelled,
+            )
 
-            if self.stop_event.is_set() and not self.sku_monitor.triggered.is_set():
-                print("[PurchasePipeline] Purchase profile stop requested.")
-                return False
-
-            triggered = self.sku_monitor.triggered.is_set()
             if not triggered:
+                if self._cancelled.is_set():
+                    return False
                 print("[PurchasePipeline] Purchase trigger not received.")
                 session.status = PurchaseStatus.FAILED
                 return False
@@ -73,7 +78,7 @@ class PurchasePipeline:
                 on_trigger()
 
             print("[PurchasePipeline] Stopping SKU monitor...")
-            self.sku_monitor.stop()
+            self.stop()
             monitor_thread.join(timeout=10)
 
             if not session.request.auto_checkout:
@@ -100,7 +105,7 @@ class PurchasePipeline:
             raise
 
         finally:
-            self.sku_monitor.stop()
+            self.stop()
 
             if monitor_thread is not None and monitor_thread.is_alive():
                 monitor_thread.join(timeout=10)
@@ -108,10 +113,3 @@ class PurchasePipeline:
             if session.browser_session is not None:
                 self.cart_preparer.browser.close_session(session.browser_owner)
                 session.browser_session = None
-
-    def stop(self):
-        """Request cancellation of the current monitoring/purchase pipeline."""
-        if self.stop_event.is_set():
-            return
-        self.stop_event.set()
-        self.sku_monitor.stop()
