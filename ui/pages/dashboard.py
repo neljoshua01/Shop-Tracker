@@ -12,11 +12,12 @@ from ui.components.product_list import ProductList
 class DashboardPage(ctk.CTkFrame):
     """Dashboard presentation layer; live data still comes from MainWindow/controller."""
 
-    def __init__(self, master, start_monitoring_callback, stop_monitoring_callback, purchase_profile_callback=None):
+    def __init__(self, master, start_monitoring_callback, stop_monitoring_callback, purchase_profile_callback=None, stop_purchase_profile_callback=None):
         super().__init__(master, fg_color=colors.BACKGROUND)
         self.start_monitoring_callback = start_monitoring_callback
         self.stop_monitoring_callback = stop_monitoring_callback
         self.purchase_profile_callback = purchase_profile_callback
+        self.stop_purchase_profile_callback = stop_purchase_profile_callback
         self.engine_state = "IDLE"
         self.purchase_state = None
         self.build_ui()
@@ -162,7 +163,10 @@ class DashboardPage(ctk.CTkFrame):
         frame = self.panel(parent, 1, 0, "Active Products", action_text="Add Purchase Profile", action_command=self.purchase_profile_callback)
         frame.grid_configure(pady=(9, 0))
         self.products_frame = ProductList(
-            frame, stop_callback=self.stop_monitoring_callback, fg_color=colors.SURFACE,
+            frame,
+            stop_callback=self.stop_monitoring_callback,
+            purchase_stop_callback=self.stop_purchase_profile_callback,
+            fg_color=colors.SURFACE,
             border_width=1, border_color=colors.BORDER, corner_radius=8, height=190,
         )
         self.products_frame.pack(fill="both", expand=True, padx=9, pady=(0, 9))
@@ -178,147 +182,49 @@ class DashboardPage(ctk.CTkFrame):
             ("Monitoring Controller", "Tracking state", colors.PRIMARY_HOVER, icons.STATE_MANAGER),
             ("Purchase Profile", "Purchase configuration", colors.PRIMARY, icons.PURCHASE_PROFILE),
             ("Monitoring / Purchase", "Existing application flow", colors.SUCCESS, icons.EXECUTION_ENGINE),
-            ("System Response Log", "Live UI feedback", colors.INFO, icons.SYSTEM_RESPONSE_LOG),
         ]
         self.pipeline_stage_labels = {}
-        for index, (name, detail, accent, icon) in enumerate(stages):
-            row = ctk.CTkFrame(
-                pipeline, fg_color=colors.SURFACE, border_width=1,
-                border_color=colors.DIVIDER, corner_radius=7, height=50,
-            )
-            row.pack(fill="x", pady=(0, 3))
-            row.pack_propagate(False)
-            ctk.CTkFrame(row, width=3, height=30, fg_color=accent, corner_radius=2).place(x=8, y=10)
-            icon_box = ctk.CTkFrame(
-                row, width=28, height=28,
-                fg_color=colors.PRIMARY_SOFT if accent != colors.INFO else colors.INFO_BG,
-                border_width=1, border_color=accent, corner_radius=6,
-            )
-            icon_box.place(x=18, y=11)
-            icon_box.grid_propagate(False)
+        for row, (name, detail, accent, icon) in enumerate(stages):
+            item = ctk.CTkFrame(pipeline, fg_color=colors.SURFACE, corner_radius=7, height=52)
+            item.pack(fill="x", pady=4)
+            item.pack_propagate(False)
+            icon_box = ctk.CTkFrame(item, width=34, height=34, fg_color=colors.PRIMARY_SOFT, border_width=1, border_color=accent, corner_radius=7)
+            icon_box.place(x=8, y=9)
             icon_image = icons.load_icon(icon, accent, icons.SIZE_SMALL)
             ctk.CTkLabel(icon_box, text="", image=icon_image).place(relx=0.5, rely=0.5, anchor="center")
-            text_container = ctk.CTkFrame(row, fg_color="transparent")
-            text_container.place(x=54, y=5)
-            title_label = ctk.CTkLabel(
-                text_container, text=name, font=fonts.SMALL_BOLD,
-                text_color=colors.TEXT_PRIMARY, anchor="w", height=18,
-            )
-            title_label.pack(anchor="w")
-            detail_label = ctk.CTkLabel(
-                text_container, text=detail, font=fonts.SMALL,
-                text_color=colors.TEXT_MUTED, anchor="w", height=16,
-            )
+            text_container = ctk.CTkFrame(item, fg_color="transparent")
+            text_container.place(x=51, y=8)
+            ctk.CTkLabel(text_container, text=name, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY, anchor="w").pack(anchor="w")
+            detail_label = ctk.CTkLabel(text_container, text=detail, font=fonts.SMALL, text_color=colors.TEXT_SECONDARY, anchor="w")
             detail_label.pack(anchor="w", pady=(1, 0))
-            self.pipeline_stage_labels[name] = (title_label, detail_label)
-            if index < len(stages) - 1:
-                ctk.CTkLabel(
-                    pipeline, text="↓", font=(fonts.FONT_FAMILY, 10), text_color=colors.TEXT_MUTED,
-                ).pack(pady=(0, 3))
+            self.pipeline_stage_labels[name] = (item, detail_label)
 
     def set_engine_state(self, state, error=None):
+        state = str(state).upper()
         self.engine_state = state
-        styles = {
-            "IDLE": (colors.INFO, colors.INFO_BG, "Idle"),
-            "STARTING": (colors.WARNING, colors.WARNING_BG, "Starting monitoring"),
-            "RUNNING": (colors.SUCCESS, colors.SUCCESS_BG, "All Systems Operational"),
-            "STOPPING": (colors.WARNING, colors.WARNING_BG, "Stopping monitoring"),
-            "ERROR": (colors.DANGER, colors.DANGER_BG, "Monitoring error"),
-        }
-        accent, background, secondary = styles.get(state, (colors.INFO, colors.INFO_BG, state.title()))
-        self.engine_status_dot.configure(fg_color=accent)
-        self.engine_status_secondary.configure(text=secondary if not error else f"{secondary}: {str(error)[:30]}")
-        self.status_bar.update_engine_state(state)
-        if self.engine_panel_status is not None:
-            self.engine_panel_status.configure(text=f"●  {state}", text_color=accent)
-        activity = {
-            "IDLE": "Waiting for monitoring activity",
-            "STARTING": "Initializing monitored products",
-            "RUNNING": "Analyzing  •  Detecting  •  Deciding  •  Triggering",
-            "STOPPING": "Stopping monitored products",
-            "ERROR": "Monitoring error reported",
-        }.get(state, "Monitoring state updated")
-        self.engine_activity_label.configure(text=activity)
-        if self.pipeline_header_status is not None:
-            self.pipeline_header_status.configure(text=state, text_color=accent)
-        self._set_pipeline_state(state, error)
-
-    def set_purchase_state(self, status, event=None, error=None):
-        self.purchase_state = status
-        if event == "TRIGGERED":
-            self._set_pipeline_stage("Purchase Profile", "Trigger reached", colors.WARNING)
-            self._set_pipeline_stage("Monitoring / Purchase", "Purchase triggered", colors.WARNING)
-            return
-        value = getattr(status, "value", str(status))
         labels = {
-            "created": "Created", "preparing": "Preparing cart", "ready": "Ready",
-            "adding_to_cart": "Adding to cart", "in_cart": "In cart",
-            "checking_out": "Checking out", "completed": "Completed", "failed": "Failed",
+            "IDLE": ("●  IDLE", "Waiting for monitoring activity", colors.INFO),
+            "STARTING": ("●  STARTING", "Starting monitoring workers", colors.WARNING),
+            "RUNNING": ("●  RUNNING", "Monitoring active", colors.SUCCESS),
+            "STOPPING": ("●  STOPPING", "Stopping monitoring workers", colors.WARNING),
+            "ERROR": ("●  ERROR", str(error) if error else "Monitoring error", colors.DANGER),
         }
-        detail = labels.get(value, value.replace("_", " ").title())
-        accent = colors.DANGER if value == "failed" else colors.SUCCESS if value == "completed" else colors.PRIMARY
-        self._set_pipeline_stage("Purchase Profile", detail, accent)
-        self._set_pipeline_stage("Monitoring / Purchase", detail, accent)
-
-    def _set_pipeline_state(self, state, error=None):
-        if state == "STARTING":
-            self._set_pipeline_stage("Monitoring Controller", "Starting workers", colors.WARNING)
-        elif state == "RUNNING":
-            self._set_pipeline_stage("Monitoring Controller", "Workers running", colors.SUCCESS)
-            self._set_pipeline_stage("Monitoring / Purchase", "Monitoring active", colors.SUCCESS)
-        elif state == "STOPPING":
-            self._set_pipeline_stage("Monitoring Controller", "Stopping workers", colors.WARNING)
-        elif state == "ERROR":
-            detail = "Engine error"
-            if error:
-                detail = str(error)[:35] + ("..." if len(str(error)) > 35 else "")
-            self._set_pipeline_stage("System Response Log", detail, colors.DANGER)
-        elif state == "IDLE":
-            self._set_pipeline_stage("Monitoring Controller", "Waiting for workers", colors.TEXT_MUTED)
-
-    def _set_pipeline_stage(self, stage, detail, accent):
-        labels = self.pipeline_stage_labels.get(stage)
-        if labels is None:
-            return
-        _, detail_label = labels
-        detail_label.configure(text=detail, text_color=accent)
-
-    def build_alerts_panel(self, parent):
-        frame = self.panel(parent, 0, 0, "Recent Alerts", "VIEW ALL")
-        frame.grid_configure(padx=(0, 6))
-        empty = ctk.CTkFrame(frame, fg_color="transparent")
-        empty.pack(fill="both", expand=True, padx=12, pady=(0, 9))
-        ctk.CTkLabel(empty, text="No active alerts", font=fonts.SUBTITLE, text_color=colors.TEXT_PRIMARY).pack(pady=(14, 3))
-        ctk.CTkLabel(empty, text="Price and stock alerts will appear here.", font=fonts.SMALL, text_color=colors.TEXT_MUTED).pack()
-
-    def build_engine_logs_panel(self, parent):
-        frame = self.panel(parent, 0, 1, "Engine Logs", "VIEW ALL")
-        frame.grid_configure(padx=(6, 6))
-        log_area = ctk.CTkFrame(frame, fg_color=colors.SURFACE, border_width=1, border_color=colors.DIVIDER, corner_radius=7)
-        log_area.pack(fill="both", expand=True, padx=9, pady=(0, 9))
-        ctk.CTkLabel(
-            log_area,
-            text="Engine events are surfaced through the\nSystem Response Log below.",
-            font=fonts.SMALL, text_color=colors.TEXT_MUTED, justify="center",
-        ).pack(expand=True)
-
-    def build_system_response_log(self, parent):
-        log_frame = self.panel(parent, 0, 2, "System Response Log", "LIVE CONSOLE")
-        log_frame.grid_configure(padx=(6, 0))
-        log_container = ctk.CTkFrame(log_frame, fg_color=colors.SURFACE, border_width=1, border_color=colors.DIVIDER, corner_radius=7)
-        log_container.pack(fill="both", expand=True, padx=9, pady=(0, 9))
-        self.log_box = ctk.CTkTextbox(
-            log_container, height=100, font=fonts.LOG, fg_color="transparent", border_width=0,
-            text_color=colors.TEXT_SECONDARY, scrollbar_button_color=colors.BORDER,
-            scrollbar_button_hover_color=colors.CARD_HOVER,
-        )
-        self.log_box.tag_config("log_success", foreground=colors.SUCCESS)
-        self.log_box.tag_config("log_info", foreground=colors.INFO)
-        self.log_box.tag_config("log_warning", foreground=colors.WARNING)
-        self.log_box.tag_config("log_error", foreground=colors.DANGER)
-        self.log_box.tag_config("log_time", foreground=colors.TEXT_MUTED)
-        self.log_box.tag_config("log_message", foreground=colors.TEXT_PRIMARY)
-        self.log_box.pack(fill="both", expand=True, padx=6, pady=5)
-
-    def clear_logs(self):
-        self.log_box.delete("1.0", "end")
+        title, activity, accent = labels.get(state, (f"●  {state}", "Monitoring state", colors.INFO))
+        if self.engine_panel_status:
+            self.engine_panel_status.configure(text=title, text_color=accent)
+        self.engine_status_secondary.configure(text=state.title(), text_color=accent)
+        self.engine_status_dot.configure(fg_color=accent)
+        self.engine_activity_label.configure(text=activity, text_color=accent)
+        if self.pipeline_header_status:
+            self.pipeline_header_status.configure(text="LIVE" if state == "RUNNING" else state, text_color=colors.SUCCESS if state == "RUNNING" else accent)
+        controller_detail = {
+            "IDLE": "Waiting for workers",
+            "STARTING": "Starting workers",
+            "RUNNING": "Monitoring active",
+            "STOPPING": "Stopping workers",
+            "ERROR": "Monitoring error",
+        }.get(state, state.title())
+        labels = self.pipeline_stage_labels.get("Monitoring Controller")
+        if labels:
+            _, detail_label = labels
+            detail_label.configure(text=controller_detail, text_color=accent)
