@@ -163,6 +163,20 @@ class TrackerController:
 
         return service_state
 
+    def get_runtime_monitoring_count(self):
+        """Return the number of currently active monitoring runtimes."""
+        normal_count = sum(
+            1
+            for thread in self.monitoring_service.threads.values()
+            if thread.is_alive()
+        )
+        purchase_count = sum(
+            1
+            for thread in self.purchase_profile_coordinator.threads.values()
+            if thread.is_alive()
+        )
+        return normal_count + purchase_count
+
     def save_products(self):
         print(f"[TrackerController] Saving {len(self.products)} products")
         self.settings.save_products(self.products)
