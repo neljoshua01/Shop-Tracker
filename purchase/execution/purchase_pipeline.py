@@ -34,7 +34,6 @@ class PurchasePipeline:
             "========== STARTING PURCHASE PIPELINE =========="
         )
         monitor_thread = None
-        self.stop_event.clear()
         try:
             if session.request.auto_checkout:
                 session.status = PurchaseStatus.PREPARING
