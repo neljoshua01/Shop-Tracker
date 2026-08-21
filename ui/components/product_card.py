@@ -172,16 +172,28 @@ class ProductCard(ctk.CTkFrame):
         frame.grid(row=0, column=6, sticky="nsew", padx=(8, 16), pady=12)
         button_stack = ctk.CTkFrame(frame, fg_color="transparent")
         button_stack.pack(expand=True)
+
+        details_icon = icons.load_icon(
+            icons.PRODUCT,
+            colors.SUCCESS,
+            icons.SIZE_SMALL,
+        )
         self.details_button = ctk.CTkButton(
             button_stack, text="", width=36, height=32, fg_color="transparent",
             hover_color=colors.CARD_HOVER, border_width=1, border_color=colors.SUCCESS,
-            image=icons.PRODUCT, command=self.open_details
+            image=details_icon, command=self.open_details
         )
         self.details_button.pack(pady=(0, 8))
+
+        pause_icon = icons.load_icon(
+            icons.PAUSE,
+            colors.DANGER,
+            icons.SIZE_SMALL,
+        )
         self.stop_button = ctk.CTkButton(
             button_stack, text="", width=36, height=32, fg_color="transparent",
             hover_color=colors.DANGER_BG, border_width=1, border_color=colors.DANGER,
-            image=icons.PAUSE, command=self.stop_monitoring
+            image=pause_icon, command=self.stop_monitoring
         )
         self.stop_button.pack()
 
