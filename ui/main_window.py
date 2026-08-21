@@ -6,6 +6,7 @@ from ui import colors, fonts
 from controllers.tracker_controller import TrackerController
 from ui.components.sidebar import Sidebar
 from ui.pages.dashboard import DashboardPage
+from ui.components.topbar import TopBar
 from ui.pages.products import ProductsPage
 from ui.pages.activity_logs import ActivityLogsPage
 from ui.pages.alerts import AlertsPage
@@ -44,6 +45,7 @@ class MainWindow(ctk.CTk):
             start_monitoring_callback=self.start_monitoring,
             stop_monitoring_callback=self.stop_monitoring,
             purchase_profile_callback=self.open_purchase_profile,
+            stop_purchase_profile_callback=self.stop_purchase_profile,
         )
         self.dashboard_page.grid(row=0, column=0, sticky="nsew")
         self.products_page = ProductsPage(self.main_frame, stop_monitoring_callback=self.stop_monitoring)
@@ -193,6 +195,19 @@ class MainWindow(ctk.CTk):
         self.log(f"Purchase profile saved and started: {profile.product.product_name}")
         self.status_bar.update_timestamp()
         return session
+
+    def stop_purchase_profile(self, product):
+        profile_key = getattr(product, "profile_key", None)
+        if not profile_key:
+            self.log("Unable to stop Purchase Profile: runtime session key is missing.")
+            return
+
+        if not self.controller.stop_purchase_profile(profile_key):
+            self.log("Purchase Profile is not currently running.")
+            return
+
+        self.log("Purchase Profile stop requested.")
+        self.status_bar.update_timestamp()
 
     def on_product_update(self, product):
         def update():
