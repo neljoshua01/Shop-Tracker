@@ -269,6 +269,7 @@ class DashboardPage(ctk.CTkFrame):
             self._set_pipeline_stage("Monitoring Controller", "Starting workers", colors.WARNING)
         elif state == "RUNNING":
             self._set_pipeline_stage("Monitoring Controller", "Workers running", colors.SUCCESS)
+            self._set_pipeline_stage("Monitoring / Purchase", "Monitoring active", colors.SUCCESS)
         elif state == "STOPPING":
             self._set_pipeline_stage("Monitoring Controller", "Stopping workers", colors.WARNING)
         elif state == "ERROR":
