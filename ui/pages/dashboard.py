@@ -83,41 +83,93 @@ class DashboardPage(ctk.CTkFrame):
         self.build_system_response_log(bottom)
 
     def build_engine_status(self, parent):
+        # Main parent container frame
         engine_status = ctk.CTkFrame(
             parent,
-            fg_color=colors.TOPBAR,
+            fg_color="transparent",
             border_width=1,
             border_color=colors.BORDER,
-            corner_radius=9,
-            width=228,
-            height=60,
+            corner_radius=14,
+            width=210,
+            height=52,
         )
-        engine_status.grid(row=0, column=1, sticky="e", padx=(18, 0))
+        engine_status.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=(12, 0),
+        )
         engine_status.grid_propagate(False)
 
-        ctk.CTkFrame(
-            engine_status,
-            width=10,
-            height=10,
-            fg_color=colors.SUCCESS,
-            corner_radius=5,
-        ).place(x=14, y=25)
+        # Center the entire inner block vertically inside the 52px height
+        engine_status.grid_columnconfigure(0, weight=1)
+        engine_status.grid_rowconfigure(0, weight=1)
 
+        # Inner container for both dot and text
+        text_container = ctk.CTkFrame(engine_status, fg_color="transparent")
+        text_container.grid(row=0, column=0, sticky="w", padx=(14, 14))
+        
+        # Configure grid inside the text container
+        text_container.grid_columnconfigure(1, weight=1)
+
+        # Status dot (Aligned to Row 0 / Primary Text)
+        status_dot = ctk.CTkFrame(
+            text_container,
+            width=8,
+            height=8,
+            fg_color=colors.SUCCESS,
+            corner_radius=4,
+        )
+        status_dot.grid(
+            row=0,
+            column=0,
+            padx=(0, 8),
+            pady=(2, 0), # Small tweak to visually hit the text baseline perfectly
+            sticky="w",
+        )
+        status_dot.grid_propagate(False)
+
+        # Primary text (Row 0)
         ctk.CTkLabel(
-            engine_status,
+            text_container,
             text="Engine Status",
             font=fonts.SMALL_BOLD,
             text_color=colors.TEXT_PRIMARY,
-        ).place(x=34, y=10)
+            anchor="w",
+            height=18,
+        ).grid(
+            row=0,
+            column=1,
+            sticky="w",
+        )
 
+        # Secondary text (Row 1 - spans across or stays under the text column)
         ctk.CTkLabel(
-            engine_status,
+            text_container,
             text="All Systems Operational",
             font=fonts.SMALL,
             text_color=colors.TEXT_SECONDARY,
-        ).place(x=34, y=33)
+            anchor="w",
+            height=14,
+        ).grid(
+            row=1,
+            column=1,
+            sticky="w",
+            pady=(2, 0), # Small spacing between the two lines of text
+        )
 
-    def panel(self, parent, row, column, title, subtitle=None, action_text=None, action_command=None):
+    def panel(
+        self,
+        parent,
+        row,
+        column,
+        title,
+        subtitle=None,
+        action_text=None,
+        action_command=None,
+        title_icon=None,
+        title_icon_color=None,
+    ):
         frame = ctk.CTkFrame(
             parent,
             fg_color=colors.CARD,
@@ -133,16 +185,44 @@ class DashboardPage(ctk.CTkFrame):
             pady=0,
         )
 
-        header = ctk.CTkFrame(frame, fg_color="transparent", height=38)
-        header.pack(fill="x", padx=14, pady=(7, 0))
+        header = ctk.CTkFrame(
+            frame,
+            fg_color="transparent",
+            height=38,
+        )
+        header.pack(
+            fill="x",
+            padx=14,
+            pady=(7, 0),
+        )
         header.pack_propagate(False)
+
+        if title_icon is not None:
+            icon_image = icons.load_icon(
+                title_icon,
+                title_icon_color or colors.TEXT_PRIMARY,
+                (30,30),
+            )
+
+            ctk.CTkLabel(
+                header,
+                text="",
+                image=icon_image,
+            ).pack(
+                side="left",
+                padx=(0, 7),
+                anchor="center",
+            )
 
         ctk.CTkLabel(
             header,
             text=title,
             font=fonts.HEADING,
             text_color=colors.TEXT_PRIMARY,
-        ).pack(side="left", anchor="center")
+        ).pack(
+            side="left",
+            anchor="center",
+        )
 
         if action_text and action_command:
             ctk.CTkButton(
@@ -158,36 +238,84 @@ class DashboardPage(ctk.CTkFrame):
                 border_color=colors.PRIMARY_HOVER,
                 font=fonts.SMALL_BOLD,
                 text_color=colors.TEXT_PRIMARY,
-            ).pack(side="right", anchor="center")
+            ).pack(
+                side="right",
+                anchor="center",
+            )
+
         elif subtitle:
             ctk.CTkLabel(
                 header,
                 text=subtitle,
                 font=fonts.SMALL_BOLD,
                 text_color=colors.INFO if "LIVE" in subtitle else colors.TEXT_MUTED,
-            ).pack(side="right", anchor="center")
+            ).pack(
+                side="right",
+                anchor="center",
+            )
 
         return frame
 
     def build_engine_panel(self, parent):
-        frame = self.panel(parent, 0, 0, "Monitoring Engine", "●  RUNNING")
+        frame = self.panel(
+            parent,
+            0,
+            0,
+            "Monitoring Engine",
+            "●  RUNNING",
+            title_icon=icons.MONITORING_ENGINE,
+            title_icon_color=colors.INFO,
+        )
+
         ctk.CTkLabel(
             frame,
             text="Analyzing  •  Detecting  •  Deciding  •  Triggering",
             font=fonts.SMALL,
             text_color=colors.TEXT_SECONDARY,
-        ).pack(anchor="w", padx=14, pady=(0, 8))
+        ).pack(
+            anchor="w",
+            padx=14,
+            pady=(0, 8),
+        )
 
-        modules = ctk.CTkFrame(frame, fg_color="transparent")
-        modules.pack(fill="x", padx=14, pady=(0, 10))
+        modules = ctk.CTkFrame(
+            frame,
+            fg_color="transparent",
+        )
+        modules.pack(
+            fill="x",
+            padx=14,
+            pady=(0, 10),
+        )
+
         for index in range(3):
-            modules.grid_columnconfigure(index, weight=1, uniform="engine")
+            modules.grid_columnconfigure(
+                index,
+                weight=1,
+                uniform="engine",
+            )
 
         stages = [
-            ("Product State", "Tracks product & stock state", icons.STATE_MANAGER, colors.PRIMARY),
-            ("Live Updates", "Receives monitoring updates", icons.TIME, colors.INFO),
-            ("API Polling", "Refreshes monitored products", icons.API_POLLER, colors.PRIMARY_HOVER),
+            (
+                "Product State",
+                "Tracks product & stock state",
+                icons.STATE_MANAGER,
+                colors.PRIMARY,
+            ),
+            (
+                "Live Updates",
+                "Receives monitoring updates",
+                icons.TIME,
+                colors.INFO,
+            ),
+            (
+                "API Polling",
+                "Refreshes monitored products",
+                icons.API_POLLER,
+                colors.PRIMARY_HOVER,
+            ),
         ]
+
         for index, (title, text, icon, accent) in enumerate(stages):
             card = ctk.CTkFrame(
                 modules,
@@ -197,23 +325,91 @@ class DashboardPage(ctk.CTkFrame):
                 corner_radius=7,
                 height=64,
             )
-            card.grid(row=0, column=index, sticky="ew", padx=(0, 7) if index < 2 else 0)
+
+            card.grid(
+                row=0,
+                column=index,
+                sticky="ew",
+                padx=(0, 7) if index < 2 else 0,
+            )
             card.grid_propagate(False)
 
+            # Module icon
             icon_box = ctk.CTkFrame(
                 card,
                 width=36,
                 height=36,
-                fg_color=colors.PRIMARY_SOFT if accent != colors.INFO else colors.INFO_BG,
+                fg_color=(
+                    colors.PRIMARY_SOFT
+                    if accent != colors.INFO
+                    else colors.INFO_BG
+                ),
                 border_width=1,
                 border_color=accent,
                 corner_radius=7,
             )
-            icon_box.place(x=8, y=14)
-            icon_image = icons.load_icon(icon, accent, icons.SIZE_SMALL)
-            ctk.CTkLabel(icon_box, text="", image=icon_image).place(relx=0.5, rely=0.5, anchor="center")
-            ctk.CTkLabel(card, text=title, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=53, y=11)
-            ctk.CTkLabel(card, text=text, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=53, y=34)
+
+            icon_box.place(
+                x=8,
+                y=14,
+            )
+
+            icon_box.grid_propagate(False)
+
+            icon_image = icons.load_icon(
+                icon,
+                accent,
+                icons.SIZE_LARGE,
+            )
+
+            ctk.CTkLabel(
+                icon_box,
+                text="",
+                image=icon_image,
+            ).place(
+                relx=0.5,
+                rely=0.5,
+                anchor="center",
+            )
+
+            # Text container
+            # Keeps primary and secondary labels vertically grouped,
+            # matching the Engine Status layout.
+            text_container = ctk.CTkFrame(
+                card,
+                fg_color="transparent",
+            )
+
+            text_container.place(
+                x=53,
+                y=9,
+            )
+
+            # Primary module name
+            ctk.CTkLabel(
+                text_container,
+                text=title,
+                font=fonts.SMALL_BOLD,
+                text_color=colors.TEXT_PRIMARY,
+                anchor="w",
+                height=18,
+            ).pack(
+                anchor="w",
+            )
+
+            # Secondary module description
+            ctk.CTkLabel(
+                text_container,
+                text=text,
+                font=fonts.SMALL,
+                text_color=colors.TEXT_MUTED,
+                anchor="w",
+                height=16,
+            ).pack(
+                anchor="w",
+                pady=(1, 0),
+            )
+
 
     def build_products_panel(self, parent):
         frame = self.panel(
@@ -237,39 +433,185 @@ class DashboardPage(ctk.CTkFrame):
         self.products_frame.pack(fill="both", expand=True, padx=9, pady=(0, 9))
 
     def build_pipeline_panel(self, parent):
-        frame = self.panel(parent, 0, 1, "System Pipeline", "LIVE")
-        frame.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=0)
-        pipeline = ctk.CTkFrame(frame, fg_color="transparent")
-        pipeline.pack(fill="both", expand=True, padx=10, pady=(0, 8))
+        frame = self.panel(
+            parent,
+            0,
+            1,
+            "System Pipeline",
+            "LIVE",
+        )
+
+        frame.grid(
+            row=0,
+            column=1,
+            rowspan=2,
+            sticky="nsew",
+            padx=0,
+        )
+
+        pipeline = ctk.CTkFrame(
+            frame,
+            fg_color="transparent",
+        )
+
+        pipeline.pack(
+            fill="both",
+            expand=True,
+            padx=10,
+            pady=(0, 8),
+        )
 
         stages = [
-            ("Shopee Product", "Input source", colors.INFO),
-            ("Monitoring Controller", "Tracking state", colors.PRIMARY_HOVER),
-            ("Purchase Profile", "Purchase configuration", colors.PRIMARY),
-            ("Monitoring / Purchase", "Existing application flow", colors.SUCCESS),
-            ("System Response Log", "Live UI feedback", colors.INFO),
+            (
+                "Shopee Product",
+                "Input source",
+                colors.INFO,
+                icons.SHOPEE_API,
+            ),
+            (
+                "Monitoring Controller",
+                "Tracking state",
+                colors.PRIMARY_HOVER,
+                icons.STATE_MANAGER,
+            ),
+            (
+                "Purchase Profile",
+                "Purchase configuration",
+                colors.PRIMARY,
+                icons.PURCHASE_PROFILE,
+            ),
+            (
+                "Monitoring / Purchase",
+                "Existing application flow",
+                colors.SUCCESS,
+                icons.EXECUTION_ENGINE,
+            ),
+            (
+                "System Response Log",
+                "Live UI feedback",
+                colors.INFO,
+                icons.SYSTEM_RESPONSE_LOG,
+            ),
         ]
-        for index, (name, detail, accent) in enumerate(stages):
+
+        for index, (name, detail, accent, icon) in enumerate(stages):
+            # Slightly taller card gives the two text lines enough
+            # vertical breathing room.
             row = ctk.CTkFrame(
                 pipeline,
                 fg_color=colors.SURFACE,
                 border_width=1,
                 border_color=colors.DIVIDER,
                 corner_radius=7,
-                height=46,
+                height=50, # CHANGED: Reduced from 54 to 50 to save 20px total height
             )
-            row.pack(fill="x", pady=(0, 2))
+
+            row.pack(
+                fill="x",
+                pady=(0, 3),
+            )
+
             row.pack_propagate(False)
-            ctk.CTkFrame(row, width=3, height=28, fg_color=accent, corner_radius=2).place(x=9, y=8)
-            ctk.CTkLabel(row, text=name, font=fonts.SMALL_BOLD, text_color=colors.TEXT_PRIMARY).place(x=20, y=7)
-            ctk.CTkLabel(row, text=detail, font=fonts.SMALL, text_color=colors.TEXT_MUTED).place(x=20, y=27)
+
+            # Accent rail
+            ctk.CTkFrame(
+                row,
+                width=3,
+                height=30,
+                fg_color=accent,
+                corner_radius=2,
+            ).place(
+                x=8,
+                y=10, # CHANGED: Moved from 12 to 10 to center in the 50px card
+            )
+
+            # Stage icon
+            icon_box = ctk.CTkFrame(
+                row,
+                width=28,
+                height=28,
+                fg_color=(
+                    colors.PRIMARY_SOFT
+                    if accent != colors.INFO
+                    else colors.INFO_BG
+                ),
+                border_width=1,
+                border_color=accent,
+                corner_radius=6,
+            )
+
+            icon_box.place(
+                x=18,
+                y=11, # CHANGED: Moved from 13 to 11 to center in the 50px card
+            )
+
+            icon_box.grid_propagate(False)
+
+            icon_image = icons.load_icon(
+                icon,
+                accent,
+                icons.SIZE_SMALL,
+            )
+
+            ctk.CTkLabel(
+                icon_box,
+                text="",
+                image=icon_image,
+            ).place(
+                relx=0.5,
+                rely=0.5,
+                anchor="center",
+            )
+
+            # Text container
+            # Keeps the primary stage name and secondary description
+            # together, directly beneath one another.
+            text_container = ctk.CTkFrame(
+                row,
+                fg_color="transparent",
+            )
+
+            text_container.place(
+                x=54,
+                y=5, # CHANGED: Moved from 7 to 5 to pull text away from bottom frame border
+            )
+
+            # Primary stage name
+            ctk.CTkLabel(
+                text_container,
+                text=name,
+                font=fonts.SMALL_BOLD,
+                text_color=colors.TEXT_PRIMARY,
+                anchor="w",
+                height=18,
+            ).pack(
+                anchor="w",
+            )
+
+            # Secondary stage description
+            ctk.CTkLabel(
+                text_container,
+                text=detail,
+                font=fonts.SMALL,
+                text_color=colors.TEXT_MUTED,
+                anchor="w",
+                height=16,
+            ).pack(
+                anchor="w",
+                pady=(1, 0),
+            )
+
+            # Connector arrow
             if index < len(stages) - 1:
                 ctk.CTkLabel(
                     pipeline,
                     text="↓",
                     font=(fonts.FONT_FAMILY, 10),
                     text_color=colors.TEXT_MUTED,
-                ).pack(pady=(1, 2))
+                    height=4,  # <-- ADD THIS: Forces the label container to shrink
+                ).pack(
+                    pady=(0, 5),  # <-- CHANGE THIS: Pulls the cards tightly together
+                )
 
     def build_alerts_panel(self, parent):
         frame = self.panel(parent, 0, 0, "Recent Alerts", "VIEW ALL")

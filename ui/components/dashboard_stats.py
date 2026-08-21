@@ -21,20 +21,96 @@ class StatCard(ctk.CTkFrame):
             corner_radius=9,
             border_width=1,
             border_color=colors.BORDER,
-            height=88,
+            height=84,
         )
         self.grid_propagate(False)
-        self.grid_columnconfigure(1, weight=1)
-        icon_shell = ctk.CTkFrame(self, width=48, height=48, fg_color=accent_bg, border_width=1, border_color=accent, corner_radius=24)
-        icon_shell.grid(row=0, column=0, rowspan=3, padx=(11, 10), pady=19)
-        icon_shell.grid_propagate(False)
-        icon_image = icons.load_icon(image, accent, icons.SIZE_DEFAULT)
-        ctk.CTkLabel(icon_shell, text="", image=icon_image).place(relx=0.5, rely=0.5, anchor="center")
-        ctk.CTkLabel(self, text=title, font=fonts.SMALL, text_color=colors.TEXT_SECONDARY).grid(row=0, column=1, sticky="sw", padx=(0, 10), pady=(10, 0))
-        self.value = ctk.CTkLabel(self, text=value, font=fonts.STAT_VALUE, text_color=colors.TEXT_PRIMARY)
-        self.value.grid(row=1, column=1, sticky="nw", padx=(0, 10))
-        ctk.CTkLabel(self, text=subtitle, font=fonts.SMALL, text_color=colors.TEXT_MUTED).grid(row=2, column=1, sticky="nw", padx=(0, 10), pady=(0, 9))
 
+        # ---------------------------------------------------------
+        # Icon
+        # ---------------------------------------------------------
+        icon_shell = ctk.CTkFrame(
+            self,
+            width=48,
+            height=48,
+            fg_color=accent_bg,
+            border_width=1,
+            border_color=accent,
+            corner_radius=24,
+        )
+        icon_shell.place(
+            x=11,
+            rely=0.5,
+            anchor="w",
+        )
+        icon_shell.grid_propagate(False)
+
+        icon_image = icons.load_icon(
+            image,
+            accent,
+            icons.SIZE_DEFAULT,
+        )
+
+        ctk.CTkLabel(
+            icon_shell,
+            text="",
+            image=icon_image,
+        ).place(
+            relx=0.5,
+            rely=0.5,
+            anchor="center",
+        )
+
+        # ---------------------------------------------------------
+        # Vertically centered text block
+        # ---------------------------------------------------------
+        text_container = ctk.CTkFrame(
+            self,
+            fg_color="transparent",
+        )
+        text_container.place(
+            x=69,
+            rely=0.5,
+            anchor="w",
+        )
+
+        # Title
+        ctk.CTkLabel(
+            text_container,
+            text=title,
+            font=fonts.SMALL,
+            text_color=colors.TEXT_SECONDARY,
+            anchor="w",
+            height=17,
+        ).pack(
+            anchor="w",
+        )
+
+        # Main value
+        self.value = ctk.CTkLabel(
+            text_container,
+            text=value,
+            font=fonts.STAT_VALUE,
+            text_color=colors.TEXT_PRIMARY,
+            anchor="w",
+            height=25,
+        )
+        self.value.pack(
+            anchor="w",
+            pady=(1, 0),
+        )
+
+        # Secondary text
+        ctk.CTkLabel(
+            text_container,
+            text=subtitle,
+            font=fonts.SMALL,
+            text_color=colors.TEXT_MUTED,
+            anchor="w",
+            height=17,
+        ).pack(
+            anchor="w",
+            pady=(1, 0),
+        )
     def update(self, value):
         self.value.configure(text=value)
 
