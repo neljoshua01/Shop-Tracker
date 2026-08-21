@@ -21,6 +21,9 @@ class SkuPriceMonitor:
         self.parser = SkuPriceParser()
 
         self.session = None
+        self._callback_session = None
+        self._callback_registered = False
+        self._stopped = True
 
         self.latest_state: SkuPriceState | None = None
 
@@ -39,6 +42,9 @@ class SkuPriceMonitor:
     ):
 
         self.session = session
+        self._callback_session = None
+        self._callback_registered = False
+        self._stopped = False
 
         self.latest_state = None
 
@@ -61,6 +67,9 @@ class SkuPriceMonitor:
             self.on_browser_response,
             **callback_kwargs,
         )
+        if browser_session is not None:
+            self._callback_session = browser_session
+            self._callback_registered = True
 
         print(
             "[SkuPriceMonitor] Monitoring SKU..."
@@ -105,6 +114,8 @@ class SkuPriceMonitor:
                 self.on_browser_response,
                 session=browser_session,
             )
+            self._callback_session = browser_session
+            self._callback_registered = True
 
         if browser_session is None:
 
@@ -150,6 +161,14 @@ class SkuPriceMonitor:
 
                     break
 
+                if browser_session.page.is_closed():
+                    print(
+                        "[SkuPriceMonitor] "
+                        "Monitoring page is closed. Stopping monitoring."
+                    )
+                    self.stop()
+                    break
+
                 print()
                 print(
                     "[SkuPriceMonitor] "
@@ -178,12 +197,23 @@ class SkuPriceMonitor:
 
                 except Exception as e:
 
+                    if browser_session.page.is_closed():
+                        print(
+                            "[SkuPriceMonitor] "
+                            "Monitoring session closed during refresh."
+                        )
+                        self.stop()
+                        break
+
                     print(
                         "[SkuPriceMonitor] "
                         f"PDP refresh failed: {e}"
                     )
 
                 if self.triggered.is_set():
+                    break
+
+                if not self.monitoring:
                     break
 
                 print()
@@ -363,16 +393,20 @@ class SkuPriceMonitor:
 
     def stop(self):
 
-        self.monitoring = False
+        if self._stopped:
+            return
 
+        self._stopped = True
+        self.monitoring = False
         self.stop_event.set()
 
-        if self.session is not None:
-
+        if self._callback_registered:
             self.browser.engine.unregister_response_callback(
                 self,
-                session=self.session.browser_session,
+                session=self._callback_session,
             )
+            self._callback_registered = False
+            self._callback_session = None
 
         self.session = None
 

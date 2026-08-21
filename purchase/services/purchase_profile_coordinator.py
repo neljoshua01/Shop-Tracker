@@ -105,6 +105,7 @@ class PurchaseProfileCoordinator:
             self._log(f"Purchase profile failed: {exc}")
         finally:
             self.threads.pop(key, None)
+            self._notify_event_by_key(key, "MONITORING_STOPPED")
 
     def _watch_session(self, key, profile, session):
         last_status = session.status
@@ -113,7 +114,7 @@ class PurchaseProfileCoordinator:
             if current is not last_status:
                 last_status = current
                 self._notify_status(profile, session)
-            if current in (PurchaseStatus.COMPLETED, PurchaseStatus.FAILED) and key not in self.threads:
+            if key not in self.threads:
                 break
             time.sleep(0.05)
         self._watchers.pop(key, None)

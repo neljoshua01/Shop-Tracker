@@ -175,13 +175,13 @@ class ProductCard(ctk.CTkFrame):
         self.details_button = ctk.CTkButton(
             button_stack, text="", width=36, height=32, fg_color="transparent",
             hover_color=colors.CARD_HOVER, border_width=1, border_color=colors.SUCCESS,
-            image=icons.VIEW, command=self.open_details
+            image=icons.PRODUCT, command=self.open_details
         )
         self.details_button.pack(pady=(0, 8))
         self.stop_button = ctk.CTkButton(
             button_stack, text="", width=36, height=32, fg_color="transparent",
             hover_color=colors.DANGER_BG, border_width=1, border_color=colors.DANGER,
-            image=icons.STOP, command=self.stop_monitoring
+            image=icons.PAUSE, command=self.stop_monitoring
         )
         self.stop_button.pack()
 
@@ -245,6 +245,8 @@ class ProductCard(ctk.CTkFrame):
     def load_thumbnail(self):
         url = getattr(self.product, "image_url", "")
         if not url:
+            return
+        if not str(url).startswith(("http://", "https://")):
             return
         threading.Thread(target=self._fetch_thumbnail, args=(url,), daemon=True).start()
 

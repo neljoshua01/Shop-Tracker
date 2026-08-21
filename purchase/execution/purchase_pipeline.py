@@ -66,7 +66,8 @@ class PurchasePipeline:
             monitor_thread.join(timeout=10)
 
             if not session.request.auto_checkout:
-                session.status = PurchaseStatus.COMPLETED
+                # A trigger with Auto Checkout disabled is an observability
+                # event only. It is not a completed purchase.
                 print("[PurchasePipeline] Trigger recorded; Auto Checkout is disabled.")
                 return True
 

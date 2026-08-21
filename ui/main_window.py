@@ -75,7 +75,7 @@ class MainWindow(ctk.CTk):
 
         self.controller.load_products()
         self.refresh_products()
-        self.dashboard_page.set_engine_state(self.controller.monitoring_service.state)
+        self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
 
     def log(self, message):
         self.after(0, lambda: self._append_log(message))
@@ -100,7 +100,8 @@ class MainWindow(ctk.CTk):
 
     def on_monitoring_state_change(self, state, url=None, error=None):
         def update():
-            self.dashboard_page.set_engine_state(state, error=error)
+            runtime_state = self.controller.get_runtime_monitoring_state()
+            self.dashboard_page.set_engine_state(runtime_state, error=error)
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -114,7 +115,7 @@ class MainWindow(ctk.CTk):
         def update():
             message = f"{source.title()} error: {error}"
             self._append_log(message)
-            current_state = self.controller.monitoring_service.state
+            current_state = self.controller.get_runtime_monitoring_state()
             if current_state == "ERROR":
                 self.dashboard_page.set_engine_state(
                     "ERROR",
@@ -122,6 +123,13 @@ class MainWindow(ctk.CTk):
                 )
             self.status_bar.update_timestamp()
         self.after(0, update)
+
+    def _set_dashboard_product_stage(self, detail, accent=colors.SUCCESS):
+        labels = self.dashboard_page.pipeline_stage_labels.get("Shopee Product")
+        if labels is None:
+            return
+        _, detail_label = labels
+        detail_label.configure(text=detail, text_color=accent)
 
     def on_purchase_status_change(self, profile, session):
         def update():
@@ -132,13 +140,21 @@ class MainWindow(ctk.CTk):
                 f"{session.status.value.replace('_', ' ').title()}"
             )
             self.status_bar.update_timestamp()
+            self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
         self.after(0, update)
 
     def on_purchase_event(self, profile, session, event):
         def update():
-            self.dashboard_page.set_purchase_state(session.status, event=event)
-            self.products_frame.update_purchase_profile(profile, session)
+            if event != "MONITORING_STOPPED":
+                self.dashboard_page.set_purchase_state(session.status, event=event)
+                self.products_frame.update_purchase_profile(profile, session, event=event)
+                self._set_dashboard_product_stage(
+                    "Product loaded • SKU monitoring",
+                    colors.SUCCESS,
+                )
+
             self._append_log(f"Purchase profile '{profile.profile_name}': {event}")
+            self.dashboard_page.set_engine_state(self.controller.get_runtime_monitoring_state())
             self.status_bar.update_timestamp()
         self.after(0, update)
 
@@ -164,6 +180,7 @@ class MainWindow(ctk.CTk):
     def on_product_update(self, product):
         def update():
             self.products_frame.update_product(product)
+            self._set_dashboard_product_stage("Product loaded", colors.SUCCESS)
             count = len(self.controller.get_products())
             self.status_bar.update_product_count(count)
             self.stats.products.update(str(count))

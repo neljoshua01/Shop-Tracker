@@ -150,6 +150,19 @@ class TrackerController:
     def get_active_purchase_profiles(self):
         return self.purchase_profile_coordinator.active_profiles
 
+    def get_runtime_monitoring_state(self):
+        """Return the real aggregate monitoring lifecycle for the UI."""
+        service_state = self.monitoring_service.state
+        purchase_monitoring_active = bool(self.purchase_profile_coordinator.threads)
+
+        if service_state == MonitoringService.ERROR:
+            return MonitoringService.ERROR
+
+        if purchase_monitoring_active:
+            return MonitoringService.RUNNING
+
+        return service_state
+
     def save_products(self):
         print(f"[TrackerController] Saving {len(self.products)} products")
         self.settings.save_products(self.products)

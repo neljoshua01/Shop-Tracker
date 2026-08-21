@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from types import SimpleNamespace
+from urllib.parse import urlparse
 
 from ui.components.product_card import ProductCard
 from ui import colors, fonts
@@ -68,9 +69,9 @@ class ProductList(ctk.CTkScrollableFrame):
         card.pack(fill="x", padx=4, pady=3)
         self.cards[product.url] = card
 
-    def update_purchase_profile(self, profile, session):
+    def update_purchase_profile(self, profile, session, event=None):
         key = self._profile_key(profile)
-        product = self._profile_view_model(profile, session)
+        product = self._profile_view_model(profile, session, event=event)
         self.empty_state.pack_forget()
 
         if key in self.profile_cards:
@@ -92,9 +93,35 @@ class ProductList(ctk.CTkScrollableFrame):
         return f"profile://{profile.product.shop_id}:{profile.product.item_id}:{variation.model_id}"
 
     @staticmethod
-    def _profile_view_model(profile, session):
+    def _normalize_profile_image(image, product_url):
+        if not image:
+            return ""
+
+        image = str(image).strip()
+        if image.startswith(("http://", "https://")):
+            return image
+        if image.startswith("//"):
+            return "https:" + image
+
+        host = (urlparse(product_url).hostname or "").lower()
+        market = "ph"
+        if host.startswith("shopee."):
+            suffix = host.split(".", 1)[1]
+            market = suffix.split(".", 1)[0] or market
+        elif ".shopee." in host:
+            market = host.split(".shopee.", 1)[0] or market
+
+        return f"https://down-{market}.img.susercontent.com/file/{image.lstrip('/')}"
+
+    @staticmethod
+    def _profile_view_model(profile, session, event=None):
         variation = profile.selected_variations[0]
         status = session.status.value.replace("_", " ").upper()
+        if event:
+            runtime_status = str(event).replace("_", " ").upper()
+        else:
+            runtime_status = status
+
         if status == "COMPLETED":
             stock = "COMPLETED"
         elif status == "FAILED":
@@ -111,7 +138,10 @@ class ProductList(ctk.CTkScrollableFrame):
             shop_id=str(profile.product.shop_id),
             item_id=str(profile.product.item_id),
             name=profile.product.product_name,
-            image_url=profile.product.image,
+            image_url=ProductList._normalize_profile_image(
+                profile.product.image,
+                profile.product.product_url,
+            ),
             current_price=variation.price,
             original_price=variation.price_before_discount,
             discount=discount,
@@ -121,7 +151,7 @@ class ProductList(ctk.CTkScrollableFrame):
             auto_checkout=profile.auto_checkout,
             purchased=status == "COMPLETED",
             is_monitoring=status not in {"COMPLETED", "FAILED"},
-            runtime_status=status,
+            runtime_status=runtime_status,
         )
 
     def remove_product(self, url):
