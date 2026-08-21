@@ -21,6 +21,7 @@ class PurchasePipeline:
         self.cart_preparer = CartPreparer()
         self.sku_monitor = SkuPriceMonitor()
         self.checkout_executor = CheckoutExecutor()
+        self.stop_event = threading.Event()
 
     def run(
         self,
@@ -33,12 +34,17 @@ class PurchasePipeline:
             "========== STARTING PURCHASE PIPELINE =========="
         )
         monitor_thread = None
+        self.stop_event.clear()
         try:
             if session.request.auto_checkout:
                 session.status = PurchaseStatus.PREPARING
                 print("[PurchasePipeline] Preparing cart...")
                 self.cart_preparer.prepare(session)
                 print("[PurchasePipeline] Cart preparation complete.")
+
+            if self.stop_event.is_set():
+                print("[PurchasePipeline] Stop requested before SKU monitoring started.")
+                return False
 
             print("[PurchasePipeline] Starting SKU monitor...")
             monitor_thread = threading.Thread(
@@ -50,8 +56,14 @@ class PurchasePipeline:
             monitor_thread.start()
 
             print("[PurchasePipeline] Waiting for purchase trigger...")
-            triggered = self.sku_monitor.wait_for_trigger()
+            while not self.stop_event.is_set() and not self.sku_monitor.triggered.is_set():
+                self.stop_event.wait(timeout=0.1)
 
+            if self.stop_event.is_set() and not self.sku_monitor.triggered.is_set():
+                print("[PurchasePipeline] Purchase profile stop requested.")
+                return False
+
+            triggered = self.sku_monitor.triggered.is_set()
             if not triggered:
                 print("[PurchasePipeline] Purchase trigger not received.")
                 session.status = PurchaseStatus.FAILED
@@ -97,3 +109,10 @@ class PurchasePipeline:
             if session.browser_session is not None:
                 self.cart_preparer.browser.close_session(session.browser_owner)
                 session.browser_session = None
+
+    def stop(self):
+        """Request cancellation of the current monitoring/purchase pipeline."""
+        if self.stop_event.is_set():
+            return
+        self.stop_event.set()
+        self.sku_monitor.stop()
