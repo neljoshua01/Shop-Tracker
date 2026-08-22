@@ -12,6 +12,8 @@ from execution.browser.browser_action import BrowserActions
 
 class CartPreparer:
 
+    CART_URL = "https://shopee.ph/cart"
+
     def __init__(self):
 
         self.browser = BrowserConnector()
@@ -24,15 +26,44 @@ class CartPreparer:
 
         session.status = PurchaseStatus.ADDING_TO_CART
 
+        # -------------------------------------------------
+        # 1. Open the product page
+        # -------------------------------------------------
+
         self._open_product(session)
+
+        # -------------------------------------------------
+        # 2. Select requested variation
+        # -------------------------------------------------
 
         self._select_variation(session)
 
+        # -------------------------------------------------
+        # 3. Add requested SKU to cart
+        # -------------------------------------------------
+
         self.add_to_cart(session)
+
+        # -------------------------------------------------
+        # 4. Open cart and synchronize cart state
+        # -------------------------------------------------
 
         self._open_cart(session)
 
+        # -------------------------------------------------
+        # Cart is now the prepared purchase state.
+        #
+        # Do NOT require exact product-name text matching
+        # here. CheckoutExecutor performs the actual cart
+        # item discovery when a purchase trigger occurs.
+        # -------------------------------------------------
+
         session.status = PurchaseStatus.IN_CART
+
+        print(
+            "[CartPreparer] "
+            "Cart preparation complete and cart state preserved."
+        )
 
     def _open_product(
         self,
@@ -41,14 +72,28 @@ class CartPreparer:
 
         browser_session = session.browser_session
 
-        if browser_session is None or browser_session.page.is_closed():
+        if (
+            browser_session is None
+            or browser_session.page.is_closed()
+        ):
+
             browser_session = self.browser.open_session(
                 session.browser_owner,
                 session.request.reference.url,
             )
+
             session.browser_session = browser_session
-        elif browser_session.page.url != session.request.reference.url:
-            BrowserActions(browser_session).goto(session.request.reference.url)
+
+        elif (
+            browser_session.page.url
+            != session.request.reference.url
+        ):
+
+            BrowserActions(
+                browser_session
+            ).goto(
+                session.request.reference.url
+            )
 
     def _select_variation(
         self,
@@ -61,7 +106,11 @@ class CartPreparer:
         self,
         session: PurchaseSession,
     ):
-        print("[CartPreparer] Adding product to cart...")
+
+        print(
+            "[CartPreparer] "
+            "Adding product to cart..."
+        )
 
         browser = BrowserActions(
             session.browser_session,
@@ -86,14 +135,20 @@ class CartPreparer:
             if normalized == "add to cart":
 
                 print(
-                    "[CartPreparer] Add To Cart button found."
+                    "[CartPreparer] "
+                    "Add To Cart button found."
                 )
 
                 browser.click(button)
 
                 print(
-                    "[CartPreparer] Product added to cart."
+                    "[CartPreparer] "
+                    "Add To Cart clicked."
                 )
+
+                # Give Shopee's cart operation/UI a chance
+                # to settle before navigating away.
+                browser.wait_for_timeout(1000)
 
                 return
 
@@ -105,17 +160,23 @@ class CartPreparer:
         self,
         session: PurchaseSession,
     ):
-        print("[CartPreparer] Opening cart...")
+
+        print(
+            "[CartPreparer] "
+            "Opening cart..."
+        )
 
         browser = BrowserActions(
             session.browser_session,
         )
 
         browser.goto(
-            "https://shopee.ph/cart",
+            self.CART_URL,
         )
 
-        current_url = session.browser_session.page.url
+        current_url = (
+            session.browser_session.page.url
+        )
 
         print(
             "[CartPreparer] "
@@ -127,6 +188,9 @@ class CartPreparer:
             raise RuntimeError(
                 "Cart page was not reached."
             )
+
+        # Allow the cart UI/API state to settle.
+        browser.wait_for_timeout(2000)
 
         print(
             "[CartPreparer] "

@@ -431,7 +431,12 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
             product.product_url = reference.url
             self.after(0, lambda: self._product_loaded(product))
         except Exception as exc:
-            self.after(0, lambda: self._product_failed(str(exc)))
+            error_message = str(exc)
+
+            self.after(
+                0,
+                lambda message=error_message: self._load_failed(message)
+            )
 
     def _product_loaded(self, product):
         self.product = product
@@ -580,7 +585,12 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
             self.on_save(profile)
             self.after(0, self.destroy)
         except Exception as exc:
-            self.after(0, lambda: self._save_failed(str(exc)))
+            error_message = str(exc)
+
+            self.after(
+                0,
+                lambda message=error_message: self._save_failed(message)
+            )
 
     def _save_failed(self, message):
         self.save_button.configure(state="normal", text="Save Purchase Profile")

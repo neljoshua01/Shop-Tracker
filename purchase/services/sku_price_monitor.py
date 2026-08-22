@@ -17,13 +17,9 @@ class SkuPriceMonitor:
     def __init__(self):
 
         self.browser = BrowserConnector()
-
         self.parser = SkuPriceParser()
 
         self.session = None
-        self._callback_session = None
-        self._callback_registered = False
-        self._stopped = True
 
         self.latest_state: SkuPriceState | None = None
 
@@ -36,15 +32,17 @@ class SkuPriceMonitor:
         self.monitoring = False
         self.poll_interval = 5
 
-    def start(
-        self,
-        session: PurchaseSession,
-    ):
-
-        self.session = session
+        self._stopped = True
         self._callback_session = None
         self._callback_registered = False
-        self._stopped = False
+
+    # =====================================================
+    # START
+    # =====================================================
+
+    def start(self, session: PurchaseSession):
+
+        self.session = session
 
         self.latest_state = None
 
@@ -52,27 +50,51 @@ class SkuPriceMonitor:
         self.triggered.clear()
         self.stop_event.clear()
 
+        self.monitoring = True
+        self._stopped = False
+
         browser_session = session.browser_session
 
-        if browser_session is not None and browser_session.page.is_closed():
+        if (
+            browser_session is not None
+            and browser_session.page.is_closed()
+        ):
             session.browser_session = None
             browser_session = None
 
-        callback_kwargs = {}
-        if browser_session is not None:
-            callback_kwargs["session"] = browser_session
+        #
+        # The cart preparer should already have created the
+        # browser session. Reuse that exact session.
+        #
+        if browser_session is None:
 
+            browser_session = self.browser.open_session(
+                session.browser_owner,
+                session.request.reference.url,
+            )
+
+            session.browser_session = browser_session
+
+        #
+        # Bind get_pc response monitoring to this session.
+        #
         self.browser.engine.register_response_callback(
             self,
             self.on_browser_response,
-            **callback_kwargs,
+            session=browser_session,
         )
-        if browser_session is not None:
-            self._callback_session = browser_session
-            self._callback_registered = True
+
+        self._callback_session = browser_session
+        self._callback_registered = True
 
         print(
-            "[SkuPriceMonitor] Monitoring SKU..."
+            "[SkuPriceMonitor] "
+            "Response callback bound to BrowserSession."
+        )
+
+        print(
+            "[SkuPriceMonitor] "
+            "Monitoring SKU..."
         )
 
         print(
@@ -85,6 +107,10 @@ class SkuPriceMonitor:
             f"Model ID: {session.variation.model_id}"
         )
 
+    # =====================================================
+    # MONITOR
+    # =====================================================
+
     def monitor(
         self,
         session: PurchaseSession,
@@ -92,38 +118,17 @@ class SkuPriceMonitor:
         cancellation_event: Event | None = None,
     ):
 
-        if cancellation_event is not None and cancellation_event.is_set():
-            return
-
-        self.start(session)
-
-        if cancellation_event is not None and cancellation_event.is_set():
-            self.stop()
+        if (
+            cancellation_event is not None
+            and cancellation_event.is_set()
+        ):
             return
 
         self.poll_interval = poll_interval
-        self.monitoring = True
+
+        self.start(session)
 
         browser_session = session.browser_session
-
-        if browser_session is None:
-
-            browser_session = self.browser.open_session(
-                session.browser_owner,
-                session.request.reference.url,
-            )
-            session.browser_session = browser_session
-
-            # start() intentionally supports legacy registration before
-            # a page exists. Bind that registration now to the page that
-            # this purchase attempt owns.
-            self.browser.engine.register_response_callback(
-                self,
-                self.on_browser_response,
-                session=browser_session,
-            )
-            self._callback_session = browser_session
-            self._callback_registered = True
 
         if browser_session is None:
 
@@ -133,7 +138,6 @@ class SkuPriceMonitor:
             )
 
             self.stop()
-
             return
 
         print()
@@ -144,40 +148,83 @@ class SkuPriceMonitor:
 
         print(
             "[SkuPriceMonitor] "
-            f"Monitoring from page: "
-            f"{browser_session.page.url}"
+            "Prepared cart remains intact while monitoring the PDP."
         )
 
         actions = BrowserActions(browser_session)
 
         try:
 
-            # Cart preparation uses this same page. Switch it back to
-            # the PDP so Chrome itself produces the get_pc response.
-            if browser_session.page.url != session.request.reference.url:
-                actions.goto(session.request.reference.url)
+            #
+            # Navigate the EXISTING purchase session to the PDP.
+            #
+            # This does not recreate the cart.
+            #
+
+            if (
+                browser_session.page.url
+                != session.request.reference.url
+            ):
+
+                print(
+                    "[SkuPriceMonitor] "
+                    "Navigating to PDP for browser-generated "
+                    "get_pc monitoring..."
+                )
+
+                actions.goto(
+                    session.request.reference.url,
+                )
+
+            print(
+                "[SkuPriceMonitor] "
+                f"Monitoring PDP: {browser_session.page.url}"
+            )
+
+            #
+            # Continuous monitoring loop.
+            #
 
             while self.monitoring:
 
-                if cancellation_event is not None and cancellation_event.is_set():
+                #
+                # External cancellation.
+                #
+
+                if (
+                    cancellation_event is not None
+                    and cancellation_event.is_set()
+                ):
+                    print(
+                        "[SkuPriceMonitor] "
+                        "Cancellation received."
+                    )
                     break
+
+                #
+                # Purchase trigger.
+                #
 
                 if self.triggered.is_set():
 
                     print(
                         "[SkuPriceMonitor] "
-                        "Trigger received. "
-                        "Stopping monitoring."
+                        "Purchase trigger received."
                     )
 
                     break
 
+                #
+                # Browser session unexpectedly closed.
+                #
+
                 if browser_session.page.is_closed():
+
                     print(
                         "[SkuPriceMonitor] "
-                        "Monitoring page is closed. Stopping monitoring."
+                        "Monitoring page was closed."
                     )
-                    self.stop()
+
                     break
 
                 print()
@@ -188,38 +235,29 @@ class SkuPriceMonitor:
 
                 try:
 
-                    #
-                    # IMPORTANT:
-                    #
-                    # Do NOT call BrowserActions.request()
-                    # for get_pc.
-                    #
-                    # That creates a separate Playwright API
-                    # request and Shopee returns 403 / 90309999.
-                    #
-                    # Reloading the actual PDP causes Chrome itself
-                    # to generate the real get_pc request.
-                    #
-                    # BrowserEngine's response callback then receives
-                    # that browser-generated response and
-                    # on_browser_response() processes it.
-                    #
                     actions.reload()
 
                 except Exception as e:
 
                     if browser_session.page.is_closed():
+
                         print(
                             "[SkuPriceMonitor] "
-                            "Monitoring session closed during refresh."
+                            "Monitoring session closed."
                         )
-                        self.stop()
+
                         break
 
                     print(
                         "[SkuPriceMonitor] "
                         f"PDP refresh failed: {e}"
                     )
+
+                #
+                # Do not immediately stop after a refresh.
+                #
+                # Give the callback time to process the response.
+                #
 
                 if self.triggered.is_set():
                     break
@@ -234,22 +272,75 @@ class SkuPriceMonitor:
                     "before next check..."
                 )
 
-                #
-                # Interruptible wait.
-                #
-                # stop() sets stop_event, so the monitor can
-                # terminate immediately instead of waiting for
-                # the entire polling interval.
-                #
                 if self.stop_event.wait(
                     timeout=self.poll_interval,
                 ):
-
                     break
 
         finally:
 
-            self.stop()
+            #
+            # The monitor itself is finished.
+            #
+            # Clean up ONLY its callback state.
+            #
+
+            self._unregister_callback()
+
+            self.monitoring = False
+
+            print(
+                "[SkuPriceMonitor] "
+                "Monitoring stopped."
+            )
+
+    # =====================================================
+    # BROWSER RESPONSE CALLBACK
+    # =====================================================
+
+    async def on_browser_response(
+        self,
+        response,
+    ):
+
+        if self._stopped:
+            return
+
+        if "/api/v4/pdp/get_pc" not in response.url:
+            return
+
+        print(
+            "[SkuPriceMonitor] "
+            "get_pc response callback received."
+        )
+
+        try:
+
+            data = await response.json()
+
+        except Exception as e:
+
+            print(
+                "[SkuPriceMonitor] "
+                f"Failed to decode get_pc response: {e}"
+            )
+
+            return
+
+        if not isinstance(data, dict):
+
+            print(
+                "[SkuPriceMonitor] "
+                "get_pc response is not a JSON object."
+            )
+
+            return
+
+        self._process_get_pc(data)
+
+    # =====================================================
+    # PROCESS GET_PC
+    # =====================================================
 
     def _process_get_pc(
         self,
@@ -261,6 +352,15 @@ class SkuPriceMonitor:
             "get_pc response detected."
         )
 
+        if self.session is None:
+
+            print(
+                "[SkuPriceMonitor] "
+                "No active purchase session."
+            )
+
+            return
+
         try:
 
             state = self.parser.parse(
@@ -268,9 +368,6 @@ class SkuPriceMonitor:
                 model_id=self.session.variation.model_id,
             )
 
-            #
-            # Selected SKU wasn't present.
-            #
             if state is None:
 
                 print(
@@ -280,9 +377,6 @@ class SkuPriceMonitor:
 
                 return
 
-            #
-            # Make absolutely sure this is our product.
-            #
             if state.item_id != self.session.product.item_id:
 
                 print(
@@ -293,10 +387,8 @@ class SkuPriceMonitor:
                 return
 
             self.latest_state = state
+            self.updated.set()
 
-            #
-            # Evaluate purchase condition.
-            #
             should_trigger = self.evaluator.evaluate(
                 self.session,
                 state,
@@ -372,19 +464,19 @@ class SkuPriceMonitor:
 
             print(
                 f"[SkuPriceMonitor] "
-                f"Seconds until start: "
+                f"Promotion seconds until start: "
                 f"{state.promotion_seconds_until_start}"
             )
 
             print(
                 f"[SkuPriceMonitor] "
-                f"Seconds until end: "
+                f"Promotion seconds until end: "
                 f"{state.promotion_seconds_until_end}"
             )
 
             print(
                 f"[SkuPriceMonitor] "
-                f"Is LPP: "
+                f"Promotion is LPP: "
                 f"{state.promotion_is_lpp}"
             )
 
@@ -393,81 +485,75 @@ class SkuPriceMonitor:
                 "=============================="
             )
 
-            self.updated.set()
-
         except Exception as e:
 
             print(
-                f"[SkuPriceMonitor] "
-                f"Failed to process get_pc: {e}"
+                "[SkuPriceMonitor] "
+                f"Failed to process get_pc response: {e}"
             )
 
-    def stop(self):
-        if self._stopped:
-            return
-
-        self._stopped = True
-        self.monitoring = False
-        self.stop_event.set()
-
-        if self._callback_registered:
-            self.browser.engine.unregister_response_callback(
-                self,
-                session=self._callback_session,
-            )
-            self._callback_registered = False
-            self._callback_session = None
-
-        self.session = None
-
-        print(
-            "[SkuPriceMonitor] Monitoring stopped."
-        )
+    # =====================================================
+    # WAIT FOR TRIGGER
+    # =====================================================
 
     def wait_for_trigger(
         self,
-        timeout: float | None = None,
         cancellation_event: Event | None = None,
-    ) -> bool:
-        if cancellation_event is None:
-            return self.triggered.wait(timeout=timeout)
-
-        # Event has no multi-wait primitive. A short wait keeps the pipeline
-        # responsive to cancellation without changing trigger semantics.
-        elapsed = 0.0
-        while not cancellation_event.is_set():
-            if self.triggered.wait(timeout=0.05):
-                return True
-            if timeout is not None:
-                elapsed += 0.05
-                if elapsed >= timeout:
-                    return False
-        return False
-
-    async def on_browser_response(
-        self,
-        response,
     ):
 
-        if "/api/v4/pdp/get_pc" not in response.url:
-            return
+        while not self.triggered.is_set():
 
-        if response.status != 200:
+            if (
+                cancellation_event is not None
+                and cancellation_event.is_set()
+            ):
+                return False
+
+            if self.stop_event.wait(0.25):
+                if self.triggered.is_set():
+                    return True
+                return False
+
+        return True
+
+    # =====================================================
+    # CALLBACK CLEANUP
+    # =====================================================
+
+    def _unregister_callback(self):
+
+        if not self._callback_registered:
             return
 
         try:
 
-            data = await response.json()
+            self.browser.engine.unregister_response_callback(
+                self,
+                session=self._callback_session,
+            )
 
         except Exception as e:
 
             print(
                 "[SkuPriceMonitor] "
-                f"Failed to read browser get_pc JSON: {e}"
+                f"Callback unregister warning: {e}"
             )
 
+        self._callback_session = None
+        self._callback_registered = False
+
+    # =====================================================
+    # STOP
+    # =====================================================
+
+    def stop(self):
+
+        if self._stopped:
             return
 
-        self._process_get_pc(
-            data,
-        )
+        self._stopped = True
+        self.monitoring = False
+
+        self.stop_event.set()
+
+        self._unregister_callback()

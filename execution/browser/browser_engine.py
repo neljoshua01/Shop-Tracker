@@ -150,13 +150,19 @@ class BrowserEngine:
             )
 
         for callback in callbacks:
+
             try:
+
                 result = callback(response)
 
                 if inspect.isawaitable(result):
-                    self.runtime.submit(self._await_callback(result))
+
+                    self.runtime.submit(
+                        self._await_callback(result)
+                    )
 
             except Exception as e:
+
                 print(
                     "[BrowserEngine] "
                     f"Response callback error: {e}"
