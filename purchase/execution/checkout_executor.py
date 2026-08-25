@@ -631,7 +631,76 @@ class CheckoutExecutor:
 
         #
         # =====================================================
-        # 14. Verify Place Order
+        # 14. Select configured payment
+        # =====================================================
+        #
+        # The Purchase Profile payment method was propagated
+        # through PurchaseRequest into this PurchaseSession.
+        #
+        # Use that configured value as the authoritative payment
+        # choice for checkout.
+        #
+
+        requested_payment = (
+            session.request.payment_method.value
+        )
+
+        print(
+            "[CheckoutExecutor] "
+            f"Requested payment: {requested_payment}"
+        )
+
+        checkout_verifier = CheckoutVerifier()
+
+        payment_selected = AsyncRuntime.instance().submit(
+            checkout_verifier.select_payment(
+                page,
+                requested_payment,
+            )
+        ).result(
+            timeout=15
+        )
+
+        if not payment_selected:
+
+            print(
+                "[CheckoutExecutor] "
+                "Configured payment could not be selected."
+            )
+
+            return False
+
+        #
+        # =====================================================
+        # 15. Verify configured payment
+        # =====================================================
+        #
+
+        payment_verified = AsyncRuntime.instance().submit(
+            checkout_verifier.verify_payment(
+                requested_payment
+            )
+        ).result(
+            timeout=15
+        )
+
+        if not payment_verified:
+
+            print(
+                "[CheckoutExecutor] "
+                "Configured payment verification failed."
+            )
+
+            return False
+
+        print(
+            "[CheckoutExecutor] "
+            f"Payment verified: {requested_payment}"
+        )
+
+        #
+        # =====================================================
+        # 16. Verify Place Order
         # =====================================================
         #
         # IMPORTANT:
@@ -643,7 +712,7 @@ class CheckoutExecutor:
         #
 
         verified = AsyncRuntime.instance().submit(
-            CheckoutVerifier().verify_place_order(
+            checkout_verifier.verify_place_order(
                 page
             )
         ).result(

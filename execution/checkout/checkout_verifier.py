@@ -314,7 +314,7 @@ class CheckoutVerifier:
 
         return True
 
-    async def select_payment(self, page):
+    async def select_payment(self, page, requested_payment):
 
         self.selected_payment = None
 
@@ -328,135 +328,158 @@ class CheckoutVerifier:
         await self.handle_checkout_dialog(page)
 
         #
-        # If SPayLater is already active, don't change anything.
+        # Check whether the requested payment is already active.
         #
-        spay_selected = page.locator(
-            "button:has-text('SPayLater')"
+        requested_button = page.locator(
+            f"button:has-text('{requested_payment}')"
         )
 
-        if await spay_selected.count() > 0:
+        if await requested_button.count() > 0:
 
-            classes = await spay_selected.first.get_attribute("class") or ""
+            classes = (
+                await requested_button.first.get_attribute("class")
+                or ""
+            )
 
-            aria = await spay_selected.first.get_attribute("aria-pressed")
+            aria = await requested_button.first.get_attribute(
+                "aria-pressed"
+            )
 
-            #
-            # Shopee usually marks the selected payment by CSS.
-            # You may adjust this after one inspector check.
-            #
             if (
                 "selected" in classes.lower()
                 or "active" in classes.lower()
                 or aria == "true"
             ):
 
-                print("✓ SPayLater already selected.")
-
-                self.selected_payment = "SPayLater"
+                print(
+                    "[CheckoutVerifier] "
+                    f"✓ {requested_payment} already selected."
+                )
 
                 #
-                # Still verify the plan.
+                # SPayLater requires its existing plan-selection step.
                 #
-                if not await self.select_spaylater_plan(page):
+                if requested_payment == "SPayLater":
 
-                    print("SPayLater plan setup failed.")
+                    if not await self.select_spaylater_plan(page):
 
-                    return False
+                        print(
+                            "[CheckoutVerifier] "
+                            "SPayLater plan setup failed."
+                        )
+
+                        return False
+
+                self.selected_payment = requested_payment
 
                 return True
 
         #
-        # Otherwise we need to change payment.
+        # Requested payment is not currently selected.
         #
-        print("SPayLater not currently selected.")
+        # The current Shopee checkout page exposes the payment
+        # methods directly in the Payment Method section.
+        # Do NOT click CHANGE here. That opens a secondary overlay
+        # which can intercept the requested payment control.
+        #
 
-        print("Looking for payment CHANGE...")
-
-        change = page.locator("text=CHANGE").last
-
-        if await change.count() == 0:
-
-            raise Exception(
-                "Payment CHANGE button not found."
-            )
-
-        await change.click()
-
-        await page.wait_for_timeout(1000)
-
-        print("Payment options opened.")
-
-        preferred_methods = [
-            "SPayLater",
-            "Cash on Delivery",
-        ]
-
-        buttons = page.locator(
-            "button, div[role='button']"
+        print(
+            "[CheckoutVerifier] "
+            f"Looking for requested payment directly: "
+            f"{requested_payment}"
         )
 
-        count = await buttons.count()
+        payment_button = page.locator(
+            f"button[aria-label='{requested_payment}']"
+        )
 
-        selected = False
+        if await payment_button.count() == 0:
 
-        for payment in preferred_methods:
+            payment_button = page.get_by_role(
+                "radio",
+                name=requested_payment,
+                exact=True,
+            )
 
-            print(f"Trying payment: {payment}")
-
-            for i in range(count):
-
-                btn = buttons.nth(i)
-
-                try:
-
-                    text = (
-                        await btn.inner_text()
-                    ).strip()
-
-                except:
-                    continue
-
-                if payment not in text:
-                    continue
-
-                print(f"Found: {text}")
-
-                try:
-
-                    await btn.scroll_into_view_if_needed()
-
-                    await page.wait_for_timeout(300)
-
-                    await btn.click(timeout=1500)
-
-                    print(f"✓ Selected {payment}")
-
-                    if payment == "SPayLater":
-
-                        if not await self.select_spaylater_plan(page):
-
-                            print("SPayLater plan setup failed.")
-
-                            continue
-
-                    self.selected_payment = payment
-
-                    selected = True
-
-                    break
-
-                except Exception as e:
-
-                    print(f"Cannot use {payment}: {e}")
-
-            if selected:
-                break
-
-        if not selected:
+        if await payment_button.count() == 0:
 
             raise Exception(
-                "No supported payment method available."
+                f"Requested payment method not found: "
+                f"{requested_payment}"
             )
+
+        payment_button = payment_button.first
+
+        aria_checked = await payment_button.get_attribute(
+            "aria-checked"
+        )
+
+        aria_pressed = await payment_button.get_attribute(
+            "aria-pressed"
+        )
+
+        classes = (
+            await payment_button.get_attribute("class")
+            or ""
+        )
+
+        print(
+            "[CheckoutVerifier] "
+            f"Requested payment state: "
+            f"aria-checked={aria_checked}, "
+            f"aria-pressed={aria_pressed}"
+        )
+
+        already_selected = (
+            aria_checked == "true"
+            or aria_pressed == "true"
+            or "selected" in classes.lower()
+            or "active" in classes.lower()
+        )
+
+        if not already_selected:
+
+            print(
+                "[CheckoutVerifier] "
+                f"Clicking {requested_payment} directly."
+            )
+
+            await payment_button.scroll_into_view_if_needed()
+
+            await page.wait_for_timeout(300)
+
+            await payment_button.click(
+                timeout=3000
+            )
+
+            print(
+                "[CheckoutVerifier] "
+                f"✓ Selected {requested_payment}"
+            )
+
+        else:
+
+            print(
+                "[CheckoutVerifier] "
+                f"✓ {requested_payment} already selected."
+            )
+
+        #
+        # SPayLater requires its existing plan-selection step.
+        #
+
+        if requested_payment == "SPayLater":
+
+            if not await self.select_spaylater_plan(page):
+
+                print(
+                    "[CheckoutVerifier] "
+                    "SPayLater plan setup failed."
+                )
+
+                return False
+
+        self.selected_payment = requested_payment
 
         await page.wait_for_timeout(1000)
 
