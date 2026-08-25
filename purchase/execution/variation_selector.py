@@ -181,12 +181,12 @@ class VariationSelector:
         )
 
         increase = browser.find_all(
-            "button[aria-label='Increase quantity']",
+            "button[aria-label='Increase']",
             parent=section,
         )
 
         decrease = browser.find_all(
-            "button[aria-label='Decrease quantity']",
+            "button[aria-label='Decrease']",
             parent=section,
         )
 
