@@ -6,6 +6,7 @@ from purchase.models.product_info import ProductInfo
 from purchase.models.purchase_profile import PurchaseProfile
 from purchase.models.trigger_condition import TriggerCondition
 from purchase.models.variation import Variation
+from purchase.models.payment_method import PaymentMethod
 
 
 class SettingsService:
@@ -150,6 +151,7 @@ class SettingsService:
                     selected_variations=[v for v in variations if v.model_id in selected_ids],
                     quantity=data.get("quantity", 1), trigger=TriggerCondition(data.get("trigger", "track_only")),
                     target_price=data.get("target_price"), polling_interval=data.get("polling_interval", 30),
+                    payment_method=PaymentMethod(data.get("payment_method", PaymentMethod.SPAYLATER.value)),
                     auto_checkout=data.get("auto_checkout", False),
                     lock_selected_variations=data.get("lock_selected_variations", True),
                 ))
@@ -187,6 +189,7 @@ class SettingsService:
             "selected_model_ids": [v.model_id for v in profile.selected_variations],
             "quantity": profile.quantity, "trigger": profile.trigger.value,
             "target_price": profile.target_price, "polling_interval": profile.polling_interval,
+            "payment_method": profile.payment_method.value,
             "auto_checkout": profile.auto_checkout,
             "lock_selected_variations": profile.lock_selected_variations,
         }

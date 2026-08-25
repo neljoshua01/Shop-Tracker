@@ -51,6 +51,7 @@ class PurchaseProfileCoordinator:
             options=dict(variation.options),
             quantity=profile.quantity,
             auto_checkout=profile.auto_checkout,
+            payment_method=profile.payment_method,
             target_price=self._to_backend_price(profile.target_price),
             trigger=profile.trigger,
             polling_interval=profile.polling_interval,

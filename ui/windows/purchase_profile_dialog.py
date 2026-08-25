@@ -10,6 +10,7 @@ from purchase.services.product_loader import ProductLoader
 from purchase.parser.url_parser import URLParser
 from purchase.services.purchase_profile_service import PurchaseProfileService
 from ui import colors, fonts, icons
+from purchase.models.payment_method import PaymentMethod
 
 
 class PurchaseProfileDialog(ctk.CTkToplevel):
@@ -25,6 +26,9 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         self.trigger_var = ctk.StringVar(value=TriggerCondition.PRICE_TARGET.value)
         self.auto_checkout_var = ctk.BooleanVar(value=False)
         self.lock_var = ctk.BooleanVar(value=True)
+        self.payment_method_var = ctk.StringVar(
+            value=PaymentMethod.SPAYLATER.value
+        )
 
         self.title("Purchase Profile")
         self.geometry("780x1000")
@@ -357,6 +361,55 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         self.polling_menu.set("30 seconds")
         self.polling_menu.grid(row=0, column=1, sticky="e")
 
+        payment_row = ctk.CTkFrame(
+            self.settings_card,
+            fg_color="transparent",
+        )
+
+        payment_row.pack(
+            fill="x",
+            padx=14,
+            pady=(10, 4),
+        )
+
+        payment_row.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            payment_row,
+            text="Payment",
+            font=fonts.SMALL,
+            text_color=colors.TEXT_SECONDARY,
+        ).grid(
+            row=0,
+            column=0,
+            sticky="w",
+        )
+
+        self.payment_menu = ctk.CTkOptionMenu(
+            payment_row,
+            values=[
+                PaymentMethod.SPAYLATER.value,
+                PaymentMethod.CASH_ON_DELIVERY.value,
+            ],
+            variable=self.payment_method_var,
+            width=170,
+            height=36,
+            fg_color=colors.INPUT,
+            button_color=colors.PRIMARY,
+            button_hover_color=colors.PRIMARY_HOVER,
+            dropdown_fg_color=colors.CARD,
+            dropdown_hover_color=colors.CARD_HOVER,
+            font=fonts.SMALL,
+        )
+
+        self.payment_menu.set(PaymentMethod.SPAYLATER.value)
+
+        self.payment_menu.grid(
+            row=0,
+            column=1,
+            sticky="e",
+        )
+
         self.lock_switch = ctk.CTkCheckBox(
             self.settings_card, text="Lock selected variations", variable=self.lock_var, font=fonts.SMALL,
             text_color=colors.TEXT_PRIMARY, fg_color=colors.PRIMARY, hover_color=colors.PRIMARY_HOVER,
@@ -566,6 +619,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
             trigger=trigger,
             target_price=target_price,
             polling_interval=interval,
+            payment_method=PaymentMethod(self.payment_menu.get()),
             auto_checkout=bool(self.auto_checkout_var.get()),
             lock_selected_variations=bool(self.lock_var.get()),
         )

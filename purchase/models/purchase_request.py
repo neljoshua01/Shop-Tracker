@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from purchase.models.product_reference import ProductReference
 from purchase.models.trigger_condition import TriggerCondition
-
+from purchase.models.payment_method import PaymentMethod
 
 @dataclass(slots=True)
 class PurchaseRequest:
@@ -19,6 +19,8 @@ class PurchaseRequest:
     auto_checkout: bool = True
 
     target_price: int | None = None
+
+    payment_method: PaymentMethod = PaymentMethod.SPAYLATER
 
     trigger: TriggerCondition = TriggerCondition.PRICE_TARGET
 

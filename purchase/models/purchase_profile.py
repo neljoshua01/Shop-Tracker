@@ -8,7 +8,7 @@ from typing import List
 from purchase.models.product_info import ProductInfo
 from purchase.models.trigger_condition import TriggerCondition
 from purchase.models.variation import Variation
-
+from purchase.models.payment_method import PaymentMethod
 
 @dataclass(slots=True)
 class PurchaseProfile:
@@ -28,6 +28,7 @@ class PurchaseProfile:
     trigger: TriggerCondition = TriggerCondition.TRACK_ONLY
 
     target_price: float | None = None
+    payment_method: PaymentMethod = PaymentMethod.SPAYLATER
 
     polling_interval: int = 30
 
