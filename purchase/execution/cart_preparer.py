@@ -235,6 +235,11 @@ class CartPreparer:
             session.browser_session,
         )
 
+        print(
+            "[CartPreparer] "
+            "Resolving target cart item for quantity preparation..."
+        )
+
         target_container = self._find_target_cart_item(
             browser,
             session,
@@ -364,6 +369,10 @@ class CartPreparer:
             session.product.item_id
         )
 
+        model_id = str(
+            session.variation.model_id
+        )
+
         checkbox_inputs = browser.find_all(
             "input.stardust-checkbox__input"
         )
@@ -377,7 +386,7 @@ class CartPreparer:
             checkbox = checkbox_inputs.nth(index)
             current = checkbox
 
-            for _ in range(8):
+            for level in range(1, 9):
 
                 current = browser.parent(
                     current
@@ -414,7 +423,98 @@ class CartPreparer:
                     current
                 )
 
-                if str(item_id) in identity_text or str(item_id) in container_text:
+                if not container_text:
+                    container_text = ""
+
+                item_match = (
+                    item_id in identity_text
+                    or item_id in container_text
+                )
+
+                model_match = (
+                    model_id in identity_text
+                    or model_id in container_text
+                )
+
+                if item_match:
+
+                    print(
+                        "[CartPreparer] "
+                        "Target cart item resolved using stable identity."
+                    )
+
+                    if model_match:
+                        print(
+                            "[CartPreparer] "
+                            "Target item + model identity matched."
+                        )
+
+                    else:
+                        print(
+                            "[CartPreparer] "
+                            "Target item matched; model ID not exposed "
+                            "at this level."
+                        )
+
+                    return current
+
+        print(
+            "[CartPreparer] "
+            "Stable cart identity not found."
+        )
+
+        print(
+            "[CartPreparer] "
+            "Trying product-name fallback..."
+        )
+
+        product_name = session.product.product_name
+
+        product_locator = browser.find_all(
+            f"text={product_name}"
+        )
+
+        product_count = browser.count(
+            product_locator
+        )
+
+        print(
+            "[CartPreparer] "
+            f"Product-name matches: {product_count}"
+        )
+
+        if product_count > 0:
+
+            product = browser.first(
+                product_locator
+            )
+
+            current = product
+
+            for _ in range(1, 9):
+
+                current = browser.parent(
+                    current
+                )
+
+                if current is None:
+                    break
+
+                checkbox_locator = browser.find_all(
+                    "input.stardust-checkbox__input",
+                    parent=current,
+                )
+
+                if browser.count(
+                    checkbox_locator
+                ) > 0:
+
+                    print(
+                        "[CartPreparer] "
+                        "Target cart item resolved using "
+                        "product-name fallback."
+                    )
+
                     return current
 
         return None
