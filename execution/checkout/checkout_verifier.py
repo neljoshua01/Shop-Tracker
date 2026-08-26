@@ -4,532 +4,153 @@ import re
 class CheckoutVerifier:
 
     def __init__(self):
-
-        # Set by select_payment() once a method is actually confirmed —
-        # collect_order_summary() reads this directly instead of
-        # re-guessing from page text.
         self.selected_payment = None
 
     async def verify_price(self, page, product):
-
-        print()
-        print("========== VERIFY PRICE ==========")
-
         body = await page.locator("body").inner_text()
-
-        #
-        # -------------------------------------------------
-        # FIND TOTAL PAYMENT
-        # -------------------------------------------------
-        #
-        # Shopee renders the label and amount on separate
-        # lines:
-        #
-        # Total Payment:
-        # ₱16,679
-        #
-        # Therefore we allow whitespace/newlines between
-        # the label and the amount.
-        #
-
         total_match = re.search(
             r"Total Payment:\s*₱\s*([\d,]+(?:\.\d{2})?)",
             body,
             re.IGNORECASE,
         )
-
         if not total_match:
-
-            print(
-                "❌ Could not locate 'Total Payment' "
-                "on checkout page."
-            )
-
+            print("❌ Could not locate 'Total Payment' on checkout page.")
             return False
 
-        #
-        # Extract displayed checkout total.
-        #
-
-        checkout_display_price = total_match.group(1)
-
-        print(
-            f"Checkout Total: ₱{checkout_display_price}"
-        )
-
-        #
-        # -------------------------------------------------
-        # CONVERT TO INTERNAL PRICE UNIT
-        # -------------------------------------------------
-        #
-
-        checkout_pesos = float(
-            checkout_display_price.replace(",", "")
-        )
-
-        checkout_total = int(
-            checkout_pesos * 100_000
-        )
-
-        print(
-            f"Checkout Total (internal): "
-            f"{checkout_total}"
-        )
-
-        #
-        # -------------------------------------------------
-        # TARGET PRICE
-        # -------------------------------------------------
-        #
-
-        if product.target_price is None:
-
-            print(
-                "❌ No target price configured."
-            )
-
+        checkout_total = float(total_match.group(1).replace(",", ""))
+        target_price = getattr(product, "target_price", None)
+        if target_price is None:
             return False
-
-        print(
-            f"Target Price (internal): "
-            f"{product.target_price}"
-        )
-
-        #
-        # -------------------------------------------------
-        # SAFETY CHECK
-        # -------------------------------------------------
-        #
-
-        if checkout_total > product.target_price:
-
-            print(
-                "❌ Checkout total exceeds "
-                "target price."
-            )
-
+        if checkout_total > target_price:
+            print("❌ Checkout total exceeds target price.")
             return False
-
-        print(
-            "✓ Checkout total is within target."
-        )
-
         return True
 
     async def _find_protection_row(self, learn_more_link):
-        """
-        Walk up from a 'Learn more' link until reaching an ancestor
-        that BOTH mentions 'Protection' in its text AND contains a
-        checkbox as a descendant. Requiring both signals matters here:
-        the label/description text and the actual checkbox can sit as
-        SIBLINGS under a shared parent rather than one containing the
-        other. Stopping at the first ancestor that merely mentions
-        "protection" (text-only) can land one level too low, before
-        the checkbox's sibling branch has actually joined the scope —
-        which is exactly what was happening. Same two-signal,
-        first-match-wins technique already proven for purchase-panel
-        detection in variation_selector.py (Quantity + Buy Now).
-        """
- 
         current = learn_more_link
- 
-        for level in range(8):
- 
+        for _ in range(8):
             candidate = current.locator("xpath=..")
- 
             row_text = await candidate.inner_text()
- 
-            has_protection_text = "protection" in row_text.lower()
+            has_protection = "protection" in row_text.lower()
             has_checkbox = await candidate.locator("input[type='checkbox']").count() > 0
- 
-            if has_protection_text and has_checkbox:
+            if has_protection and has_checkbox:
                 return candidate
- 
             current = candidate
- 
         return None
- 
+
     async def disable_protection(self, page):
- 
         print()
         print("========== DISABLE EXTENDED PROTECTION ==========")
- 
-        #
-        # Generalized AND scoped. This is the piece that was missing:
-        # a page-wide "grab the first checked checkbox anywhere" search
-        # doesn't just risk matching the wrong label — it risks
-        # clicking a completely unrelated checkbox (e.g. something
-        # shipping-related) if that happens to sit earlier in the DOM.
-        # That's very likely what was opening the shipping popup on
-        # every protection click. Anchoring on "Learn more" and walking
-        # up to the row that mentions "Protection" keeps the search
-        # confined to just that one widget, every time.
-        #
         learn_more_links = page.locator("text=Learn more")
- 
-        link_count = await learn_more_links.count()
- 
-        if link_count == 0:
-            print("No protection option found.")
-            return True
- 
         found_any = False
- 
-        for i in range(link_count):
- 
+        for i in range(await learn_more_links.count()):
             row = await self._find_protection_row(learn_more_links.nth(i))
- 
             if row is None:
                 continue
- 
             found_any = True
- 
-            row_text = (await row.inner_text()).strip()
- 
-            label = next(
-                (line.strip() for line in row_text.splitlines() if "protection" in line.lower()),
-                "Protection option"
-            )
- 
-            print(f"{label} found.")
- 
             checkbox = row.locator("input[type='checkbox']").first
- 
-            if await checkbox.count() == 0:
-                print(f"No checkbox found for {label} — may be a custom (non-<input>) toggle.")
+            if await checkbox.count() == 0 or not await checkbox.is_checked():
                 continue
- 
-            if not await checkbox.is_checked():
-                print(f"{label} already unchecked — no action needed.")
-                continue
- 
             await checkbox.scroll_into_view_if_needed()
- 
             await checkbox.click(force=True)
- 
-            print(f"✓ {label} unchecked.")
- 
             await page.wait_for_timeout(1000)
- 
         if not found_any:
             print("No protection option found.")
- 
         return True
 
     async def handle_checkout_dialog(self, page):
-
-        print()
-        print("========== CHECKOUT DIALOG ==========")
-
-        confirm = page.get_by_role(
-            "button",
-            name="Confirm"
-        )
-
+        confirm = page.get_by_role("button", name="Confirm")
         try:
-            await confirm.first.wait_for(
-                state="visible",
-                timeout=2000
-            )
+            await confirm.first.wait_for(state="visible", timeout=2000)
         except Exception:
-            print("No checkout dialog.")
             return False
-
-        print("Checkout dialog detected.")
-
         await confirm.first.click()
-
-        print("✓ Checkout dialog confirmed.")
-
-        await confirm.first.wait_for(
-            state="hidden",
-            timeout=5000
-        )
-
-        print("✓ Dialog closed.")
-
+        await confirm.first.wait_for(state="hidden", timeout=5000)
         return True
-    
+
     async def verify_ready(self, page):
-
-        print()
-        print("========== FINAL CHECK ==========")
-
         return True
 
     async def verify_place_order(self, page):
-
         print()
         print("========== PLACE ORDER ==========")
-
-        place_order = page.get_by_role(
-            "button",
-            name="Place Order"
-        )
-
+        place_order = page.get_by_role("button", name="Place Order")
         try:
-            await place_order.first.wait_for(
-                state="visible",
-                timeout=10_000,
-            )
+            await place_order.first.wait_for(state="visible", timeout=10_000)
         except Exception:
             print("❌ Place Order button not found or not visible.")
             return False
-
         print("✓ Place Order button found.")
-
-        # Deliberately does not click. Whether this checkout goes
-        # through is decided by the Safe/Armed gate upstream, not here.
-
         return True
 
     async def select_spaylater_plan(self, page):
-
-        print()
-        print("========== SPAYLATER PLAN ==========")
-
-        plan = page.get_by_text(
-            "Buy Now Pay Later",
-            exact=False
-        )
-
+        plan = page.get_by_text("Buy Now Pay Later", exact=False)
         try:
-
-            await plan.first.wait_for(
-                state="visible",
-                timeout=5000
-            )
-
+            await plan.first.wait_for(state="visible", timeout=5000)
         except Exception:
-
             print("❌ Buy Now Pay Later plan not found.")
-
             return False
-
         await plan.first.click()
-
-        print("✓ Buy Now Pay Later selected")
-
         await page.wait_for_timeout(500)
-
         return True
 
     async def select_payment(self, page, requested_payment):
-
         self.selected_payment = None
-
-        print()
-        print("========== SELECT PAYMENT ==========")
-
-        #
-        # One last chance for the delayed protection dialog.
-        # This doesn't hurt if no dialog exists.
-        #
         await self.handle_checkout_dialog(page)
 
-        #
-        # Check whether the requested payment is already active.
-        #
-        requested_button = page.locator(
-            f"button:has-text('{requested_payment}')"
-        )
-
+        requested_button = page.locator(f"button:has-text('{requested_payment}')")
         if await requested_button.count() > 0:
-
-            classes = (
-                await requested_button.first.get_attribute("class")
-                or ""
-            )
-
-            aria = await requested_button.first.get_attribute(
-                "aria-pressed"
-            )
-
-            if (
-                "selected" in classes.lower()
-                or "active" in classes.lower()
-                or aria == "true"
-            ):
-
-                print(
-                    "[CheckoutVerifier] "
-                    f"✓ {requested_payment} already selected."
-                )
-
-                #
-                # SPayLater requires its existing plan-selection step.
-                #
-                if requested_payment == "SPayLater":
-
-                    if not await self.select_spaylater_plan(page):
-
-                        print(
-                            "[CheckoutVerifier] "
-                            "SPayLater plan setup failed."
-                        )
-
-                        return False
-
+            classes = await requested_button.first.get_attribute("class") or ""
+            aria = await requested_button.first.get_attribute("aria-pressed")
+            if "selected" in classes.lower() or "active" in classes.lower() or aria == "true":
+                if requested_payment == "SPayLater" and not await self.select_spaylater_plan(page):
+                    return False
                 self.selected_payment = requested_payment
-
                 return True
 
-        #
-        # Requested payment is not currently selected.
-        #
-        # The current Shopee checkout page exposes the payment
-        # methods directly in the Payment Method section.
-        # Do NOT click CHANGE here. That opens a secondary overlay
-        # which can intercept the requested payment control.
-        #
-
-        print(
-            "[CheckoutVerifier] "
-            f"Looking for requested payment directly: "
-            f"{requested_payment}"
-        )
-
-        payment_button = page.locator(
-            f"button[aria-label='{requested_payment}']"
-        )
-
+        payment_button = page.locator(f"button[aria-label='{requested_payment}']")
         if await payment_button.count() == 0:
-
-            payment_button = page.get_by_role(
-                "radio",
-                name=requested_payment,
-                exact=True,
-            )
-
+            payment_button = page.get_by_role("radio", name=requested_payment, exact=True)
         if await payment_button.count() == 0:
-
-            raise Exception(
-                f"Requested payment method not found: "
-                f"{requested_payment}"
-            )
+            raise Exception(f"Requested payment method not found: {requested_payment}")
 
         payment_button = payment_button.first
-
-        aria_checked = await payment_button.get_attribute(
-            "aria-checked"
-        )
-
-        aria_pressed = await payment_button.get_attribute(
-            "aria-pressed"
-        )
-
-        classes = (
-            await payment_button.get_attribute("class")
-            or ""
-        )
-
-        print(
-            "[CheckoutVerifier] "
-            f"Requested payment state: "
-            f"aria-checked={aria_checked}, "
-            f"aria-pressed={aria_pressed}"
-        )
-
+        aria_checked = await payment_button.get_attribute("aria-checked")
+        aria_pressed = await payment_button.get_attribute("aria-pressed")
+        classes = await payment_button.get_attribute("class") or ""
         already_selected = (
             aria_checked == "true"
             or aria_pressed == "true"
             or "selected" in classes.lower()
             or "active" in classes.lower()
         )
-
         if not already_selected:
-
-            print(
-                "[CheckoutVerifier] "
-                f"Clicking {requested_payment} directly."
-            )
-
             await payment_button.scroll_into_view_if_needed()
-
             await page.wait_for_timeout(300)
+            await payment_button.click(timeout=3000)
 
-            await payment_button.click(
-                timeout=3000
-            )
-
-            print(
-                "[CheckoutVerifier] "
-                f"✓ Selected {requested_payment}"
-            )
-
-        else:
-
-            print(
-                "[CheckoutVerifier] "
-                f"✓ {requested_payment} already selected."
-            )
-
-        #
-        # SPayLater requires its existing plan-selection step.
-        #
-
-        if requested_payment == "SPayLater":
-
-            if not await self.select_spaylater_plan(page):
-
-                print(
-                    "[CheckoutVerifier] "
-                    "SPayLater plan setup failed."
-                )
-
-                return False
+        if requested_payment == "SPayLater" and not await self.select_spaylater_plan(page):
+            return False
 
         self.selected_payment = requested_payment
-
         await page.wait_for_timeout(1000)
-
         return True
 
     async def verify_payment(self, expected_payment):
-
-        print()
-        print("========== VERIFY PAYMENT ==========")
-
         if self.selected_payment is None:
-
             print("❌ No payment method has been selected.")
-
             return False
-
-        print(
-            f"Selected Payment: {self.selected_payment}"
-        )
-
-        print(
-            f"Expected Payment: {expected_payment}"
-        )
-
         if self.selected_payment != expected_payment:
-
-            print(
-                "❌ Selected payment does not match "
-                "expected payment."
-            )
-
+            print("❌ Selected payment does not match expected payment.")
             return False
-
-        print("✓ Payment method matches expected payment.")
-
+        print(f"[CheckoutVerifier] Payment verified: {expected_payment}")
         return True
 
     async def collect_order_summary(self, page):
-
         print()
-        print("========== ORDER SUMMARY ==========")
-
+        print("[CheckoutVerifier] Collecting checkout order summary...")
         body = await page.locator("body").inner_text()
-
-        lines = [
-            line.strip()
-            for line in body.splitlines()
-            if line.strip()
-        ]
-
+        lines = [line.strip() for line in body.splitlines() if line.strip()]
         summary = {
             "product": None,
             "seller": None,
@@ -538,386 +159,159 @@ class CheckoutVerifier:
             "subtotal": None,
             "shipping": None,
             "total": None,
-            "payment": None,
+            "payment": self.selected_payment,
         }
 
-        #
-        # --------------------------
-        # Seller
-        # --------------------------
-        #
-
         for line in lines:
-
             if line.startswith("Sold by "):
-
-                summary["seller"] = line[
-                    len("Sold by "):
-                ].strip()
-
+                summary["seller"] = line[len("Sold by "):].strip()
                 break
-
-        #
-        # --------------------------
-        # Product
-        # --------------------------
-        #
 
         try:
-
-            products_index = lines.index(
-                "Products Ordered"
-            )
-
+            products_index = lines.index("Products Ordered")
         except ValueError:
-
             products_index = -1
 
-        if products_index != -1:
-
-            for i in range(
-                products_index + 1,
-                len(lines)
-            ):
-
-                line = lines[i]
-
-                #
-                # Stop once we reach seller information.
-                #
+        if products_index >= 0:
+            ignored = {"Unit Price", "Quantity", "Item Subtotal", "Fulfilled - Local", "Parcel 1"}
+            for line in lines[products_index + 1:]:
                 if line.startswith("Sold by "):
                     break
-
-                #
-                # Ignore checkout table headers.
-                #
-                if line in {
-                    "Unit Price",
-                    "Quantity",
-                    "Item Subtotal",
-                    "Fulfilled - Local",
-                    "Parcel 1",
-                }:
+                if line in ignored or "SPayLater" in line or line.startswith("₱") or line.isdigit():
                     continue
-
-                #
-                # Ignore payment promotion text.
-                #
-                if "SPayLater" in line:
+                if " - " in line and any(c.isdigit() for c in line):
                     continue
-
-                #
-                # Ignore delivery-date lines.
-                #
-                if (
-                    " - " in line
-                    and any(
-                        char.isdigit()
-                        for char in line
-                    )
-                ):
-                    continue
-
-                #
-                # Ignore prices.
-                #
-                if line.startswith("₱"):
-                    continue
-
-                #
-                # Ignore quantity.
-                #
-                if line.isdigit():
-                    continue
-
-                #
-                # First remaining meaningful line
-                # is the product name.
-                #
                 summary["product"] = line
-
                 break
 
-        #
-        # --------------------------
-        # Variation
-        # --------------------------
-        #
-
-        variation_match = re.search(
-            r"Variation:\s*(.+)",
-            body
-        )
+        variation_match = re.search(r"Variation:\s*([^\n]+)", body)
+        if variation_match:
+            summary["variation"] = variation_match.group(1).strip()
 
         if variation_match:
+            tail = body[variation_match.end():]
+            quantity_match = re.search(r"\n\s*(\d+)\s*\n", tail)
+            if quantity_match:
+                summary["quantity"] = int(quantity_match.group(1))
 
-            summary["variation"] = (
-                variation_match.group(1).strip()
-            )
-
-        #
-        # --------------------------
-        # Quantity
-        # --------------------------
-        #
-
-        quantity_match = re.search(
-            r"Variation:.*?\n.*?\n.*?\n(\d+)\n",
-            body,
-            re.S
-        )
-
-        if quantity_match:
-
-            summary["quantity"] = int(
-                quantity_match.group(1)
-            )
-
-        #
-        # --------------------------
-        # Merchandise Subtotal
-        # --------------------------
-        #
-
-        subtotal_match = re.search(
-            r"Merchandise Subtotal\s*₱([\d,]+)",
-            body
-        )
-
+        subtotal_match = re.search(r"Merchandise Subtotal\s*₱([\d,]+(?:\.\d{2})?)", body)
         if subtotal_match:
+            summary["subtotal"] = float(subtotal_match.group(1).replace(",", ""))
 
-            summary["subtotal"] = float(
-                subtotal_match.group(1).replace(
-                    ",",
-                    ""
-                )
-            )
-
-        #
-        # --------------------------
-        # Shipping
-        # --------------------------
-        #
-
-        shipping_match = re.search(
-            r"Shipping Subtotal\s*₱([\d,]+)",
-            body
-        )
-
+        shipping_match = re.search(r"Shipping Subtotal\s*₱([\d,]+(?:\.\d{2})?)", body)
         if shipping_match:
+            summary["shipping"] = float(shipping_match.group(1).replace(",", ""))
 
-            summary["shipping"] = float(
-                shipping_match.group(1).replace(
-                    ",",
-                    ""
-                )
-            )
-
-        #
-        # --------------------------
-        # Total
-        # --------------------------
-        #
-
-        total_match = re.search(
-            r"Total Payment:\s*₱([\d,]+)",
-            body
-        )
-
+        total_match = re.search(r"Total Payment:\s*₱([\d,]+(?:\.\d{2})?)", body)
         if total_match:
+            summary["total"] = float(total_match.group(1).replace(",", ""))
 
-            summary["total"] = float(
-                total_match.group(1).replace(
-                    ",",
-                    ""
-                )
-            )
-
-        #
-        # --------------------------
-        # Payment
-        # --------------------------
-        #
-
-        summary["payment"] = (
-            self.selected_payment or "Unknown"
-        )
-
-        #
-        # --------------------------
-        # Print nicely
-        # --------------------------
-        #
-
-        for key, value in summary.items():
-
-            print(
-                f"{key:12}: {value}"
-            )
-
+        for key in ("product", "seller", "variation", "quantity", "subtotal", "shipping", "total", "payment"):
+            print(f"[CheckoutVerifier] Checkout {key}: {summary[key]}")
         return summary
 
-    async def verify_order_summary(
-        self,
-        page,
-        product,
-        summary,
-    ):
+    @staticmethod
+    def _normalize(value):
+        return " ".join(str(value or "").lower().split())
 
+    def _variation_matches(self, expected_variation, actual_variation):
+        actual = self._normalize(actual_variation)
+        if not actual:
+            return False
+        options = getattr(expected_variation, "options", {}) or {}
+        if options:
+            return all(
+                self._normalize(key) in actual and self._normalize(value) in actual
+                for key, value in options.items()
+            )
+        expected_name = self._normalize(getattr(expected_variation, "name", ""))
+        return bool(expected_name) and expected_name in actual
+
+    async def verify_order_summary(self, page, session, summary):
         print()
-        print("========== VERIFY ORDER SUMMARY ==========")
-
+        print("[CheckoutVerifier] Verifying checkout state...")
         passed = True
 
-        #
-        # --------------------------
-        # PRODUCT
-        # --------------------------
-        #
-
-        expected_product = product.product_name
-        actual_product = summary.get("product")
-
-        print(f"Product:")
-        print(f"  Expected: {expected_product}")
-        print(f"  Actual:   {actual_product}")
-
-        if actual_product != expected_product:
-
-            print("  ❌ Product does not match.")
+        expected_product = self._normalize(session.product.product_name)
+        actual_product = self._normalize(summary.get("product"))
+        if not actual_product:
+            print("[CheckoutVerifier] Product verification unavailable.")
             passed = False
-
+        elif actual_product != expected_product:
+            print(f"[CheckoutVerifier] ❌ Product mismatch: {summary.get('product')}")
+            passed = False
         else:
+            print("[CheckoutVerifier] Product verified.")
 
-            print("  ✓ Product matches.")
+        expected_variation = session.variation
+        actual_variation = summary.get("variation")
+        if not self._variation_matches(expected_variation, actual_variation):
+            print(f"[CheckoutVerifier] ❌ Variation mismatch: {actual_variation}")
+            passed = False
+        else:
+            print("[CheckoutVerifier] Variation verified.")
 
-        #
-        # --------------------------
-        # QUANTITY
-        # --------------------------
-        #
-
-        expected_quantity = 1
+        expected_quantity = session.request.quantity
         actual_quantity = summary.get("quantity")
-
-        print()
-        print("Quantity:")
-        print(f"  Expected: {expected_quantity}")
-        print(f"  Actual:   {actual_quantity}")
-
-        if actual_quantity != expected_quantity:
-
-            print("  ❌ Quantity does not match.")
+        if actual_quantity is None:
+            print("[CheckoutVerifier] ❌ Checkout quantity unavailable.")
             passed = False
-
-        else:
-
-            print("  ✓ Quantity matches.")
-
-        #
-        # --------------------------
-        # SUBTOTAL
-        # --------------------------
-        #
-
-        actual_subtotal = summary.get("subtotal")
-
-        print()
-        print("Subtotal:")
-        print(f"  Actual:   ₱{actual_subtotal}")
-
-        if actual_subtotal is None:
-
-            print("  ❌ Subtotal could not be determined.")
+        elif actual_quantity != expected_quantity:
+            print(f"[CheckoutVerifier] ❌ Quantity mismatch: expected {expected_quantity}, actual {actual_quantity}")
             passed = False
-
         else:
-
-            print("  ✓ Subtotal detected.")
-
-        #
-        # --------------------------
-        # SHIPPING
-        # --------------------------
-        #
-
-        actual_shipping = summary.get("shipping")
-
-        print()
-        print("Shipping:")
-        print(f"  Actual:   ₱{actual_shipping}")
-
-        if actual_shipping is None:
-
-            print("  ❌ Shipping could not be determined.")
-            passed = False
-
-        else:
-
-            print("  ✓ Shipping detected.")
-
-        #
-        # --------------------------
-        # TOTAL
-        # --------------------------
-        #
-
-        actual_total = summary.get("total")
-
-        print()
-        print("Total:")
-        print(f"  Actual:   ₱{actual_total}")
-
-        if actual_total is None:
-
-            print("  ❌ Total could not be determined.")
-            passed = False
-
-        else:
-
-            print("  ✓ Total detected.")
-
-        #
-        # --------------------------
-        # PAYMENT
-        # --------------------------
-        #
+            print("[CheckoutVerifier] Quantity verified.")
 
         expected_payment = self.selected_payment
         actual_payment = summary.get("payment")
-
-        print()
-        print("Payment:")
-        print(f"  Expected: {expected_payment}")
-        print(f"  Actual:   {actual_payment}")
-
-        if actual_payment != expected_payment:
-
-            print("  ❌ Payment does not match.")
+        if expected_payment is None or actual_payment != expected_payment:
+            print(f"[CheckoutVerifier] ❌ Payment mismatch: expected {expected_payment}, actual {actual_payment}")
             passed = False
-
         else:
+            print("[CheckoutVerifier] Payment verified.")
 
-            print("  ✓ Payment matches.")
+        seller = summary.get("seller")
+        expected_seller = self._normalize(getattr(session.product, "shop_name", None))
+        if seller and expected_seller:
+            if self._normalize(seller) != expected_seller:
+                print(f"[CheckoutVerifier] ❌ Seller mismatch: expected {session.product.shop_name}, actual {seller}")
+                passed = False
+            else:
+                print("[CheckoutVerifier] Seller verified.")
+        else:
+            print("[CheckoutVerifier] Seller not reliably available; informational only.")
 
-        #
-        # --------------------------
-        # FINAL RESULT
-        # --------------------------
-        #
+        subtotal = summary.get("subtotal")
+        if subtotal is None:
+            print("[CheckoutVerifier] ❌ Checkout subtotal unavailable.")
+            passed = False
+        else:
+            expected_unit_price = getattr(session.variation, "price", None)
+            if expected_unit_price is not None:
+                expected_subtotal = float(expected_unit_price) * expected_quantity
+                if subtotal > expected_subtotal + 0.01:
+                    print(f"[CheckoutVerifier] ❌ Checkout subtotal exceeds selected SKU value: expected at most ₱{expected_subtotal:.2f}, actual ₱{subtotal:.2f}")
+                    passed = False
+                else:
+                    print("[CheckoutVerifier] Checkout monetary value verified.")
+            else:
+                print("[CheckoutVerifier] Checkout subtotal detected; selected SKU price unavailable for comparison.")
 
-        print()
+        target_price = session.request.target_price
+        total = summary.get("total")
+        if target_price is not None:
+            if total is None:
+                print("[CheckoutVerifier] ❌ Checkout total unavailable for target-price verification.")
+                passed = False
+            elif total > float(target_price) + 0.01:
+                print(f"[CheckoutVerifier] ❌ Checkout total exceeds configured target: expected ≤ ₱{float(target_price):.2f}, actual ₱{total:.2f}")
+                passed = False
+            else:
+                print("[CheckoutVerifier] Checkout total is within configured target.")
 
         if not passed:
-
-            print(
-                "❌ ORDER SUMMARY VALIDATION FAILED."
-            )
-
+            print("[CheckoutVerifier] ❌ Checkout state verification FAILED.")
             return False
 
-        print(
-            "✓ ORDER SUMMARY VALIDATION PASSED."
-        )
-
+        print("[CheckoutVerifier] Checkout state verified.")
         return True
