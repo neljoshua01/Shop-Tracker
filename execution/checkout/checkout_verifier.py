@@ -291,6 +291,8 @@ class CheckoutVerifier:
             "variation": None,
             "quantity": None,
             "subtotal": None,
+            "item_discount": None,
+            "voucher_discount": None,
             "shipping": None,
             "total": None,
             # Payment is verified independently by verify_payment().
@@ -351,6 +353,24 @@ class CheckoutVerifier:
                 subtotal_match.group(1).replace(",", "")
             )
 
+        item_discount_match = re.search(
+            r"Item Discount\s*-?\s*₱\s*([\d,]+(?:\.\d{2})?)",
+            body,
+        )
+        if item_discount_match:
+            summary["item_discount"] = float(
+                item_discount_match.group(1).replace(",", "")
+            )
+
+        voucher_discount_match = re.search(
+            r"Voucher Discount\s*-?\s*₱\s*([\d,]+(?:\.\d{2})?)",
+            body,
+        )
+        if voucher_discount_match:
+            summary["voucher_discount"] = float(
+                voucher_discount_match.group(1).replace(",", "")
+            )
+
         shipping_match = re.search(
             r"Shipping Subtotal\s*₱([\d,]+(?:\.\d{2})?)",
             body,
@@ -375,6 +395,8 @@ class CheckoutVerifier:
             "variation",
             "quantity",
             "subtotal",
+            "item_discount",
+            "voucher_discount",
             "shipping",
             "total",
             "payment",
@@ -493,35 +515,43 @@ class CheckoutVerifier:
             )
 
         actual_subtotal = summary.get("subtotal")
+        actual_item_discount = summary.get("item_discount")
+        actual_voucher_discount = summary.get("voucher_discount")
         if actual_subtotal is None:
             print("[CheckoutVerifier] ❌ Checkout subtotal unavailable.")
+            passed = False
+        elif actual_item_discount is None or actual_voucher_discount is None:
+            print(
+                "[CheckoutVerifier] ❌ Checkout merchandise discount "
+                "information unavailable; SKU consistency cannot be verified."
+            )
             passed = False
         else:
             expected_unit_price = getattr(session.variation, "price", None)
             if expected_unit_price is None:
                 print(
                     "[CheckoutVerifier] ❌ Selected SKU price unavailable; "
-                    "subtotal cannot be verified."
+                    "merchandise value cannot be verified."
                 )
                 passed = False
             else:
-                # Checkout monetary values are displayed in pesos while
-                # SKU/target prices use Shopee's internal x100,000 units.
-                actual_subtotal_internal = int(
-                    round(float(actual_subtotal) * 100_000)
+                effective_merchandise = (
+                    float(actual_subtotal)
+                    - float(actual_item_discount)
+                    - float(actual_voucher_discount)
                 )
-                expected_subtotal_internal = int(expected_unit_price) * expected_quantity
+                expected_merchandise = float(expected_unit_price) * expected_quantity
 
-                if actual_subtotal_internal > expected_subtotal_internal:
+                if effective_merchandise > expected_merchandise:
                     print(
-                        "[CheckoutVerifier] ❌ Checkout merchandise subtotal "
+                        "[CheckoutVerifier] ❌ Checkout merchandise value "
                         "exceeds selected SKU value: "
-                        f"expected ≤ {expected_subtotal_internal}, "
-                        f"actual {actual_subtotal_internal}"
+                        f"expected ≤ {expected_merchandise:g}, "
+                        f"actual {effective_merchandise:g}"
                     )
                     passed = False
                 else:
-                    print("[CheckoutVerifier] Subtotal verified.")
+                    print("[CheckoutVerifier] Checkout merchandise value verified.")
 
         actual_shipping = summary.get("shipping")
         if actual_shipping is None:
