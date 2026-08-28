@@ -83,8 +83,8 @@ class CheckoutVerifier:
 
             checkbox = row.locator("input[type='checkbox']").first
             if await checkbox.count() == 0:
-                print(f"No checkbox found for {label} — may be a custom (non-<input>) toggle.")
-                continue
+                print(f"No checkbox found for {label} — protection state cannot be safely verified.")
+                return False
 
             if not await checkbox.is_checked():
                 print(f"{label} already unchecked — no action needed.")
@@ -92,8 +92,14 @@ class CheckoutVerifier:
 
             await checkbox.scroll_into_view_if_needed()
             await checkbox.click(force=True)
-            print(f"✓ {label} unchecked.")
+            print(f"{label} uncheck requested.")
             await page.wait_for_timeout(1000)
+
+            if await checkbox.is_checked():
+                print(f"❌ {label} remains checked after disable attempt.")
+                return False
+
+            print(f"✓ {label} verified unchecked.")
 
         if not found_any:
             print("No protection option found.")
@@ -409,6 +415,44 @@ class CheckoutVerifier:
     def _normalize(value):
         return " ".join(str(value or "").lower().split())
 
+    @staticmethod
+    def _verified_merchandise_upper_bound(summary):
+        """Return the strongest safe upper bound supported by parsed checkout data.
+
+        Missing discounts are not interpreted as zero. A missing discount simply
+        means that no reduction can be claimed from that field. The subtotal is
+        therefore retained as the conservative upper bound unless an observed
+        discount can safely reduce it further.
+        """
+        subtotal = summary.get("subtotal")
+        if subtotal is None:
+            return None
+
+        try:
+            upper_bound = float(subtotal)
+        except (TypeError, ValueError):
+            return None
+
+        if upper_bound < 0:
+            return None
+
+        for field in ("item_discount", "voucher_discount"):
+            discount = summary.get(field)
+            if discount is None:
+                continue
+
+            try:
+                discount = float(discount)
+            except (TypeError, ValueError):
+                return None
+
+            if discount < 0 or discount > upper_bound:
+                return None
+
+            upper_bound -= discount
+
+        return upper_bound
+
     def _variation_matches(self, expected_variation, actual_variation):
         actual = self._normalize(actual_variation)
         if not actual:
@@ -515,43 +559,40 @@ class CheckoutVerifier:
             )
 
         actual_subtotal = summary.get("subtotal")
-        actual_item_discount = summary.get("item_discount")
-        actual_voucher_discount = summary.get("voucher_discount")
+        expected_unit_price = getattr(session.variation, "price", None)
         if actual_subtotal is None:
             print("[CheckoutVerifier] ❌ Checkout subtotal unavailable.")
             passed = False
-        elif actual_item_discount is None or actual_voucher_discount is None:
+        elif expected_unit_price is None:
             print(
-                "[CheckoutVerifier] ❌ Checkout merchandise discount "
-                "information unavailable; SKU consistency cannot be verified."
+                "[CheckoutVerifier] ❌ Selected SKU price unavailable; "
+                "merchandise value cannot be verified."
             )
             passed = False
         else:
-            expected_unit_price = getattr(session.variation, "price", None)
-            if expected_unit_price is None:
+            verified_merchandise_upper_bound = self._verified_merchandise_upper_bound(summary)
+            if verified_merchandise_upper_bound is None:
                 print(
-                    "[CheckoutVerifier] ❌ Selected SKU price unavailable; "
-                    "merchandise value cannot be verified."
+                    "[CheckoutVerifier] ❌ Checkout merchandise accounting "
+                    "is invalid or unavailable; SKU consistency cannot be verified."
                 )
                 passed = False
             else:
-                effective_merchandise = (
-                    float(actual_subtotal)
-                    - float(actual_item_discount)
-                    - float(actual_voucher_discount)
-                )
                 expected_merchandise = float(expected_unit_price) * expected_quantity
 
-                if effective_merchandise > expected_merchandise:
+                if verified_merchandise_upper_bound > expected_merchandise:
                     print(
                         "[CheckoutVerifier] ❌ Checkout merchandise value "
-                        "exceeds selected SKU value: "
+                        "cannot be proven within selected SKU value: "
                         f"expected ≤ {expected_merchandise:g}, "
-                        f"actual {effective_merchandise:g}"
+                        f"verified upper bound {verified_merchandise_upper_bound:g}"
                     )
                     passed = False
                 else:
-                    print("[CheckoutVerifier] Checkout merchandise value verified.")
+                    print(
+                        "[CheckoutVerifier] Checkout merchandise value verified "
+                        "within selected SKU value."
+                    )
 
         actual_shipping = summary.get("shipping")
         if actual_shipping is None:
@@ -568,7 +609,10 @@ class CheckoutVerifier:
             print("[CheckoutVerifier] Total detected.")
 
         target_price = session.request.target_price
-        if target_price is not None and actual_total is not None:
+        if target_price is None:
+            print("[CheckoutVerifier] ❌ Configured target price unavailable.")
+            passed = False
+        elif actual_total is not None:
             actual_total_internal = int(
                 round(float(actual_total) * 100_000)
             )

@@ -163,6 +163,18 @@ class CheckoutExecutor:
             return False
         print(f"[CheckoutExecutor] Payment verified: {requested_payment}")
 
+        protection_disabled = AsyncRuntime.instance().submit(
+            checkout_verifier.disable_protection(page)
+        ).result(timeout=15)
+        if not protection_disabled:
+            print("[CheckoutExecutor] Protection handling failed.")
+            return False
+        print("[CheckoutExecutor] Protection state verified.")
+
+        # Allow checkout totals to settle after any protection change before
+        # collecting the monetary state used for final verification.
+        actions.wait_for_timeout(1000)
+
         summary = AsyncRuntime.instance().submit(
             checkout_verifier.collect_order_summary(page)
         ).result(timeout=15)
