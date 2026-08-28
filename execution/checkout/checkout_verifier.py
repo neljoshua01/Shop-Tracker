@@ -44,8 +44,7 @@ class CheckoutVerifier:
         current = learn_more_link
 
         for _ in range(8):
-            candidate = current.locator("xpath=.."
-            )
+            candidate = current.locator("xpath=..")
             row_text = await candidate.inner_text()
             has_protection_text = "protection" in row_text.lower()
             has_checkbox = await candidate.locator("input[type='checkbox']").count() > 0
