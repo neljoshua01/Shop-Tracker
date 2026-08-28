@@ -44,7 +44,8 @@ class CheckoutVerifier:
         current = learn_more_link
 
         for _ in range(8):
-            candidate = current.locator("xpath=..")
+            candidate = current.locator("xpath=.."
+            )
             row_text = await candidate.inner_text()
             has_protection_text = "protection" in row_text.lower()
             has_checkbox = await candidate.locator("input[type='checkbox']").count() > 0
@@ -394,16 +395,30 @@ class CheckoutVerifier:
 
         options = getattr(expected_variation, "options", {}) or {}
         if options:
-            return all(
-                self._normalize(key) in actual
-                and self._normalize(value) in actual
-                for key, value in options.items()
-            )
+            normalized_values = [
+                self._normalize(value)
+                for value in options.values()
+                if self._normalize(value)
+            ]
+
+            if not normalized_values:
+                return False
+
+            # Shopee checkout may expose only the selected value(s),
+            # without the option labels. For a single structured option,
+            # an exact value match is the strongest safe equivalence.
+            if len(normalized_values) == 1:
+                return actual == normalized_values[0]
+
+            # For multiple options, require every expected value to be
+            # independently observable in the checkout representation.
+            # Missing information therefore fails closed.
+            return all(value in actual for value in normalized_values)
 
         expected_name = self._normalize(
             getattr(expected_variation, "name", "")
         )
-        return bool(expected_name) and expected_name in actual
+        return bool(expected_name) and expected_name == actual
 
     async def verify_order_summary(self, page, session, summary):
         print()
