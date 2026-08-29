@@ -2,6 +2,7 @@ from execution.browser.browser_action import BrowserActions
 from core.runtime.async_runtime import AsyncRuntime
 from execution.checkout.checkout_verifier import CheckoutVerifier
 from core.runtime.safety_gate import RuntimeSafetyGate
+from purchase.services.post_order_tracker import PostOrderTracker
 
 
 class CheckoutExecutor:
@@ -220,12 +221,56 @@ class CheckoutExecutor:
             print("[CheckoutExecutor] ARMED: Place Order button is no longer available; action aborted.")
             return False
 
+        # -------------------------------------------------
+        # STEP 7E
+        # -------------------------------------------------
+        # Arm the passive post-order observer immediately before the final
+        # click. This closes the race window in which Shopee could redirect
+        # faster than a tracker started after the click.
+        post_order_tracker = PostOrderTracker()
+        post_order_tracker.start(page)
+
         try:
             actions.click(place_order)
         except Exception as e:
+            post_order_tracker.stop()
             print(f"[CheckoutExecutor] ARMED: Place Order click failed: {e}")
             return False
 
         print("[CheckoutExecutor] ARMED: Place Order clicked.")
+        print("[CheckoutExecutor] STEP 7E: Post-order tracking started.")
+
+        post_order_result = post_order_tracker.wait()
+
+        print()
+        print("[CheckoutExecutor] ========== STEP 7E RESULT ==========")
+        print(
+            "[CheckoutExecutor] "
+            f"Completion detected: {post_order_result.completed}"
+        )
+        print(
+            "[CheckoutExecutor] "
+            f"Tracking timeout: {post_order_result.timed_out}"
+        )
+        print(
+            "[CheckoutExecutor] "
+            f"Elapsed: {post_order_result.elapsed_seconds:.2f}s"
+        )
+        print(
+            "[CheckoutExecutor] "
+            f"Post-order navigations observed: {len(post_order_result.navigations)}"
+        )
+        print("[CheckoutExecutor] =========================================")
+
+        if post_order_result.timed_out:
+            print(
+                "[CheckoutExecutor] STEP 7E: Tracking ended by timeout; "
+                "no post-order action was performed by the application."
+            )
+        elif post_order_result.completed:
+            print("[CheckoutExecutor] STEP 7E: Purchase completion state observed.")
+        elif post_order_result.stopped:
+            print("[CheckoutExecutor] STEP 7E: Tracking was stopped.")
+
         print("[CheckoutExecutor] Checkout verification complete.")
         return True
