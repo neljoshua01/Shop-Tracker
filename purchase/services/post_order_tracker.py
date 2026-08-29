@@ -84,6 +84,7 @@ class PostOrderTracker:
         self._last_body_inspection = 0.0
         self._navigations: list[PostOrderNavigation] = []
         self._completed = False
+        self._listener_removed = False
 
     @property
     def navigations(self) -> list[PostOrderNavigation]:
@@ -131,44 +132,47 @@ class PostOrderTracker:
         if not self._started or self._page is None or self._start_time is None:
             raise RuntimeError("PostOrderTracker.start() must be called first.")
 
-        while not self._stop_event.is_set():
-            elapsed = time.monotonic() - self._start_time
-            if elapsed >= self.timeout_seconds:
-                print(
-                    "[PostOrderTracker] Tracking timeout reached; "
-                    "browser session will remain untouched."
-                )
-                break
-
-            try:
-                if self._page.is_closed():
-                    print("[PostOrderTracker] Browser page closed; stopping tracker.")
+        try:
+            while not self._stop_event.is_set():
+                elapsed = time.monotonic() - self._start_time
+                if elapsed >= self.timeout_seconds:
+                    print(
+                        "[PostOrderTracker] Tracking timeout reached; "
+                        "browser session will remain untouched."
+                    )
                     break
-            except Exception:
-                break
 
-            # URL polling supplements framenavigated so client-side history
-            # changes are still observed even when no frame event is emitted.
-            try:
-                current_url = self._page.url
-            except Exception:
-                current_url = self._last_url
+                try:
+                    if self._page.is_closed():
+                        print("[PostOrderTracker] Browser page closed; stopping tracker.")
+                        break
+                except Exception:
+                    break
 
-            if current_url and current_url != self._last_url:
-                self._record_current_page(reason="url-change")
+                # URL polling supplements framenavigated so client-side history
+                # changes are still observed even when no frame event is emitted.
+                try:
+                    current_url = self._page.url
+                except Exception:
+                    current_url = self._last_url
 
-            now = time.monotonic()
-            if now - self._last_body_inspection >= self.BODY_INSPECTION_INTERVAL_SECONDS:
-                self._last_body_inspection = now
-                self._inspect_current_state()
+                if current_url and current_url != self._last_url:
+                    self._record_current_page(reason="url-change")
 
-            if self._completed:
-                break
+                now = time.monotonic()
+                if now - self._last_body_inspection >= self.BODY_INSPECTION_INTERVAL_SECONDS:
+                    self._last_body_inspection = now
+                    self._inspect_current_state()
 
-            try:
-                self._page.wait_for_timeout(int(self.POLL_INTERVAL_SECONDS * 1000))
-            except Exception:
-                time.sleep(self.POLL_INTERVAL_SECONDS)
+                if self._completed:
+                    break
+
+                try:
+                    self._page.wait_for_timeout(int(self.POLL_INTERVAL_SECONDS * 1000))
+                except Exception:
+                    time.sleep(self.POLL_INTERVAL_SECONDS)
+        finally:
+            self._remove_listener()
 
         elapsed = time.monotonic() - self._start_time
         timed_out = not self._completed and not self._stop_event.is_set() and elapsed >= self.timeout_seconds
@@ -185,21 +189,29 @@ class PostOrderTracker:
     def stop(self) -> None:
         """Stop observation without closing or navigating the browser."""
         self._stop_event.set()
-
-        if self._page is not None and self._listener is not None:
-            try:
-                self._page.remove_listener("framenavigated", self._listener)
-            except Exception:
-                pass
-
+        self._remove_listener()
         print("[PostOrderTracker] Tracking stopped.")
+
+    def _remove_listener(self) -> None:
+        if self._listener_removed:
+            return
+        if self._page is None or self._listener is None:
+            self._listener_removed = True
+            return
+
+        try:
+            self._page.remove_listener("framenavigated", self._listener)
+        except Exception:
+            pass
+        finally:
+            self._listener_removed = True
 
     def _record_current_page(self, reason: str) -> None:
         if self._page is None:
             return
 
         url = self._page.url
-        if not url or url == self._last_url and self._navigations:
+        if not url or (url == self._last_url and self._navigations):
             return
 
         self._last_url = url
