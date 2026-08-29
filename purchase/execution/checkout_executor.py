@@ -216,12 +216,8 @@ class CheckoutExecutor:
         # SAFE/ARMED authorization as the final gate immediately before the
         # irreversible action.
         place_order = page.get_by_role("button", name="Place Order").first
-        try:
-            if not awaitable_is_visible(place_order):
-                print("[CheckoutExecutor] ARMED: Place Order button is no longer visible; action aborted.")
-                return False
-        except Exception as e:
-            print(f"[CheckoutExecutor] ARMED: failed to revalidate Place Order button: {e}")
+        if actions.count(place_order) == 0:
+            print("[CheckoutExecutor] ARMED: Place Order button is no longer available; action aborted.")
             return False
 
         try:
