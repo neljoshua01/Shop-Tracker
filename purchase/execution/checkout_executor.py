@@ -204,9 +204,32 @@ class CheckoutExecutor:
             return False
 
         print("[CheckoutExecutor] Place Order button detected.")
-        if self.is_final_action_authorized():
-            print("[CheckoutExecutor] ARMED: final action authorized for a future implementation.")
-        else:
+        if not self.is_final_action_authorized():
             print("[CheckoutExecutor] SAFE: final action authorization denied; Place Order will not be clicked.")
+            print("[CheckoutExecutor] Checkout verification complete.")
+            return True
+
+        print("[CheckoutExecutor] ARMED: final action authorized.")
+
+        # Re-resolve the final action only after every checkout verification
+        # has passed and runtime authorization has been confirmed. This keeps
+        # SAFE/ARMED authorization as the final gate immediately before the
+        # irreversible action.
+        place_order = page.get_by_role("button", name="Place Order").first
+        try:
+            if not awaitable_is_visible(place_order):
+                print("[CheckoutExecutor] ARMED: Place Order button is no longer visible; action aborted.")
+                return False
+        except Exception as e:
+            print(f"[CheckoutExecutor] ARMED: failed to revalidate Place Order button: {e}")
+            return False
+
+        try:
+            actions.click(place_order)
+        except Exception as e:
+            print(f"[CheckoutExecutor] ARMED: Place Order click failed: {e}")
+            return False
+
+        print("[CheckoutExecutor] ARMED: Place Order clicked.")
         print("[CheckoutExecutor] Checkout verification complete.")
         return True
