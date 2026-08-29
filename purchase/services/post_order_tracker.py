@@ -330,9 +330,12 @@ class PostOrderTracker:
 
         completion_phrases = (
             "order placed successfully",
+            "order has been placed",
             "order confirmed",
+            "your order is confirmed",
             "purchase successful",
             "payment successful",
+            "payment completed",
             "thank you for your order",
             "thank you for your purchase",
         )
@@ -350,6 +353,7 @@ class PostOrderTracker:
         strong_order_text = (
             "order number" in normalized
             or "order no" in normalized
+            or "order id" in normalized
             or "order details" in normalized
             or "order confirmed" in normalized
         )
