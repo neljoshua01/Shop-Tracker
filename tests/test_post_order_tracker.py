@@ -59,3 +59,19 @@ def test_generic_order_page_is_not_marked_complete_without_confirmation():
     )
 
     assert state == "POST_ORDER_NAVIGATION"
+
+
+if __name__ == "__main__":
+    tests = (
+        test_safe_url_redacts_query_values,
+        test_classifies_shopee_otp_page,
+        test_classifies_paylater_continuation,
+        test_classifies_completion_from_confirmation_text,
+        test_generic_order_page_is_not_marked_complete_without_confirmation,
+    )
+
+    for test in tests:
+        test()
+        print(f"PASS: {test.__name__}")
+
+    print("All Step 7E unit tests passed.")
