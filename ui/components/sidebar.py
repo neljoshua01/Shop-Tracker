@@ -1,6 +1,7 @@
 import customtkinter as ctk
 
 from core.config.config_service import ConfigService
+from core.runtime.safety_gate import RuntimeSafetyGate
 from ui import colors, fonts, icons
 
 
@@ -66,7 +67,7 @@ class Sidebar(ctk.CTkFrame):
 
         # Armed Mode remains backed by the existing configuration/state methods,
         # but its legacy sidebar control is intentionally not part of the V2 shell.
-        self.armed_var = ctk.BooleanVar(value=self.config["armed_mode"])
+        self.armed_var = ctk.BooleanVar(value=RuntimeSafetyGate.instance().is_armed())
         self.armed_switch = None
         self.armed_status = None
 
@@ -101,8 +102,8 @@ class Sidebar(ctk.CTkFrame):
                 self.armed_switch.configure(text_color=colors.TEXT_SECONDARY)
 
     def toggle_armed_mode(self):
-        self.config["armed_mode"] = self.armed_var.get()
-        self.config_service.save(self.config)
+        RuntimeSafetyGate.instance().set_armed(bool(self.armed_var.get()))
+        self.config["armed_mode"] = RuntimeSafetyGate.instance().is_armed()
         self._update_armed_status()
         if self.config["armed_mode"]:
             print("[Sidebar] Armed Mode ENABLED")

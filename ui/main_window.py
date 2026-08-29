@@ -12,12 +12,15 @@ from ui.pages.activity_logs import ActivityLogsPage
 from ui.pages.alerts import AlertsPage
 from ui.pages.settings import SettingsPage
 from ui.windows.purchase_profile_dialog import PurchaseProfileDialog
+from core.runtime.safety_gate import RuntimeSafetyGate
 
 
 class MainWindow(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+        # Persisted preferences never authorize a new application run.
+        RuntimeSafetyGate.instance().reset_to_safe()
         self.title("Shopee Price Tracker")
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()

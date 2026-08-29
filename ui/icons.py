@@ -90,6 +90,7 @@ LOCK = ICON_DIR / "lock.svg"
 OTP = ICON_DIR / "otp.svg"
 PROFILE = ICON_DIR / "profile.svg"
 ORDERS = ICON_DIR / "orders.svg"
+ARMED_SAFE_MODE = ICON_DIR / "armed_safe_mode.svg"
 
 
 # =====================================================

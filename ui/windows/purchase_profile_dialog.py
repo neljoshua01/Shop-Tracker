@@ -11,6 +11,8 @@ from purchase.parser.url_parser import URLParser
 from purchase.services.purchase_profile_service import PurchaseProfileService
 from ui import colors, fonts, icons
 from purchase.models.payment_method import PaymentMethod
+from core.runtime.safety_gate import RuntimeSafetyGate
+from ui.safety_mode import set_armed_mode
 
 
 class PurchaseProfileDialog(ctk.CTkToplevel):
@@ -25,6 +27,8 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         self.option_vars = {}
         self.trigger_var = ctk.StringVar(value=TriggerCondition.PRICE_TARGET.value)
         self.auto_checkout_var = ctk.BooleanVar(value=False)
+        self.armed_mode_var = ctk.BooleanVar(value=False)
+        self.safety_gate = RuntimeSafetyGate.instance()
         self.lock_var = ctk.BooleanVar(value=True)
         self.payment_method_var = ctk.StringVar(
             value=PaymentMethod.SPAYLATER.value
@@ -436,6 +440,79 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
             text="When enabled, the existing purchase pipeline prepares cart and verifies checkout. Global Armed Mode remains the final safety gate.",
             font=fonts.SMALL, text_color=colors.TEXT_SECONDARY, justify="left", anchor="w", wraplength=350,
         ).pack(fill="x", padx=14, pady=(0, 10))
+
+        ctk.CTkFrame(
+            self.checkout_card,
+            height=1,
+            fg_color=colors.BORDER,
+        ).pack(fill="x", padx=14, pady=(0, 10))
+
+        safety_row = ctk.CTkFrame(self.checkout_card, fg_color="transparent")
+        safety_row.pack(fill="x", padx=14, pady=(0, 13))
+        self.armed_mode_icon = ctk.CTkLabel(
+            safety_row,
+            text="",
+            image=icons.load_icon(icons.ARMED_SAFE_MODE, colors.SUCCESS, icons.SIZE_LARGE),
+            width=30,
+        )
+        self.armed_mode_icon.grid(
+            row=0, column=0, rowspan=2, sticky="nw", padx=(0, 8)
+        )
+        safety_row.grid_columnconfigure(1, weight=1)
+        self.armed_mode_title = ctk.CTkLabel(
+            safety_row,
+            text="Armed / Safe Mode",
+            font=fonts.BODY,
+            text_color=colors.TEXT_PRIMARY,
+            anchor="w",
+        )
+        self.armed_mode_title.grid(row=0, column=1, sticky="w")
+        self.armed_mode_state = ctk.CTkLabel(
+            safety_row,
+            text="",
+            font=fonts.SMALL_BOLD,
+            anchor="w",
+        )
+        self.armed_mode_state.grid(row=1, column=1, sticky="w", pady=(2, 0))
+        self.armed_mode_switch = ctk.CTkSwitch(
+            safety_row,
+            text="",
+            width=44,
+            height=24,
+            variable=self.armed_mode_var,
+            progress_color=colors.DANGER,
+            button_color=colors.TEXT_PRIMARY,
+            button_hover_color=colors.TEXT_PRIMARY,
+            command=self._on_armed_mode_change,
+        )
+        self.armed_mode_switch.grid(row=0, column=2, rowspan=2, sticky="e")
+        self._refresh_armed_mode()
+
+    def _on_armed_mode_change(self):
+        set_armed_mode(self.safety_gate, self.armed_mode_var.get())
+        self._refresh_armed_mode()
+
+    def _refresh_armed_mode(self):
+        armed = self.safety_gate.is_armed()
+        self.armed_mode_var.set(armed)
+        if armed:
+            self.armed_mode_icon.configure(
+                image=icons.load_icon(icons.ARMED_SAFE_MODE, colors.DANGER, icons.SIZE_LARGE)
+            )
+            self.armed_mode_state.configure(
+                text="ARMED — final action authorization enabled",
+                text_color=colors.DANGER,
+            )
+            self.armed_mode_switch.configure(progress_color=colors.DANGER)
+        else:
+            self.armed_mode_icon.configure(
+                image=icons.load_icon(icons.ARMED_SAFE_MODE, colors.SUCCESS, icons.SIZE_LARGE)
+            )
+            self.armed_mode_state.configure(
+                text="SAFE — final action blocked",
+                text_color=colors.SUCCESS,
+            )
+            self.armed_mode_switch.configure(progress_color=colors.SUCCESS)
 
     def _build_summary(self):
         summary = ctk.CTkFrame(self.summary_card, fg_color="transparent")

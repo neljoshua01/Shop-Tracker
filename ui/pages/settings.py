@@ -86,38 +86,6 @@ class SettingsPage(ctk.CTkFrame):
         )
 
         # ==================================================
-        # Checkout Settings
-        # ==================================================
-
-        self.section_title(
-            self.settings_card,
-            "Checkout"
-        )
-
-        checkout_frame = ctk.CTkFrame(
-            self.settings_card,
-            fg_color="transparent"
-        )
-
-        checkout_frame.pack(
-            fill="x",
-            padx=24,
-            pady=(0, 24)
-        )
-
-        self.armed_mode_switch = self.setting_switch(
-            checkout_frame,
-            "Armed Mode",
-            "Allow the checkout engine to actually submit orders.",
-            False
-        )
-
-        self.armed_mode_switch.pack(
-            anchor="w",
-            pady=8
-        )
-
-        # ==================================================
         # Discord Settings
         # ==================================================
 
@@ -289,10 +257,6 @@ class SettingsPage(ctk.CTkFrame):
     def get_settings(self):
 
         return {
-            "armed_mode": bool(
-                self.armed_mode_switch.switch.get()
-            ),
-
             "discord_enabled": bool(
                 self.discord_enabled_switch.switch.get()
             ),
@@ -308,12 +272,8 @@ class SettingsPage(ctk.CTkFrame):
 
     def set_settings(self, settings):
 
-        self.armed_mode_switch.switch.deselect()
         self.discord_enabled_switch.switch.deselect()
         self.save_screenshot_switch.switch.deselect()
-
-        if settings.get("armed_mode", False):
-            self.armed_mode_switch.switch.select()
 
         if settings.get("discord_enabled", True):
             self.discord_enabled_switch.switch.select()

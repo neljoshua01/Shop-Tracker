@@ -1,6 +1,7 @@
 from services.variation_selector import VariationSelector
 from execution.checkout.checkout_verifier import CheckoutVerifier
 from core.config.config_service import ConfigService
+from core.runtime.safety_gate import RuntimeSafetyGate
 from notifier.discord import DiscordNotifier
 
 class CheckoutEngine:
@@ -204,9 +205,7 @@ class CheckoutEngine:
         print()
         print("========== ARMED MODE ==========")
 
-        config = self.config_service.load()
-
-        if not config["armed_mode"]:
+        if not RuntimeSafetyGate.instance().is_final_action_authorized():
 
             print("SAFE MODE")
             print("Sending Discord notification...")
@@ -221,28 +220,9 @@ class CheckoutEngine:
             }
 
         print("ARMED MODE ENABLED")
-        print("Submitting order...")
-
-        place_order = page.locator(
-            "button:has-text('Place Order')"
-        )
-
-        await place_order.wait_for(
-            state="visible",
-            timeout=5000
-        )
-
-        await place_order.click()
-        print("Place Order clicked.")
-
-        print("Waiting for purchase result...")
-
-        await page.wait_for_timeout(5000)
-
-        success = await self.verify_purchase_result(page)
-
+        print("Final action authorized for a future implementation; Place Order skipped.")
         return {
-            "status": "submitted" if success else "failed",
+            "status": "authorized_dry_run",
             "summary": summary
         }
 

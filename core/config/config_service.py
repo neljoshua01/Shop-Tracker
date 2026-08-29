@@ -4,9 +4,9 @@ from pathlib import Path
 
 class ConfigService:
 
-    def __init__(self):
+    def __init__(self, file=None):
 
-        self.file = Path("config.json")
+        self.file = Path(file) if file is not None else Path("config.json")
 
 
     def load(self):

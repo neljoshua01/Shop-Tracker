@@ -1,9 +1,19 @@
 from execution.browser.browser_action import BrowserActions
 from core.runtime.async_runtime import AsyncRuntime
 from execution.checkout.checkout_verifier import CheckoutVerifier
+from core.runtime.safety_gate import RuntimeSafetyGate
 
 
 class CheckoutExecutor:
+
+    def __init__(self, safety_gate=None):
+        self.safety_gate = safety_gate or RuntimeSafetyGate.instance()
+
+    def is_final_action_authorized(self):
+        try:
+            return self.safety_gate.is_final_action_authorized() is True
+        except Exception:
+            return False
 
     def execute(self, session):
         print("[CheckoutExecutor] ========== STARTING CHECKOUT ==========")
@@ -194,5 +204,9 @@ class CheckoutExecutor:
             return False
 
         print("[CheckoutExecutor] Place Order button detected.")
+        if self.is_final_action_authorized():
+            print("[CheckoutExecutor] ARMED: final action authorized for a future implementation.")
+        else:
+            print("[CheckoutExecutor] SAFE: final action authorization denied; Place Order will not be clicked.")
         print("[CheckoutExecutor] Checkout verification complete.")
         return True

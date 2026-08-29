@@ -3,7 +3,7 @@
 import threading
 import time
 
-from core.config.config_service import ConfigService
+from core.runtime.safety_gate import RuntimeSafetyGate
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.models.product_reference import ProductReference
 from purchase.models.purchase_profile import PurchaseProfile
@@ -90,7 +90,7 @@ class PurchaseProfileCoordinator:
         thread.start()
         watcher.start()
 
-        if profile.auto_checkout and not ConfigService().load()["armed_mode"]:
+        if profile.auto_checkout and not RuntimeSafetyGate.instance().is_armed():
             self._log("Auto Checkout is in Safe Mode; checkout will stop at verification.")
         self._log(f"Purchase profile started: {profile.product.product_name}")
         return session
