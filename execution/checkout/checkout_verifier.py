@@ -301,44 +301,92 @@ class CheckoutVerifier:
             "voucher_discount": None,
             "shipping": None,
             "total": None,
-            # Payment is verified independently by verify_payment().
-            # Do not fabricate an independently observed summary value.
             "payment": None,
         }
 
+        # Seller and product are intentionally resolved independently. A
+        # checkout line such as "YINGLI PC" can be the seller even when it is
+        # located inside the Products Ordered section. The old parser assumed
+        # the first non-metadata line was always the product, which could make
+        # the seller name become the product for some checkout layouts.
+        seller_candidates = []
         for line in lines:
             if line.startswith("Sold by "):
-                summary["seller"] = line[len("Sold by "):].strip()
-                break
+                seller = line[len("Sold by "):].strip()
+                if seller:
+                    seller_candidates.append(seller)
+        if seller_candidates:
+            summary["seller"] = seller_candidates[0]
 
-        try:
-            products_index = lines.index("Products Ordered")
-        except ValueError:
-            products_index = -1
+        def _is_summary_metadata(line):
+            normalized = self._normalize(line)
+            if not normalized:
+                return True
+            if normalized in {
+                "products ordered",
+                "unit price",
+                "quantity",
+                "item subtotal",
+                "fulfilled - local",
+                "parcel 1",
+            }:
+                return True
+            if normalized.startswith("sold by "):
+                return True
+            if "spaylater" in normalized:
+                return True
+            if line.startswith("₱"):
+                return True
+            if re.fullmatch(r"\d+", line):
+                return True
+            return False
 
-        if products_index >= 0:
-            ignored = {
-                "Unit Price",
-                "Quantity",
-                "Item Subtotal",
-                "Fulfilled - Local",
-                "Parcel 1",
-            }
-            for line in lines[products_index + 1:]:
+        # Prefer the product text structurally associated with the variation
+        # row. On Shopee checkout, the product title and its variation/quantity
+        # belong to the same product block, while the seller is represented by
+        # a separate "Sold by ..." line. This avoids hard-coding seller names
+        # and also works when a product title contains digits or punctuation.
+        variation_index = next(
+            (i for i, line in enumerate(lines) if re.match(r"^Variation:\s*", line, re.IGNORECASE)),
+            None,
+        )
+
+        if variation_index is not None:
+            # Search backward only within the local product block. Stop at
+            # structural section boundaries rather than selecting arbitrary
+            # text from the whole checkout page.
+            for index in range(variation_index - 1, -1, -1):
+                line = lines[index]
                 if line.startswith("Sold by "):
                     break
-                if line in ignored:
+                if line in {"Products Ordered", "Unit Price", "Quantity", "Item Subtotal"}:
                     continue
-                if "SPayLater" in line:
-                    continue
-                if " - " in line and any(c.isdigit() for c in line):
-                    continue
-                if line.startswith("₱"):
-                    continue
-                if line.isdigit():
+                if _is_summary_metadata(line):
                     continue
                 summary["product"] = line
                 break
+
+        # Fallback for layouts where Variation is not exposed in the body text.
+        # Use the product section but reject known structural labels, seller
+        # rows, monetary values, and quantity-only lines. Crucially, do not
+        # assume the first arbitrary line is the product when a seller row is
+        # present.
+        if summary["product"] is None:
+            try:
+                products_index = lines.index("Products Ordered")
+            except ValueError:
+                products_index = -1
+
+            if products_index >= 0:
+                for line in lines[products_index + 1:]:
+                    if line.startswith("Sold by "):
+                        continue
+                    if _is_summary_metadata(line):
+                        continue
+                    if " - " in line and any(c.isdigit() for c in line):
+                        continue
+                    summary["product"] = line
+                    break
 
         variation_match = re.search(r"Variation:\s*(.+)", body)
         if variation_match:
@@ -469,15 +517,9 @@ class CheckoutVerifier:
             if not normalized_values:
                 return False
 
-            # Shopee checkout may expose only the selected value(s),
-            # without the option labels. For a single structured option,
-            # an exact value match is the strongest safe equivalence.
             if len(normalized_values) == 1:
                 return actual == normalized_values[0]
 
-            # For multiple options, require every expected value to be
-            # independently observable in the checkout representation.
-            # Missing information therefore fails closed.
             return all(value in actual for value in normalized_values)
 
         expected_name = self._normalize(
@@ -626,9 +668,6 @@ class CheckoutVerifier:
             else:
                 print("[CheckoutVerifier] Checkout total is within configured target.")
 
-        # Payment is not taken from collect_order_summary(), because that
-        # method deliberately does not fabricate an independent observation.
-        # The configured payment was already verified by verify_payment().
         if self.selected_payment != session.request.payment_method.value:
             print(
                 "[CheckoutVerifier] ❌ Payment verification state does not "
