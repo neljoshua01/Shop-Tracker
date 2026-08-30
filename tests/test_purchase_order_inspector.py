@@ -38,8 +38,16 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import sys
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+# Allow this standalone test to import the existing project packages when
+# launched directly as `python3 tests/test_purchase_order_inspector.py`.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from core.runtime.async_runtime import AsyncRuntime
 from execution.browser.browser_engine import BrowserEngine
