@@ -301,6 +301,8 @@ class CheckoutVerifier:
             "voucher_discount": None,
             "shipping": None,
             "total": None,
+            # Payment is verified independently by verify_payment().
+            # Do not fabricate an independently observed summary value.
             "payment": None,
         }
 
@@ -517,9 +519,15 @@ class CheckoutVerifier:
             if not normalized_values:
                 return False
 
+            # Shopee checkout may expose only the selected value(s),
+            # without the option labels. For a single structured option,
+            # an exact value match is the strongest safe equivalence.
             if len(normalized_values) == 1:
                 return actual == normalized_values[0]
 
+            # For multiple options, require every expected value to be
+            # independently observable in the checkout representation.
+            # Missing information therefore fails closed.
             return all(value in actual for value in normalized_values)
 
         expected_name = self._normalize(
@@ -668,6 +676,9 @@ class CheckoutVerifier:
             else:
                 print("[CheckoutVerifier] Checkout total is within configured target.")
 
+        # Payment is not taken from collect_order_summary(), because that
+        # method deliberately does not fabricate an independent observation.
+        # The configured payment was already verified by verify_payment().
         if self.selected_payment != session.request.payment_method.value:
             print(
                 "[CheckoutVerifier] ❌ Payment verification state does not "
