@@ -16,6 +16,8 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 from urllib.parse import urlsplit, parse_qsl
 
+from core.runtime.async_runtime import AsyncRuntime
+
 
 @dataclass(slots=True)
 class PostOrderNavigation:
@@ -55,6 +57,10 @@ class PostOrderTracker:
       - no attempt to bypass Shopee verification
 
     The existing BrowserSession/Page remains the source of truth.
+
+    Playwright is used through its async API in the existing AsyncRuntime.
+    The public start()/wait()/stop() interface remains synchronous so the
+    validated CheckoutExecutor architecture does not need to change.
     """
 
     DEFAULT_TIMEOUT_SECONDS = 1800
@@ -105,7 +111,7 @@ class PostOrderTracker:
         self._start_time = time.monotonic()
         self._started = True
 
-        def on_frame_navigated(frame: Any) -> None:
+        async def on_frame_navigated(frame: Any) -> None:
             try:
                 if frame != page.main_frame:
                     return
@@ -113,7 +119,7 @@ class PostOrderTracker:
                 return
 
             try:
-                self._record_current_page(reason="navigation")
+                await self._record_current_page_async(reason="navigation")
             except Exception as exc:
                 print(f"[PostOrderTracker] Navigation capture warning: {exc}")
 
@@ -128,10 +134,20 @@ class PostOrderTracker:
         print("[PostOrderTracker] Waiting for post-Place-Order navigation...")
 
     def wait(self) -> PostOrderTrackingResult:
-        """Passively wait for completion, timeout, or browser/session stop."""
+        """
+        Passively wait for completion, timeout, or browser/session stop.
+
+        The actual Playwright polling runs inside the application's existing
+        AsyncRuntime. This keeps the public synchronous API used by
+        CheckoutExecutor while correctly awaiting async Playwright methods.
+        """
         if not self._started or self._page is None or self._start_time is None:
             raise RuntimeError("PostOrderTracker.start() must be called first.")
 
+        future = AsyncRuntime.instance().submit(self._wait_async())
+        return future.result()
+
+    async def _wait_async(self) -> PostOrderTrackingResult:
         try:
             while not self._stop_event.is_set():
                 elapsed = time.monotonic() - self._start_time
@@ -157,25 +173,30 @@ class PostOrderTracker:
                     current_url = self._last_url
 
                 if current_url and current_url != self._last_url:
-                    self._record_current_page(reason="url-change")
+                    await self._record_current_page_async(reason="url-change")
 
                 now = time.monotonic()
                 if now - self._last_body_inspection >= self.BODY_INSPECTION_INTERVAL_SECONDS:
                     self._last_body_inspection = now
-                    self._inspect_current_state()
+                    await self._inspect_current_state_async()
 
                 if self._completed:
                     break
 
-                try:
-                    self._page.wait_for_timeout(int(self.POLL_INTERVAL_SECONDS * 1000))
-                except Exception:
-                    time.sleep(self.POLL_INTERVAL_SECONDS)
+                # Do not use page.wait_for_timeout() from synchronous code.
+                # asyncio.sleep keeps the polling coroutine cooperative while
+                # avoiding any blocking call against the async Playwright API.
+                import asyncio
+                await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
         finally:
             self._remove_listener()
 
         elapsed = time.monotonic() - self._start_time
-        timed_out = not self._completed and not self._stop_event.is_set() and elapsed >= self.timeout_seconds
+        timed_out = (
+            not self._completed
+            and not self._stop_event.is_set()
+            and elapsed >= self.timeout_seconds
+        )
         stopped = self._stop_event.is_set()
 
         return PostOrderTrackingResult(
@@ -206,7 +227,7 @@ class PostOrderTracker:
         finally:
             self._listener_removed = True
 
-    def _record_current_page(self, reason: str) -> None:
+    async def _record_current_page_async(self, reason: str) -> None:
         if self._page is None:
             return
 
@@ -215,15 +236,15 @@ class PostOrderTracker:
             return
 
         self._last_url = url
-        self._record_page(url, reason=reason)
+        await self._record_page_async(url, reason=reason)
 
-    def _record_page(self, url: str, reason: str) -> None:
+    async def _record_page_async(self, url: str, reason: str) -> None:
         parsed = urlsplit(url)
         host = parsed.netloc.lower()
         path = parsed.path or "/"
 
-        title = self._safe_title()
-        text = self._safe_body_text()
+        title = await self._safe_title_async()
+        text = await self._safe_body_text_async()
         state = self._classify_state(host, path, title, text)
 
         navigation = PostOrderNavigation(
@@ -260,7 +281,7 @@ class PostOrderTracker:
             self._completed = True
             print("[PostOrderTracker] PURCHASE COMPLETION / RECEIPT STATE DETECTED.")
 
-    def _inspect_current_state(self) -> None:
+    async def _inspect_current_state_async(self) -> None:
         if self._page is None:
             return
 
@@ -273,8 +294,8 @@ class PostOrderTracker:
             return
 
         parsed = urlsplit(url)
-        title = self._safe_title()
-        text = self._safe_body_text()
+        title = await self._safe_title_async()
+        text = await self._safe_body_text_async()
         state = self._classify_state(
             parsed.netloc.lower(),
             parsed.path or "/",
@@ -284,22 +305,22 @@ class PostOrderTracker:
 
         if url != self._last_url:
             self._last_url = url
-            self._record_page(url, reason="state-poll")
+            await self._record_page_async(url, reason="state-poll")
             return
 
         if state == "PURCHASE_COMPLETED" and self._navigations:
             self._completed = True
             print("[PostOrderTracker] Purchase completion detected from current page state.")
 
-    def _safe_title(self) -> str:
+    async def _safe_title_async(self) -> str:
         try:
-            return (self._page.title() or "").strip()[:200]
+            return (await self._page.title() or "").strip()[:200]
         except Exception:
             return ""
 
-    def _safe_body_text(self) -> str:
+    async def _safe_body_text_async(self) -> str:
         try:
-            text = self._page.locator("body").inner_text(timeout=1000)
+            text = await self._page.locator("body").inner_text(timeout=1000)
             return " ".join((text or "").split())[: self.MAX_TEXT_EXCERPT]
         except Exception:
             return ""
