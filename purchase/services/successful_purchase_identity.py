@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -181,7 +183,7 @@ class SuccessfulPurchaseIdentityInspector:
                 item_id=item_id,
                 model_id=model_id,
                 shop_id=shop_id,
-                product_name=self._text(getattr(page, "url", "")) and self._text(getattr(page, "url", "")) or product_name,
+                product_name=product_name,
                 variation=variation or None,
                 status=EXPECTED_TO_SHIP_STATUS,
                 source_url=PURCHASE_TO_SHIP_URL,
@@ -338,7 +340,6 @@ class SuccessfulPurchaseIdentityInspector:
             return set()
 
         found: set[int] = set()
-        import re
         for link in links:
             text = f"{link.get('href', '')} {link.get('text', '')}"
             for value in re.findall(r"(?:order[_-]?id|orderid)[=/:-](\d{10,})", text, re.I):
@@ -347,7 +348,6 @@ class SuccessfulPurchaseIdentityInspector:
 
     @classmethod
     def _timeout_seconds(cls) -> float:
-        import os
         raw = os.getenv("SHOPEE_SUCCESSFUL_PURCHASE_TIMEOUT_SECONDS")
         if raw:
             try:
