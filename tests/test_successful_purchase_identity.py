@@ -3,48 +3,17 @@ Read-only validation that a previously validated Shopee order reaches the
 To Ship purchase state after payment succeeds.
 
 This is an ISOLATED TEST. It does not modify the production application and
-it does not click Pay Now, Cancel Order, Buy Again, or any other order action.
-It only opens Shopee's To Ship purchase list and observes the page's own
-get_all_order_and_checkout_list response.
+does not click any order action. It only opens Shopee's To Ship purchase list
+and reads Shopee's authoritative order-list response.
 
-Validation chain:
+The network collection is deliberately defensive: response handlers are
+scheduled as explicit asyncio tasks and are awaited before parsing. If the
+page served the order list before the response handler completed, the test
+can recover the same authoritative endpoint from the browser's resource
+timing entries and re-read it with the authenticated browser session. A
+single read-only reload is the final network-observation fallback.
 
-    monitored product
-        -> checkout / Place Order validation
-        -> known Order ID
-        -> /user/purchase/?type=7 (To Ship)
-        -> authoritative order-list response
-        -> matching order card
-        -> same item_id + model_id + shop_id + Order ID
-        -> To Ship status
-        -> SUCCESSFUL PURCHASE
-
-The purpose of this test is to establish the second half of the purchase
-lifecycle independently from the earlier order-created test:
-
-    monitored product -> order created -> paid -> To Ship
-
-Only when the exact order is found in the To Ship state is the purchase
-considered successful. No Discord request is sent by this test.
-
-Run from the repository root:
-
-    python3 tests/test_successful_purchase_identity.py \
-        --order-id 241792195231162 \
-        --item-id 52201950487 \
-        --model-id 400189597306 \
-        --shop-id 1680631055
-
-The previous checkout ID may also be supplied as an additional continuity
-check:
-
-    --checkout-id 241792195239038
-
-A product name is optional. When supplied it must match the order card after
-normalization. Identity IDs and Order ID are the hard continuity keys.
-
-Chrome must already be running with remote debugging on localhost:9222 and
-logged into the Shopee account whose purchase page is being inspected.
+No Discord request is sent.
 """
 
 from __future__ import annotations
@@ -62,9 +31,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from core.runtime.async_runtime import AsyncRuntime
 from execution.browser.browser_engine import BrowserEngine
-
-# Reuse the already-validated read-only response parser. This does not import
-# production purchase/Discord code and does not perform any write operation.
 from tests.test_purchase_order_inspector import (
     ORDER_LIST_ENDPOINT,
     OrderMatch,
@@ -74,7 +40,6 @@ from tests.test_purchase_order_inspector import (
     normalize,
     safe_url,
 )
-
 
 PURCHASE_TO_SHIP_URL = "https://shopee.ph/user/purchase/?type=7"
 EXPECTED_STATUS = "label_to_ship"
@@ -88,7 +53,6 @@ DEFAULT_MODEL_ID = 400189597306
 DEFAULT_SHOP_ID = 1680631055
 DEFAULT_CHECKOUT_ID = 241792195239038
 DEFAULT_ORDER_ID = 241792195231162
-
 MAX_BODY_TEXT = 12000
 
 
@@ -131,47 +95,36 @@ def continuity_failures(
     target: Target,
     expected_order_id: int,
 ) -> list[str]:
-    """Return only hard failures for the successful-purchase proof."""
     failures: list[str] = []
 
     if match.order_id != expected_order_id:
         failures.append(
             f"Order ID mismatch: found {match.order_id}, expected {expected_order_id}"
         )
-
     if target.item_id is not None and match.item_id != target.item_id:
         failures.append(
             f"item_id mismatch: found {match.item_id}, expected {target.item_id}"
         )
-
     if target.model_id is not None and match.model_id != target.model_id:
         failures.append(
             f"model_id mismatch: found {match.model_id}, expected {target.model_id}"
         )
-
     if target.shop_id is not None and match.shop_id != target.shop_id:
         failures.append(
             f"shop_id mismatch: found {match.shop_id}, expected {target.shop_id}"
         )
-
     if target.checkout_id is not None:
-        # Some To Ship order-list responses no longer expose checkout_id. In
-        # that case Order ID + item/model/shop identity proves continuity. If
-        # checkout_id is present, however, it must agree exactly.
         if match.checkout_id is not None and match.checkout_id != target.checkout_id:
             failures.append(
                 f"checkout_id mismatch: found {match.checkout_id}, expected {target.checkout_id}"
             )
-
     if target.product_name:
         expected = normalize(target.product_name).casefold()
         actual = normalize(match.product_name or "").casefold()
         if expected != actual:
             failures.append("product name is not an exact normalized match")
-
     if match.item_id is None or match.model_id is None or match.shop_id is None:
         failures.append("one or more hard product identity IDs are missing")
-
     if match.order_id is None:
         failures.append("matched order card has no Order ID")
 
@@ -184,18 +137,27 @@ def print_validated_purchase(match: OrderMatch) -> None:
     print(f"Seller username  : {match.seller_username or '<not found>'}")
     print(f"Product          : {match.product_name or '<not found>'}")
     print(f"Variation        : {match.variation or '<not found>'}")
-    print(f"Quantity         : {match.quantity if match.quantity is not None else '<not found>'}")
+    print(
+        f"Quantity         : "
+        f"{match.quantity if match.quantity is not None else '<not found>'}"
+    )
     print()
     print(f"Item ID          : {match.item_id if match.item_id is not None else '<not found>'}")
     print(f"Model ID         : {match.model_id if match.model_id is not None else '<not found>'}")
     print(f"Shop ID          : {match.shop_id if match.shop_id is not None else '<not found>'}")
-    print(f"Checkout ID      : {match.checkout_id if match.checkout_id is not None else '<not exposed on To Ship response>'}")
+    print(
+        f"Checkout ID      : "
+        f"{match.checkout_id if match.checkout_id is not None else '<not exposed on To Ship response>'}"
+    )
     print(f"ORDER ID         : {match.order_id if match.order_id is not None else '<not found>'}")
     print()
     print(f"Item Price       : {money_php(match.item_price)}")
     print(f"Original Price   : {money_php(match.original_price)}")
     print(f"Order Price      : {money_php(match.order_price)}")
-    print(f"Order Total      : {money_php(match.final_total if match.final_total is not None else match.subtotal)}")
+    print(
+        f"Order Total      : "
+        f"{money_php(match.final_total if match.final_total is not None else match.subtotal)}"
+    )
     print()
     print(f"Status           : {match.status or '<not found>'}")
     print(f"Source API       : {safe_url(match.source_url)}")
@@ -206,7 +168,6 @@ def successful_purchase_payload_candidate(
     match: OrderMatch,
     checkout_id: int | None,
 ) -> dict[str, Any]:
-    """Local candidate only; deliberately never sends anything to Discord."""
     return {
         "event": "purchase_successful",
         "status": match.status,
@@ -217,23 +178,164 @@ def successful_purchase_payload_candidate(
         "product": match.product_name,
         "variation": match.variation,
         "quantity": match.quantity,
-        "item_price_php": round((match.item_price or 0) / 100000, 2)
-        if match.item_price is not None
-        else None,
-        "original_price_php": round((match.original_price or 0) / 100000, 2)
-        if match.original_price is not None
-        else None,
-        "order_price_php": round((match.order_price or 0) / 100000, 2)
-        if match.order_price is not None
-        else None,
-        "order_total_php": round(
-            ((match.final_total if match.final_total is not None else match.subtotal) or 0)
-            / 100000,
-            2,
-        )
-        if (match.final_total is not None or match.subtotal is not None)
-        else None,
+        "item_price_php": (
+            round(match.item_price / 100000, 2)
+            if match.item_price is not None
+            else None
+        ),
+        "original_price_php": (
+            round(match.original_price / 100000, 2)
+            if match.original_price is not None
+            else None
+        ),
+        "order_price_php": (
+            round(match.order_price / 100000, 2)
+            if match.order_price is not None
+            else None
+        ),
+        "order_total_php": (
+            round(
+                (
+                    match.final_total
+                    if match.final_total is not None
+                    else match.subtotal
+                )
+                / 100000,
+                2,
+            )
+            if (match.final_total is not None or match.subtotal is not None)
+            else None
+        ),
     }
+
+
+def parse_observed_responses(
+    observed: list[dict[str, Any]],
+) -> list[OrderMatch]:
+    all_matches: list[OrderMatch] = []
+
+    for response in observed:
+        payload = response.get("json")
+        for index, container_type, container in iter_order_containers(payload):
+            all_matches.extend(
+                build_match(
+                    payload,
+                    response["url"],
+                    index,
+                    container_type,
+                    container,
+                )
+            )
+
+    unique: dict[tuple[Any, ...], OrderMatch] = {}
+    for match in all_matches:
+        key = (
+            match.order_id,
+            match.checkout_id,
+            match.item_id,
+            match.model_id,
+            match.shop_id,
+            match.product_name,
+            match.status,
+        )
+        unique[key] = match
+
+    return list(unique.values())
+
+
+def continuity_candidates(
+    matches: list[OrderMatch],
+    target: Target,
+    expected_order_id: int,
+) -> list[OrderMatch]:
+    candidates: list[OrderMatch] = []
+    for match in matches:
+        if match.order_id != expected_order_id:
+            continue
+        if target.item_id is not None and match.item_id != target.item_id:
+            continue
+        if target.model_id is not None and match.model_id != target.model_id:
+            continue
+        if target.shop_id is not None and match.shop_id != target.shop_id:
+            continue
+        candidates.append(match)
+    return candidates
+
+
+async def recover_authoritative_responses(
+    page: Any,
+    observed: list[dict[str, Any]],
+    request_urls: list[str],
+) -> int:
+    """
+    Recover the authoritative order-list response without relying solely on
+    the page.on("response") callback timing.
+
+    This remains read-only: it only repeats GET/read requests using the
+    already-authenticated Shopee browser session.
+    """
+    recovered = 0
+
+    try:
+        resource_urls = await page.evaluate(
+            """
+            () => performance.getEntriesByType('resource')
+                .map(entry => entry.name)
+                .filter(name => name.includes('get_all_order_and_checkout_list'))
+            """
+        )
+    except Exception:
+        resource_urls = []
+
+    urls: list[str] = []
+    for url in [*request_urls, *resource_urls]:
+        if ORDER_LIST_ENDPOINT in str(url).lower() and url not in urls:
+            urls.append(str(url))
+
+    for url in urls:
+        try:
+            result = await page.evaluate(
+                """
+                async (url) => {
+                    const response = await fetch(url, {
+                        method: "GET",
+                        credentials: "include",
+                        cache: "no-store",
+                    });
+                    let json = null;
+                    let error = null;
+                    try {
+                        json = await response.json();
+                    } catch (exc) {
+                        error = String(exc);
+                    }
+                    return {
+                        status: response.status,
+                        url: response.url,
+                        json,
+                        error,
+                    };
+                }
+                """,
+                url,
+            )
+        except Exception:
+            continue
+
+        if result.get("status") != 200 or result.get("json") is None:
+            continue
+
+        observed.append(
+            {
+                "url": result["url"],
+                "json": result["json"],
+                "error": result.get("error"),
+                "recovered": True,
+            }
+        )
+        recovered += 1
+
+    return recovered
 
 
 async def validate_to_ship(
@@ -243,8 +345,10 @@ async def validate_to_ship(
     wait_seconds: float,
 ) -> None:
     observed: list[dict[str, Any]] = []
+    request_urls: list[str] = []
+    response_tasks: set[asyncio.Task[Any]] = set()
 
-    async def on_response(response: Any) -> None:
+    async def process_response(response: Any) -> None:
         if ORDER_LIST_ENDPOINT not in response.url.lower():
             return
         if response.status != 200:
@@ -254,6 +358,7 @@ async def validate_to_ship(
             "url": response.url,
             "json": None,
             "error": None,
+            "recovered": False,
         }
         try:
             record["json"] = await response.json()
@@ -261,6 +366,17 @@ async def validate_to_ship(
             record["error"] = str(exc)
         observed.append(record)
 
+    def on_request(request: Any) -> None:
+        url = request.url
+        if ORDER_LIST_ENDPOINT in url.lower() and url not in request_urls:
+            request_urls.append(url)
+
+    def on_response(response: Any) -> None:
+        task = asyncio.create_task(process_response(response))
+        response_tasks.add(task)
+        task.add_done_callback(response_tasks.discard)
+
+    page.on("request", on_request)
     page.on("response", on_response)
 
     try:
@@ -271,13 +387,73 @@ async def validate_to_ship(
         print()
         print_target(target, expected_order_id)
 
-        print("\n[NAVIGATION] Opening /user/purchase/?type=7 in a separate browser tab...")
-        await page.goto(PURCHASE_TO_SHIP_URL, wait_until="domcontentloaded", timeout=30000)
+        print(
+            "\n[NAVIGATION] Opening /user/purchase/?type=7 in a separate browser tab..."
+        )
+        await page.goto(
+            PURCHASE_TO_SHIP_URL,
+            wait_until="domcontentloaded",
+            timeout=30000,
+        )
         try:
             await page.wait_for_load_state("networkidle", timeout=10000)
         except Exception:
             pass
         await asyncio.sleep(wait_seconds)
+
+        if response_tasks:
+            await asyncio.gather(*list(response_tasks), return_exceptions=True)
+
+        matches = parse_observed_responses(observed)
+        candidates = continuity_candidates(matches, target, expected_order_id)
+
+        # If the normal response listener did not produce the exact order,
+        # recover the already-requested endpoint from browser resource/request
+        # history and read it again through the authenticated page.
+        if not candidates:
+            recovered = await recover_authoritative_responses(
+                page,
+                observed,
+                request_urls,
+            )
+            if recovered:
+                matches = parse_observed_responses(observed)
+                candidates = continuity_candidates(
+                    matches,
+                    target,
+                    expected_order_id,
+                )
+
+        # A final, single read-only reload handles cases where the first page
+        # was restored from an already-warmed/cached application state and no
+        # order-list request URL was available to replay.
+        if not candidates:
+            await page.reload(
+                wait_until="domcontentloaded",
+                timeout=30000,
+            )
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
+            await asyncio.sleep(wait_seconds)
+            if response_tasks:
+                await asyncio.gather(
+                    *list(response_tasks),
+                    return_exceptions=True,
+                )
+            recovered = await recover_authoritative_responses(
+                page,
+                observed,
+                request_urls,
+            )
+            if recovered:
+                matches = parse_observed_responses(observed)
+                candidates = continuity_candidates(
+                    matches,
+                    target,
+                    expected_order_id,
+                )
 
         header("PAGE STATE")
         print(f"URL   : {safe_url(page.url)}")
@@ -286,10 +462,12 @@ async def validate_to_ship(
         except Exception:
             print("Title : <unavailable>")
 
-        body_text = ""
         try:
-            body_text = normalize(await page.locator("body").inner_text(timeout=5000))
+            body_text = normalize(
+                await page.locator("body").inner_text(timeout=5000)
+            )
         except Exception as exc:
+            body_text = ""
             print(f"Body  : <unavailable: {exc}>")
 
         if body_text:
@@ -301,65 +479,32 @@ async def validate_to_ship(
 
         header("AUTHORITATIVE TO SHIP ORDER LIST")
         print(f"Responses observed: {len(observed)}")
-
-        all_matches: list[OrderMatch] = []
-        for response in observed:
-            payload = response.get("json")
-            for index, container_type, container in iter_order_containers(payload):
-                all_matches.extend(
-                    build_match(
-                        payload,
-                        response["url"],
-                        index,
-                        container_type,
-                        container,
-                    )
-                )
-
-        unique: dict[tuple[Any, ...], OrderMatch] = {}
-        for match in all_matches:
-            key = (
-                match.order_id,
-                match.checkout_id,
-                match.item_id,
-                match.model_id,
-                match.shop_id,
-                match.product_name,
-                match.status,
-            )
-            unique[key] = match
-        all_matches = list(unique.values())
-
-        print(f"Parsed order cards: {len(all_matches)}")
-        for index, match in enumerate(all_matches, start=1):
+        print(f"Order-list request URLs observed: {len(request_urls)}")
+        print(f"Parsed order cards: {len(matches)}")
+        for index, match in enumerate(matches, start=1):
             print_card(index, match)
 
         header("ORDER CONTINUITY MATCH")
-        candidates: list[OrderMatch] = []
-        for match in all_matches:
-            if match.order_id != expected_order_id:
-                continue
-            if target.item_id is not None and match.item_id != target.item_id:
-                continue
-            if target.model_id is not None and match.model_id != target.model_id:
-                continue
-            if target.shop_id is not None and match.shop_id != target.shop_id:
-                continue
-            candidates.append(match)
-
-        if len(candidates) == 0:
-            print("RESULT: FAIL — the validated Order ID/product was not found in To Ship")
+        if not candidates:
+            print(
+                "RESULT: FAIL — the validated Order ID/product was not found in To Ship"
+            )
             raise AssertionError(
-                "The exact previously validated order was not found on /user/purchase/?type=7. "
-                "The application must not classify the purchase as successful."
+                "The exact previously validated order was not found on "
+                "/user/purchase/?type=7. The application must not classify "
+                "the purchase as successful."
             )
 
         if len(candidates) > 1:
-            print(f"RESULT: FAIL — {len(candidates)} identical continuity candidates found")
+            print(
+                f"RESULT: FAIL — {len(candidates)} identical continuity "
+                "candidates found"
+            )
             for match in candidates:
                 print_card(0, match)
             raise AssertionError(
-                "More than one To Ship card matched the same hard order/product identity."
+                "More than one To Ship card matched the same hard "
+                "order/product identity."
             )
 
         match = candidates[0]
@@ -377,13 +522,15 @@ async def validate_to_ship(
         if normalize(match.status).casefold() != EXPECTED_STATUS:
             print("RESULT: FAIL — order is not in the To Ship state")
             raise AssertionError(
-                f"Order {expected_order_id} was found, but its authoritative status is "
-                f"{match.status!r}, not {EXPECTED_STATUS!r}."
+                f"Order {expected_order_id} was found, but its authoritative "
+                f"status is {match.status!r}, not {EXPECTED_STATUS!r}."
             )
 
         print("RESULT: PASS — EXACT ORDER IS IN TO SHIP")
-        print("The monitored product, its created Order ID, and its To Ship state")
-        print("have now been independently verified from Shopee's order-list response.")
+        print(
+            "The monitored product, its created Order ID, and its To Ship state "
+            "have now been independently verified from Shopee's order-list response."
+        )
 
         print_validated_purchase(match)
 
@@ -399,13 +546,18 @@ async def validate_to_ship(
         print("        -> status label_to_ship")
         print("        -> SUCCESSFUL PURCHASE")
         print()
-        print("Only after this proof is available should the future Discord")
-        print("'successful purchase' notification be triggered.")
+        print(
+            "Only after this proof is available should the future Discord "
+            "'successful purchase' notification be triggered."
+        )
 
         header("DISCORD PAYLOAD CANDIDATE — NOT SENT")
         print(
             json.dumps(
-                successful_purchase_payload_candidate(match, target.checkout_id),
+                successful_purchase_payload_candidate(
+                    match,
+                    target.checkout_id,
+                ),
                 ensure_ascii=False,
                 indent=2,
             )
@@ -417,7 +569,10 @@ async def validate_to_ship(
         print("No Discord request was sent.")
 
     finally:
+        if response_tasks:
+            await asyncio.gather(*list(response_tasks), return_exceptions=True)
         try:
+            page.remove_listener("request", on_request)
             page.remove_listener("response", on_response)
         except Exception:
             pass
@@ -451,7 +606,9 @@ def main() -> None:
     engine = BrowserEngine.instance()
     owner = object()
 
-    session = runtime.submit(engine.open_session(owner, "about:blank")).result(timeout=30)
+    session = runtime.submit(
+        engine.open_session(owner, "about:blank")
+    ).result(timeout=30)
     page = session.page
 
     try:
