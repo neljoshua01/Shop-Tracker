@@ -4,6 +4,7 @@ from execution.checkout.checkout_verifier import CheckoutVerifier
 from core.runtime.safety_gate import RuntimeSafetyGate
 from purchase.services.post_order_tracker import PostOrderTracker
 from purchase.services.monitored_order_identity import MonitoredOrderIdentityInspector
+from purchase.services.successful_purchase_identity import SuccessfulPurchaseIdentityInspector
 
 
 class CheckoutExecutor:
@@ -241,6 +242,30 @@ class CheckoutExecutor:
 
             print("[CheckoutExecutor] STEP 1: monitored-to-order identity VALIDATED.")
             print(f"[CheckoutExecutor] STEP 1: Order ID {identity.order_id} belongs to the monitored product.")
+
+            # -------------------------------------------------
+            # STEP 2 — SUCCESSFUL PURCHASE / TO SHIP
+            # -------------------------------------------------
+            # Step 2 consumes only the exact identity established by Step 1.
+            # It opens a separate tab and waits for the same order/product to
+            # reach Shopee's To Ship state. It performs no payment or write
+            # action and does not interfere with the existing checkout page.
+            if session.successful_purchase_identity_verified:
+                return
+
+            print("[CheckoutExecutor] STEP 2: waiting for the validated order to reach To Ship...")
+            successful_purchase_inspector = SuccessfulPurchaseIdentityInspector()
+            successful_purchase = await successful_purchase_inspector.inspect(page, session)
+            if successful_purchase is None:
+                print("[CheckoutExecutor] STEP 2: successful-purchase identity validation FAILED or timed out.")
+                return
+
+            session.successful_purchase_identity_verified = True
+            print("[CheckoutExecutor] STEP 2: successful-purchase identity VALIDATED.")
+            print(
+                "[CheckoutExecutor] STEP 2: Order ID "
+                f"{successful_purchase.order_id} is the monitored product in To Ship."
+            )
 
         post_order_tracker = PostOrderTracker(on_state=validate_created_order)
         post_order_tracker.start(page)
