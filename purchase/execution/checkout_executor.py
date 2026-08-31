@@ -3,6 +3,7 @@ from core.runtime.async_runtime import AsyncRuntime
 from execution.checkout.checkout_verifier import CheckoutVerifier
 from core.runtime.safety_gate import RuntimeSafetyGate
 from purchase.services.post_order_tracker import PostOrderTracker
+from purchase.services.monitored_order_identity import MonitoredOrderIdentityInspector
 
 
 class CheckoutExecutor:
@@ -182,8 +183,6 @@ class CheckoutExecutor:
             return False
         print("[CheckoutExecutor] Protection state verified.")
 
-        # Allow checkout totals to settle after any protection change before
-        # collecting the monetary state used for final verification.
         actions.wait_for_timeout(1000)
 
         summary = AsyncRuntime.instance().submit(
@@ -212,10 +211,6 @@ class CheckoutExecutor:
 
         print("[CheckoutExecutor] ARMED: final action authorized.")
 
-        # Re-resolve the final action only after every checkout verification
-        # has passed and runtime authorization has been confirmed. This keeps
-        # SAFE/ARMED authorization as the final gate immediately before the
-        # irreversible action.
         place_order = page.get_by_role("button", name="Place Order").first
         if actions.count(place_order) == 0:
             print("[CheckoutExecutor] ARMED: Place Order button is no longer available; action aborted.")
@@ -227,7 +222,27 @@ class CheckoutExecutor:
         # Arm the passive post-order observer immediately before the final
         # click. This closes the race window in which Shopee could redirect
         # faster than a tracker started after the click.
-        post_order_tracker = PostOrderTracker()
+        async def validate_created_order(_navigation):
+            if session.monitored_order_identity_verified:
+                return
+
+            print("[CheckoutExecutor] STEP 1: payment continuation reached.")
+            print("[CheckoutExecutor] STEP 1: validating monitored product against My Purchase order list...")
+
+            inspector = MonitoredOrderIdentityInspector()
+            identity = await inspector.inspect(page, session)
+            if identity is None:
+                print("[CheckoutExecutor] STEP 1: monitored-to-order identity validation FAILED.")
+                return
+
+            session.monitored_order_id = identity.order_id
+            session.monitored_checkout_id = identity.checkout_id
+            session.monitored_order_identity_verified = True
+
+            print("[CheckoutExecutor] STEP 1: monitored-to-order identity VALIDATED.")
+            print(f"[CheckoutExecutor] STEP 1: Order ID {identity.order_id} belongs to the monitored product.")
+
+        post_order_tracker = PostOrderTracker(on_state=validate_created_order)
         post_order_tracker.start(page)
 
         try:
