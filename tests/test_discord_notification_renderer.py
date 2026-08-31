@@ -30,6 +30,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import os
 import sys
 from dataclasses import dataclass
@@ -38,10 +39,34 @@ from pathlib import Path
 
 import requests
 
-# Use the native macOS Qt platform when running locally on macOS. The previous
-# forced "offscreen" setting failed on this environment because that Qt plugin
-# is not installed. Non-macOS test environments remain headless-safe.
-os.environ.setdefault("QT_QPA_PLATFORM", "cocoa" if sys.platform == "darwin" else "offscreen")
+
+def _configure_qt_plugin_paths() -> None:
+    """Point Qt at the platform plugins bundled with the active PySide6 wheel."""
+    if os.getenv("QT_QPA_PLATFORM_PLUGIN_PATH"):
+        return
+
+    spec = importlib.util.find_spec("PySide6")
+    if spec is None or not spec.submodule_search_locations:
+        return
+
+    package_dir = Path(next(iter(spec.submodule_search_locations)))
+    candidates = (
+        package_dir / "Qt" / "plugins" / "platforms",
+        package_dir / "plugins" / "platforms",
+    )
+
+    platform_dir = next((path for path in candidates if path.is_dir()), None)
+    if platform_dir is None:
+        return
+
+    os.environ.setdefault("QT_QPA_PLATFORM_PLUGIN_PATH", str(platform_dir))
+    os.environ.setdefault("QT_PLUGIN_PATH", str(platform_dir.parent))
+
+
+# Do not force a specific platform (for example "cocoa" or "offscreen").
+# Let Qt select the native platform, while explicitly pointing it at the
+# platform-plugin directory bundled with this venv's PySide6 installation.
+_configure_qt_plugin_paths()
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen
