@@ -37,6 +37,7 @@ class SuccessfulPurchaseIdentityInspector:
     POLL_INTERVAL_SECONDS = 10.0
     LOAD_WAIT_MS = 2500
     NAVIGATION_TIMEOUT_MS = 30000
+    BODY_TEXT_TIMEOUT_MS = 10000
 
     async def inspect(self, source_page: Any, session: Any) -> SuccessfulPurchaseIdentity | None:
         """Wait for the Step 1 order to appear as the same product in To Ship."""
@@ -149,6 +150,9 @@ class SuccessfulPurchaseIdentityInspector:
                 pass
             await page.wait_for_timeout(self.LOAD_WAIT_MS)
 
+            # Prefer Shopee's authoritative order-list response whenever it is
+            # exposed. This is the strongest proof and matches Step 1's identity
+            # strategy.
             for source_url, payload in responses:
                 for _, container in self._iter_containers(payload):
                     match = self._extract_authoritative_match(
@@ -163,37 +167,87 @@ class SuccessfulPurchaseIdentityInspector:
                     if match is not None and match.status.casefold() == EXPECTED_TO_SHIP_STATUS:
                         return match
 
-            body = await self._safe_body_text(page)
-            if not body:
-                return None
-
-            normalized_body = body.casefold()
-            product_visible = bool(product_name) and product_name.casefold() in normalized_body
-            variation_visible = not variation or variation.casefold() in normalized_body
-            to_ship_visible = "to ship" in normalized_body
-            if not product_visible or not variation_visible or not to_ship_visible:
-                return None
-
-            visible_order_ids = await self._extract_order_ids_from_links(page)
-            if visible_order_ids and order_id not in visible_order_ids:
-                return None
-
-            return SuccessfulPurchaseIdentity(
-                order_id=order_id,
-                item_id=item_id,
-                model_id=model_id,
-                shop_id=shop_id,
-                product_name=product_name,
-                variation=variation or None,
-                status=EXPECTED_TO_SHIP_STATUS,
-                source_url=PURCHASE_TO_SHIP_URL,
-                authoritative=False,
+            # Shopee can render an already-loaded To Ship list without exposing
+            # another order-list response to the application page. The validated
+            # isolated test therefore uses the visible page as the fallback proof:
+            # exact product + exact variation + To Ship state, with an additional
+            # Order ID check only when the page actually exposes one.
+            fallback = await self._extract_page_visible_match(
+                page,
+                order_id,
+                item_id,
+                model_id,
+                shop_id,
+                product_name,
+                variation,
             )
+            if fallback is not None:
+                return fallback
+
+            return None
         finally:
             try:
                 page.remove_listener("response", on_response)
             except Exception:
                 pass
+
+    async def _extract_page_visible_match(
+        self,
+        page: Any,
+        order_id: int,
+        item_id: int,
+        model_id: int,
+        shop_id: int,
+        product_name: str,
+        variation: str,
+    ) -> SuccessfulPurchaseIdentity | None:
+        body = await self._safe_body_text(page)
+        if not body:
+            print("[SuccessfulPurchaseIdentity] Page-visible fallback: body text unavailable.")
+            return None
+
+        normalized_body = body.casefold()
+        product_visible = bool(product_name) and product_name.casefold() in normalized_body
+        variation_visible = not variation or variation.casefold() in normalized_body
+        to_ship_visible = "to ship" in normalized_body
+
+        print(
+            "[SuccessfulPurchaseIdentity] Page-visible fallback: "
+            f"product={product_visible}, variation={variation_visible}, to_ship={to_ship_visible}"
+        )
+
+        if not product_visible or not variation_visible or not to_ship_visible:
+            return None
+
+        visible_order_ids = await self._extract_order_ids_from_links(page)
+        if visible_order_ids:
+            print(
+                "[SuccessfulPurchaseIdentity] Page-visible fallback: exposed Order IDs "
+                f"count={len(visible_order_ids)}; checking established Order ID."
+            )
+            if order_id not in visible_order_ids:
+                print(
+                    "[SuccessfulPurchaseIdentity] Page-visible fallback rejected: "
+                    f"established Order ID {order_id} was not exposed."
+                )
+                return None
+        else:
+            print(
+                "[SuccessfulPurchaseIdentity] Page-visible fallback: no Order ID is exposed "
+                "in page links; continuing with the validated product/variation continuity proof."
+            )
+
+        return SuccessfulPurchaseIdentity(
+            order_id=order_id,
+            item_id=item_id,
+            model_id=model_id,
+            shop_id=shop_id,
+            product_name=product_name,
+            variation=variation or None,
+            status=EXPECTED_TO_SHIP_STATUS,
+            source_url=PURCHASE_TO_SHIP_URL,
+            authoritative=False,
+        )
 
     @classmethod
     def _extract_authoritative_match(
@@ -321,7 +375,9 @@ class SuccessfulPurchaseIdentityInspector:
     @staticmethod
     async def _safe_body_text(page: Any) -> str:
         try:
-            return " ".join((await page.locator("body").inner_text(timeout=5000) or "").split())
+            return " ".join(
+                (await page.locator("body").inner_text(timeout=SuccessfulPurchaseIdentityInspector.BODY_TEXT_TIMEOUT_MS) or "").split()
+            )
         except Exception:
             return ""
 
