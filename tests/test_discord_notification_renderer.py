@@ -1,21 +1,26 @@
 """
-Isolated Discord purchase-notification renderer test.
+Isolated Discord purchase-notification renderer and webhook delivery test.
 
 This file intentionally contains BOTH the temporary notification data model and
-renderer so the production application remains untouched while the notification
-visuals are validated.
+renderer so the production application remains untouched while notification
+visuals and Discord delivery are validated.
 
-It performs NO Discord request and contains NO webhook handling.
+Discord delivery is opt-in and test-only. The webhook URL is NEVER stored in
+this repository. Supply it through DISCORD_WEBHOOK_URL or --webhook-url.
 
 Run from the repository root:
 
     python3 tests/test_discord_notification_renderer.py
 
-Optional examples:
+Render only (no Discord request):
 
     python3 tests/test_discord_notification_renderer.py \
-        --product-image /path/to/product.png \
-        --output-dir tests/output/discord_notifications
+        --product-image /path/to/product.png
+
+Render and send both test notifications to Discord:
+
+    DISCORD_WEBHOOK_URL='https://discord.com/api/webhooks/...' \
+    python3 tests/test_discord_notification_renderer.py --send-discord
 
 Outputs:
     order_created_payment_required.png
@@ -30,6 +35,8 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+
+import requests
 
 # Headless-safe Qt rendering. This only affects this isolated test process.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -140,7 +147,6 @@ class NotificationCardRenderer:
         )
 
     def _draw_header(self, painter: QPainter, data: PurchaseNotificationData, successful: bool) -> None:
-        # Shopee-style bag mark.
         bag = QRectF(78, 54, 72, 72)
         painter.setBrush(QColor("#ff5b35"))
         painter.setPen(Qt.PenStyle.NoPen)
@@ -164,7 +170,7 @@ class NotificationCardRenderer:
         painter.setFont(self._font(25))
         painter.drawText(QRectF(170, 92, 390, 34), Qt.AlignmentFlag.AlignVCenter, "Purchase Notification")
 
-        stamp = (data.to_ship_at if successful and data.to_ship_at else data.order_created_at)
+        stamp = data.to_ship_at if successful and data.to_ship_at else data.order_created_at
         stamp_text = stamp.strftime("%b %d, %Y  •  %I:%M %p").replace(" 0", " ")
         painter.setFont(self._font(22))
         painter.drawText(
@@ -190,7 +196,6 @@ class NotificationCardRenderer:
             icon = "⌛"
 
         self._rounded_rect(painter, rect, fill, border, 18)
-
         circle = QRectF(100, 177, 82, 82)
         painter.setBrush(QColor(accent.red(), accent.green(), accent.blue(), 45))
         painter.setPen(QPen(accent, 4))
@@ -202,7 +207,7 @@ class NotificationCardRenderer:
         painter.setPen(accent)
         painter.setFont(self._font(38, bold=True))
         painter.drawText(QRectF(210, 176, 940, 48), Qt.AlignmentFlag.AlignVCenter, title)
-        painter.setPen(successful and QColor("#b3f8e3") or QColor("#ffb427"))
+        painter.setPen(QColor("#b3f8e3") if successful else QColor("#ffb427"))
         painter.setFont(self._font(21))
         painter.drawText(QRectF(210, 225, 960, 34), Qt.AlignmentFlag.AlignVCenter, subtitle)
 
@@ -223,11 +228,7 @@ class NotificationCardRenderer:
         painter.setPen(TEXT)
         painter.setFont(self._font(31, bold=True))
         title_rect = QRectF(420, 375, 620, 80)
-        painter.drawText(
-            title_rect,
-            Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
-            data.product_name,
-        )
+        painter.drawText(title_rect, Qt.TextFlag.TextWordWrap | Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, data.product_name)
 
         painter.setPen(MUTED)
         painter.setFont(self._font(21))
@@ -343,11 +344,7 @@ class NotificationCardRenderer:
             painter.drawText(QRectF(1050, 902, 210, 22), Qt.AlignmentFlag.AlignLeft, "Estimated Delivery")
             painter.setPen(TEXT)
             painter.setFont(self._font(18))
-            painter.drawText(
-                QRectF(1050, 932, 220, 30),
-                Qt.AlignmentFlag.AlignLeft,
-                data.estimated_delivery or "Pending",
-            )
+            painter.drawText(QRectF(1050, 932, 220, 30), Qt.AlignmentFlag.AlignLeft, data.estimated_delivery or "Pending")
         else:
             self._timeline_stage(painter, 220, 895, "Change Detected", data.change_detected_at)
             painter.setPen(QPen(PURPLE, 2))
@@ -381,15 +378,57 @@ class NotificationCardRenderer:
         painter.setPen(MUTED)
         painter.setFont(self._font(17))
         painter.drawText(QRectF(355, 1028, 360, 28), Qt.AlignmentFlag.AlignVCenter, "Automate  •  Monitor  •  Purchase")
-        painter.drawText(
-            QRectF(935, 1028, 330, 28),
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
-            "Sent via Discord Webhook",
-        )
+        painter.drawText(QRectF(935, 1028, 330, 28), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, "Sent via Discord Webhook")
 
     @staticmethod
     def _peso(value: float) -> str:
         return f"₱ {value:,.0f}" if float(value).is_integer() else f"₱ {value:,.2f}"
+
+
+class DiscordWebhookSender:
+    """Test-only Discord webhook sender for rendered notification images."""
+
+    def __init__(self, webhook_url: str, *, timeout: float = 30.0) -> None:
+        self.webhook_url = webhook_url.strip()
+        self.timeout = timeout
+        self._validate_url()
+
+    def _validate_url(self) -> None:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(self.webhook_url)
+        if parsed.scheme != "https" or parsed.netloc not in {"discord.com", "discordapp.com"}:
+            raise ValueError("Webhook URL must be an HTTPS Discord webhook URL.")
+        if not parsed.path.startswith("/api/webhooks/"):
+            raise ValueError("Webhook URL does not look like a Discord webhook endpoint.")
+
+    def send(self, image_path: Path, *, title: str, content: str) -> None:
+        if not image_path.is_file():
+            raise FileNotFoundError(f"Notification image does not exist: {image_path}")
+
+        filename = image_path.name
+        payload = {
+            "content": content,
+            "username": "Shopee Tracker Test",
+            "embeds": [
+                {
+                    "title": title,
+                    "image": {"url": f"attachment://{filename}"},
+                }
+            ],
+        }
+
+        with image_path.open("rb") as image_file:
+            response = requests.post(
+                self.webhook_url,
+                data={"payload_json": __import__("json").dumps(payload, ensure_ascii=False)},
+                files={"file": (filename, image_file, "image/png")},
+                timeout=self.timeout,
+            )
+
+        if response.status_code not in (200, 204):
+            body = response.text[:500]
+            raise RuntimeError(f"Discord webhook failed with HTTP {response.status_code}: {body}")
 
 
 def parse_time(value: str | None, fallback: datetime) -> datetime:
@@ -399,13 +438,10 @@ def parse_time(value: str | None, fallback: datetime) -> datetime:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Render both Discord purchase notification templates.")
+    parser = argparse.ArgumentParser(description="Render and optionally deliver both Discord purchase notification templates.")
     parser.add_argument("--output-dir", default="tests/output/discord_notifications")
     parser.add_argument("--product-image", default=None, help="Optional local product image path.")
-    parser.add_argument(
-        "--product-name",
-        default="5M Kinesiology Tape Muscle Bandage Sports Cotton Elastic Adhesive Strain Injury Tape Pain Relief",
-    )
+    parser.add_argument("--product-name", default="5M Kinesiology Tape Muscle Bandage Sports Cotton Elastic Adhesive Strain Injury Tape Pain Relief")
     parser.add_argument("--shop-name", default="Nice Everyday")
     parser.add_argument("--variation", default="black,5cm*5m")
     parser.add_argument("--quantity", type=int, default=1)
@@ -420,6 +456,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--payment-time", default=None, help="ISO datetime")
     parser.add_argument("--to-ship-time", default=None, help="ISO datetime")
     parser.add_argument("--estimated-delivery", default="Sep 05 – Sep 15, 2026")
+    parser.add_argument("--send-discord", action="store_true", help="Send the two rendered images through the test webhook.")
+    parser.add_argument("--webhook-url", default=None, help="Discord webhook URL; prefer DISCORD_WEBHOOK_URL instead.")
     return parser.parse_args()
 
 
@@ -461,11 +499,11 @@ def main() -> None:
     renderer.render_purchase_successful(data, success_path)
 
     print("=" * 78)
-    print("DISCORD NOTIFICATION RENDERER TEST")
+    print("DISCORD NOTIFICATION RENDERER + WEBHOOK TEST")
     print("=" * 78)
-    print("Mode      : TEST-ONLY / LOCAL IMAGE RENDER")
+    print("Mode      : TEST-ONLY")
     print("Production: NOT IMPORTED / NOT MODIFIED")
-    print("Discord   : NO WEBHOOK REQUEST SENT")
+    print(f"Discord   : {'DELIVERY ENABLED' if args.send_discord else 'NO WEBHOOK REQUEST SENT'}")
     print()
     print("DATA MODEL")
     print(f"  Product        : {data.product_name}")
@@ -483,9 +521,35 @@ def main() -> None:
     print("RENDERED FILES")
     print(f"  Notification #1: {created_path.resolve()}")
     print(f"  Notification #2: {success_path.resolve()}")
-    print()
-    print("RESULT: PASS — BOTH TEST-ONLY NOTIFICATION IMAGES RENDERED")
-    print("No Discord request was sent and no production application file was touched.")
+
+    if args.send_discord:
+        webhook_url = args.webhook_url or os.getenv("DISCORD_WEBHOOK_URL")
+        if not webhook_url:
+            raise SystemExit("--send-discord requires DISCORD_WEBHOOK_URL or --webhook-url.")
+
+        sender = DiscordWebhookSender(webhook_url)
+        print()
+        print("DISCORD DELIVERY")
+        print("  Sending notification #1...")
+        sender.send(
+            created_path,
+            title="Order Created - Payment Required",
+            content="TEST ONLY — Order created; payment is required.",
+        )
+        print("  Notification #1: HTTP success")
+        print("  Sending notification #2...")
+        sender.send(
+            success_path,
+            title="Purchase Successful!",
+            content="TEST ONLY — Purchase successfully reached To Ship.",
+        )
+        print("  Notification #2: HTTP success")
+        print()
+        print("RESULT: PASS — BOTH IMAGES RENDERED AND DELIVERED TO DISCORD")
+    else:
+        print()
+        print("RESULT: PASS — BOTH TEST-ONLY NOTIFICATION IMAGES RENDERED")
+        print("No Discord request was sent and no production application file was touched.")
 
 
 if __name__ == "__main__":
