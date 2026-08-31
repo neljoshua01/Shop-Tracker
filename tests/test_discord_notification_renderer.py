@@ -38,8 +38,10 @@ from pathlib import Path
 
 import requests
 
-# Headless-safe Qt rendering. This only affects this isolated test process.
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+# Use the native macOS Qt platform when running locally on macOS. The previous
+# forced "offscreen" setting failed on this environment because that Qt plugin
+# is not installed. Non-macOS test environments remain headless-safe.
+os.environ.setdefault("QT_QPA_PLATFORM", "cocoa" if sys.platform == "darwin" else "offscreen")
 
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QGuiApplication, QImage, QPainter, QPen
