@@ -13,7 +13,7 @@ import os
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any, Awaitable, Callable, Optional
 from urllib.parse import urlsplit, parse_qsl
 
 from core.runtime.async_runtime import AsyncRuntime
@@ -68,7 +68,11 @@ class PostOrderTracker:
     BODY_INSPECTION_INTERVAL_SECONDS = 1.5
     MAX_TEXT_EXCERPT = 800
 
-    def __init__(self, timeout_seconds: Optional[float] = None):
+    def __init__(
+        self,
+        timeout_seconds: Optional[float] = None,
+        on_state: Optional[Callable[[PostOrderNavigation], Awaitable[None] | None]] = None,
+    ):
         if timeout_seconds is None:
             raw_timeout = os.getenv("SHOPEE_POST_ORDER_TIMEOUT_SECONDS")
             if raw_timeout:
@@ -91,6 +95,8 @@ class PostOrderTracker:
         self._navigations: list[PostOrderNavigation] = []
         self._completed = False
         self._listener_removed = False
+        self._on_state = on_state
+        self._state_callbacks_fired: set[str] = set()
 
     @property
     def navigations(self) -> list[PostOrderNavigation]:
@@ -183,9 +189,6 @@ class PostOrderTracker:
                 if self._completed:
                     break
 
-                # Do not use page.wait_for_timeout() from synchronous code.
-                # asyncio.sleep keeps the polling coroutine cooperative while
-                # avoiding any blocking call against the async Playwright API.
                 import asyncio
                 await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
         finally:
@@ -281,6 +284,26 @@ class PostOrderTracker:
             self._completed = True
             print("[PostOrderTracker] PURCHASE COMPLETION / RECEIPT STATE DETECTED.")
 
+        await self._notify_state_async(navigation)
+
+    async def _notify_state_async(self, navigation: PostOrderNavigation) -> None:
+        if self._on_state is None:
+            return
+        if navigation.state in self._state_callbacks_fired:
+            return
+        if navigation.state != "PAYMENT_CONTINUATION":
+            return
+
+        self._state_callbacks_fired.add(navigation.state)
+        try:
+            result = self._on_state(navigation)
+            if result is not None:
+                await result
+        except Exception as exc:
+            # The observer must never turn a successful Place Order click into
+            # a failed checkout merely because the optional identity check failed.
+            print(f"[PostOrderTracker] State integration warning: {exc}")
+
     async def _inspect_current_state_async(self) -> None:
         if self._page is None:
             return
@@ -363,9 +386,6 @@ class PostOrderTracker:
         if any(phrase in normalized for phrase in completion_phrases):
             return "PURCHASE_COMPLETED"
 
-        # A final order page is only considered completed when its visible
-        # content contains a strong order/confirmation signal. This avoids
-        # treating a generic /orders page as a successful purchase.
         order_path = (
             "/buyer/orders" in path_lower
             or "/order/" in path_lower
