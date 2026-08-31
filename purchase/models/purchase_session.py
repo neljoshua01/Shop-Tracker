@@ -52,6 +52,10 @@ class PurchaseSession:
     monitored_checkout_id: Optional[int] = None
     monitored_order_identity_verified: bool = False
 
+    # Step 2: successful-purchase identity established after the same
+    # Step 1 order is confirmed in Shopee's To Ship page.
+    successful_purchase_identity_verified: bool = False
+
     # Opaque, hashable engine owner for this one purchase attempt.
     # Services use this token rather than using themselves as an
     # owner, so the browser page survives service handoffs.
