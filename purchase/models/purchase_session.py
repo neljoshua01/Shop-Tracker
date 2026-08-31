@@ -45,6 +45,13 @@ class PurchaseSession:
 
     browser_session: Optional[BrowserSession] = None
 
+    # Step 1: authoritative order identity established after Place Order.
+    # These fields remain unset until Shopee's My Purchase order-list
+    # response confirms the exact monitored SKU.
+    monitored_order_id: Optional[int] = None
+    monitored_checkout_id: Optional[int] = None
+    monitored_order_identity_verified: bool = False
+
     # Opaque, hashable engine owner for this one purchase attempt.
     # Services use this token rather than using themselves as an
     # owner, so the browser page survives service handoffs.
