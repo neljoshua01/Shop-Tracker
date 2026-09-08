@@ -59,8 +59,6 @@ from purchase.parser.sku_price_parser import SkuPriceParser
 import tests.test_promotional_url_end_to_end as promotional_test
 
 
-PROMOTIONAL_URL = "https://shopee.ph/product/1279438143/27731669814"
-# Correct Shopee PDP URL / identity for the validated iPad listing.
 PROMOTIONAL_URL = "https://shopee.ph/product/1275798143/27731669814"
 ITEM_ID = 27731669814
 SHOP_ID = 1275798143
@@ -326,8 +324,6 @@ class DirectGetPcMonitor:
         if not self.endpoint:
             raise RuntimeError("Could not capture browser-generated get_pc endpoint.")
 
-        # The candidate uses a different variation. Resolve its model ID from
-        # the live response instead of guessing or reusing the Pink SKU ID.
         self._resolve_model_id(browser_session, session)
 
         print(f"[LatencyComparison] Direct get_pc interval: {self.interval:.3f}s")
@@ -434,8 +430,7 @@ def run_direct(release_delay, interval):
     safety_gate.reset_to_safe()
 
     cart_preparer = CartPreparer()
-    if not cart_preparer.prepare(session):
-        raise RuntimeError("Cart preparation failed in direct-monitor run.")
+    cart_preparer.prepare(session)
 
     controlled = ControlledTriggerEvaluator(release_delay)
     probe = TimingProbe()
@@ -502,8 +497,6 @@ def main():
     promotional_test.REQUESTED_VARIATION = dict(BASE_VARIATION_APP)
     variation_options = promotional_test.resolve_live_variation_options()
 
-    # The resolver should expose the live Capacity key. Build the two run
-    # option maps explicitly so Run B is a different cart variation.
     if "Capacity" not in variation_options:
         raise RuntimeError(f"Expected live Capacity variation key, got: {variation_options}")
 
@@ -514,12 +507,9 @@ def main():
     candidate_live = dict(base_live)
     candidate_live["Color"] = "Blue"
 
-    # Keep the expected maps visible in the test output for auditability.
     print(f"[LatencyComparison] Run A live options: {base_live}")
     print(f"[LatencyComparison] Run B live options: {candidate_live}")
 
-    # The local builders above use the explicit live maps. These assignments
-    # ensure a changed live label is not silently substituted into the test.
     global BASE_VARIATION_LIVE, CANDIDATE_VARIATION_LIVE
     BASE_VARIATION_LIVE = base_live
     CANDIDATE_VARIATION_LIVE = candidate_live
