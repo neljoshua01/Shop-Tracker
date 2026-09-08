@@ -1,3 +1,4 @@
+import asyncio
 import inspect
 
 from core.runtime.async_runtime import AsyncRuntime
@@ -156,10 +157,21 @@ class BrowserEngine:
                 result = callback(response)
 
                 if inspect.isawaitable(result):
-
-                    self.runtime.submit(
-                        self._await_callback(result)
-                    )
+                    #
+                    # IMPORTANT:
+                    #
+                    # Playwright response objects are tied to the
+                    # Playwright event loop.  The response event itself
+                    # already runs on AsyncRuntime's Playwright loop, so
+                    # schedule the callback directly on that loop instead
+                    # of routing it through run_coroutine_threadsafe().
+                    #
+                    # The previous cross-thread submission could delay
+                    # response.json() long enough for a fast 1s PDP reload
+                    # to invalidate the CDP response body, producing:
+                    #   Network.getResponseBody: No resource with given identifier found
+                    #
+                    asyncio.create_task(self._await_callback(result))
 
             except Exception as e:
 
