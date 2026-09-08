@@ -72,7 +72,6 @@ DEFAULT_VARIATION = {
     "Storage": "256GB",
 }
 
-# Shopee's integer price representation observed in get_pc.
 OBSERVED_BASELINE_PRICE = 7848100000
 
 
@@ -145,7 +144,8 @@ def resolve_live_variation_options():
     from execution.browser.browser_action import BrowserActions
 
     connector = BrowserConnector()
-    browser_session = connector.open(PROMOTIONAL_URL)
+    owner = object()
+    browser_session = connector.open_session(owner, PROMOTIONAL_URL)
     browser = BrowserActions(browser_session)
 
     try:
@@ -227,7 +227,7 @@ def resolve_live_variation_options():
 
     finally:
         try:
-            connector.close(browser_session)
+            connector.close_session(owner)
         except Exception as exc:
             print(f"[TEST] Variation discovery cleanup warning: {exc}")
 
