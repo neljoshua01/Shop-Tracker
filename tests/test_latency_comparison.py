@@ -10,14 +10,16 @@ Compares two monitoring strategies against the same live Shopee PDP:
     A) CURRENT: production SkuPriceMonitor with 5s polling.
     B) CANDIDATE: test-only direct same-page get_pc fetch at 1s cadence.
 
-Both runs use a DISTINCT promotional SKU:
-    Color: Deep Blue
-    Capacity: 256GB
-    model_id: 139454633410
+Both runs use the validated Apple iPad 11th Gen A16 SKU:
+    Color: Pink
+    Capacity: 128GB
+    model_id: 185943879173
 
-This deliberately differs from the previously tested Silver / 256GB SKU so
-an existing Silver / 256GB cart item cannot collide with this experiment when
-the promotional event permits only one purchase per product variation.
+This SKU was previously validated through the real production checkout path,
+including SPayLater detection/selection, and has a checkout total within the
+known SPayLater credit used for this test. It is intentionally used here
+instead of the more expensive iPhone 17 Pro Max SKU, which previously failed
+at the SPayLater selection stage during this comparison.
 
 Both runs:
     - prepare the real cart with the production CartPreparer
@@ -64,30 +66,33 @@ from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.execution.cart_preparer import CartPreparer
-from purchase.models.purchase_session import PurchaseSession
 from purchase.parser.sku_price_parser import SkuPriceParser
 
 import tests.test_promotional_url_end_to_end as promotional_test
 
 
-PROMOTIONAL_URL = promotional_test.PROMOTIONAL_URL
-ITEM_ID = 26342037051
+PROMOTIONAL_URL = "https://shopee.ph/product/1275798143/27731669814"
+ITEM_ID = 27731669814
 SHOP_ID = 1275798143
 GET_PC_PATH = "/api/v4/pdp/get_pc"
 
-# Deliberately different from the previously tested Silver / 256GB SKU.
+# Validated production checkout SKU.
 TEST_VARIATION = {
-    "Color": "Deep Blue",
-    "Storage": "256GB",
+    "Color": "Pink",
+    "Storage": "128GB",
 }
-TEST_MODEL_ID = 139454633410
-OBSERVED_BASELINE_PRICE = promotional_test.OBSERVED_BASELINE_PRICE
+TEST_MODEL_ID = 185943879173
+
+# Shopee integer price observed for this SKU during the validated checkout.
+OBSERVED_BASELINE_PRICE = 3101100000
 
 
 def configure_test_variation():
     """Configure only the imported TEST fixture for this test process."""
+    promotional_test.PROMOTIONAL_URL = PROMOTIONAL_URL
     promotional_test.REQUESTED_VARIATION = dict(TEST_VARIATION)
     promotional_test.DEFAULT_MODEL_ID = TEST_MODEL_ID
+    promotional_test.OBSERVED_BASELINE_PRICE = OBSERVED_BASELINE_PRICE
 
 
 class ControlledTriggerEvaluator:
@@ -166,7 +171,7 @@ class DirectGetPcMonitor:
             except Exception:
                 pass
 
-    def run(self, session: PurchaseSession):
+    def run(self, session):
         browser_session = session.browser_session
         if browser_session is None:
             raise RuntimeError("Browser session unavailable for direct monitor.")
@@ -272,7 +277,9 @@ def prepare_session(variation_options, polling_interval):
         polling_interval=int(polling_interval),
         variation_options=variation_options,
     )
-    session.variation.name = "Deep Blue / 256GB"
+    session.variation.name = "Pink / 128GB"
+    session.variation.model_id = TEST_MODEL_ID
+    session.variation.price = OBSERVED_BASELINE_PRICE
     return session
 
 
@@ -280,7 +287,9 @@ def run_baseline(variation_options, release_delay, polling_interval):
     print("\n" + "=" * 72)
     print("RUN A — CURRENT PRODUCTION MONITOR")
     print("=" * 72)
+    print(f"Product: Apple iPad 11th Gen A16")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
+    print(f"Item ID: {ITEM_ID}")
     print(f"Model ID: {TEST_MODEL_ID}")
     print(f"Polling interval: {polling_interval:.3f}s")
     print(f"Controlled release delay: {release_delay:.3f}s")
@@ -320,7 +329,6 @@ def run_baseline(variation_options, release_delay, polling_interval):
         "release_to_trigger_ms": release_to_trigger,
         "trigger_to_place_order_ms": trigger_to_place,
         "valid_observations": controlled.valid_observations,
-        "started_ns": time.perf_counter_ns(),
     }
 
 
@@ -328,7 +336,9 @@ def run_direct(variation_options, release_delay, interval):
     print("\n" + "=" * 72)
     print("RUN B — CANDIDATE DIRECT get_pc MONITOR")
     print("=" * 72)
+    print(f"Product: Apple iPad 11th Gen A16")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
+    print(f"Item ID: {ITEM_ID}")
     print(f"Model ID: {TEST_MODEL_ID}")
     print(f"Direct get_pc interval: {interval:.3f}s")
     print(f"Controlled release delay: {release_delay:.3f}s")
@@ -378,7 +388,6 @@ def run_direct(variation_options, release_delay, interval):
         "direct_requests": direct_monitor.request_count,
         "direct_successes": direct_monitor.success_count,
         "direct_errors": direct_monitor.error_count,
-        "started_ns": time.perf_counter_ns(),
     }
 
 
@@ -398,6 +407,7 @@ def main():
     print("V2 ISOLATED LATENCY COMPARISON")
     print("=" * 72)
     print(f"PDP: {PROMOTIONAL_URL}")
+    print(f"Product: Apple iPad 11th Gen A16")
     print(f"Item ID: {ITEM_ID}")
     print(f"Shop ID: {SHOP_ID}")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
@@ -460,10 +470,12 @@ def main():
         "direct": direct,
         "parameters": vars(args),
         "test_sku": {
+            "product": "Apple iPad 11th Gen A16",
             "item_id": ITEM_ID,
             "shop_id": SHOP_ID,
             "model_id": TEST_MODEL_ID,
             "variation": dict(TEST_VARIATION),
+            "checkout_total_observed": 31161,
         },
     }
     with open("latency_comparison_result.json", "w", encoding="utf-8") as handle:
