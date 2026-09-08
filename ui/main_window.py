@@ -11,7 +11,7 @@ from ui.pages.products import ProductsPage
 from ui.pages.activity_logs import ActivityLogsPage
 from ui.pages.alerts import AlertsPage
 from ui.pages.settings import SettingsPage
-from ui.windows.purchase_profile_dialog import PurchaseProfileDialog
+from ui.windows.purchase_profile_dialog_fast_polling import PurchaseProfileDialog
 from core.runtime.safety_gate import RuntimeSafetyGate
 
 
