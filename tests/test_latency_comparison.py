@@ -10,6 +10,15 @@ Compares two monitoring strategies against the same live Shopee PDP:
     A) CURRENT: production SkuPriceMonitor with 5s polling.
     B) CANDIDATE: test-only direct same-page get_pc fetch at 1s cadence.
 
+Both runs use a DISTINCT promotional SKU:
+    Color: Deep Blue
+    Capacity: 256GB
+    model_id: 139454633410
+
+This deliberately differs from the previously tested Silver / 256GB SKU so
+an existing Silver / 256GB cart item cannot collide with this experiment when
+the promotional event permits only one purchase per product variation.
+
 Both runs:
     - prepare the real cart with the production CartPreparer
     - parse real live get_pc responses with the production SkuPriceParser
@@ -57,20 +66,28 @@ from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluat
 from purchase.execution.cart_preparer import CartPreparer
 from purchase.models.purchase_session import PurchaseSession
 from purchase.parser.sku_price_parser import SkuPriceParser
-from purchase.services.sku_price_monitor import SkuPriceMonitor
 
-from tests.test_promotional_url_end_to_end import (
-    DEFAULT_MODEL_ID,
-    OBSERVED_BASELINE_PRICE,
-    PROMOTIONAL_URL,
-    build_session,
-    resolve_live_variation_options,
-)
+import tests.test_promotional_url_end_to_end as promotional_test
 
 
+PROMOTIONAL_URL = promotional_test.PROMOTIONAL_URL
 ITEM_ID = 26342037051
 SHOP_ID = 1275798143
 GET_PC_PATH = "/api/v4/pdp/get_pc"
+
+# Deliberately different from the previously tested Silver / 256GB SKU.
+TEST_VARIATION = {
+    "Color": "Deep Blue",
+    "Storage": "256GB",
+}
+TEST_MODEL_ID = 139454633410
+OBSERVED_BASELINE_PRICE = promotional_test.OBSERVED_BASELINE_PRICE
+
+
+def configure_test_variation():
+    """Configure only the imported TEST fixture for this test process."""
+    promotional_test.REQUESTED_VARIATION = dict(TEST_VARIATION)
+    promotional_test.DEFAULT_MODEL_ID = TEST_MODEL_ID
 
 
 class ControlledTriggerEvaluator:
@@ -127,11 +144,6 @@ class DirectGetPcMonitor:
         self.request_start_times = []
         self.endpoint = None
 
-    def _capture_endpoint(self, response):
-        if self.endpoint is None and GET_PC_PATH in response.url:
-            self.endpoint = response.url
-            print(f"[LatencyComparison] Browser-generated get_pc endpoint captured.")
-
     def _wait_for_endpoint(self, browser_session):
         connector = BrowserConnector()
         owner = object()
@@ -159,10 +171,7 @@ class DirectGetPcMonitor:
         if browser_session is None:
             raise RuntimeError("Browser session unavailable for direct monitor.")
 
-        if browser_session.page.url != PROMOTIONAL_URL:
-            self._wait_for_endpoint(browser_session)
-        else:
-            self._wait_for_endpoint(browser_session)
+        self._wait_for_endpoint(browser_session)
 
         if not self.endpoint:
             raise RuntimeError("Could not capture browser-generated get_pc endpoint.")
@@ -225,12 +234,9 @@ class DirectGetPcMonitor:
 
 
 def install_place_order_probe(probe: TimingProbe):
-    original = __import__(
-        "execution.checkout.checkout_verifier", fromlist=["CheckoutVerifier"]
-    ).CheckoutVerifier.verify_place_order
-    verifier_cls = __import__(
-        "execution.checkout.checkout_verifier", fromlist=["CheckoutVerifier"]
-    ).CheckoutVerifier
+    from execution.checkout.checkout_verifier import CheckoutVerifier
+
+    original = CheckoutVerifier.verify_place_order
 
     async def timed_verify(self, page):
         result = await original(self, page)
@@ -238,10 +244,10 @@ def install_place_order_probe(probe: TimingProbe):
             probe.mark_place_order()
         return result
 
-    verifier_cls.verify_place_order = timed_verify
+    CheckoutVerifier.verify_place_order = timed_verify
 
     def restore():
-        verifier_cls.verify_place_order = original
+        CheckoutVerifier.verify_place_order = original
 
     return restore
 
@@ -261,17 +267,21 @@ def install_controlled_evaluator(controlled: ControlledTriggerEvaluator):
 
 
 def prepare_session(variation_options, polling_interval):
-    return build_session(
+    session = promotional_test.build_session(
         target_price=OBSERVED_BASELINE_PRICE,
         polling_interval=int(polling_interval),
         variation_options=variation_options,
     )
+    session.variation.name = "Deep Blue / 256GB"
+    return session
 
 
 def run_baseline(variation_options, release_delay, polling_interval):
     print("\n" + "=" * 72)
     print("RUN A — CURRENT PRODUCTION MONITOR")
     print("=" * 72)
+    print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
+    print(f"Model ID: {TEST_MODEL_ID}")
     print(f"Polling interval: {polling_interval:.3f}s")
     print(f"Controlled release delay: {release_delay:.3f}s")
     print("Mode: SAFE — Place Order will NOT be clicked")
@@ -283,7 +293,6 @@ def run_baseline(variation_options, release_delay, polling_interval):
     restore_probe = install_place_order_probe(probe)
     pipeline = PurchasePipeline()
 
-    started_ns = time.perf_counter_ns()
     try:
         result = pipeline.run(session)
     finally:
@@ -311,7 +320,7 @@ def run_baseline(variation_options, release_delay, polling_interval):
         "release_to_trigger_ms": release_to_trigger,
         "trigger_to_place_order_ms": trigger_to_place,
         "valid_observations": controlled.valid_observations,
-        "started_ns": started_ns,
+        "started_ns": time.perf_counter_ns(),
     }
 
 
@@ -319,6 +328,8 @@ def run_direct(variation_options, release_delay, interval):
     print("\n" + "=" * 72)
     print("RUN B — CANDIDATE DIRECT get_pc MONITOR")
     print("=" * 72)
+    print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
+    print(f"Model ID: {TEST_MODEL_ID}")
     print(f"Direct get_pc interval: {interval:.3f}s")
     print(f"Controlled release delay: {release_delay:.3f}s")
     print("Mode: SAFE — Place Order will NOT be clicked")
@@ -336,7 +347,6 @@ def run_direct(variation_options, release_delay, interval):
     direct_monitor = DirectGetPcMonitor(controlled, interval)
     restore_probe = install_place_order_probe(probe)
 
-    started_ns = time.perf_counter_ns()
     try:
         triggered = direct_monitor.run(session)
         if not triggered:
@@ -368,7 +378,7 @@ def run_direct(variation_options, release_delay, interval):
         "direct_requests": direct_monitor.request_count,
         "direct_successes": direct_monitor.success_count,
         "direct_errors": direct_monitor.error_count,
-        "started_ns": started_ns,
+        "started_ns": time.perf_counter_ns(),
     }
 
 
@@ -382,12 +392,16 @@ def main():
     if args.release_delay <= 0 or args.baseline_interval <= 0 or args.direct_interval <= 0:
         raise SystemExit("All timing values must be greater than zero.")
 
+    configure_test_variation()
+
     print("\n" + "=" * 72)
     print("V2 ISOLATED LATENCY COMPARISON")
     print("=" * 72)
     print(f"PDP: {PROMOTIONAL_URL}")
     print(f"Item ID: {ITEM_ID}")
-    print(f"Model ID: {DEFAULT_MODEL_ID}")
+    print(f"Shop ID: {SHOP_ID}")
+    print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
+    print(f"Model ID: {TEST_MODEL_ID}")
     print(f"Baseline: {args.baseline_interval:.3f}s browser-generated get_pc")
     print(f"Candidate: {args.direct_interval:.3f}s direct same-page get_pc")
     print(f"Controlled release: {args.release_delay:.3f}s after first valid observation")
@@ -397,7 +411,7 @@ def main():
 
     RuntimeSafetyGate.instance().reset_to_safe()
     print("[LatencyComparison] Resolving live variation labels...")
-    variation_options = resolve_live_variation_options()
+    variation_options = promotional_test.resolve_live_variation_options()
 
     baseline = run_baseline(
         variation_options,
@@ -405,7 +419,6 @@ def main():
         args.baseline_interval,
     )
 
-    # Reset SAFE before the candidate run and use a fresh cart/session.
     RuntimeSafetyGate.instance().reset_to_safe()
     direct = run_direct(
         variation_options,
@@ -425,10 +438,9 @@ def main():
     print(f"{'Release -> trigger detection':<32} {fmt(baseline['release_to_trigger_ms']):>16} {fmt(direct['release_to_trigger_ms']):>16}")
     print(f"{'Trigger -> Place Order':<32} {fmt(baseline['trigger_to_place_order_ms']):>16} {fmt(direct['trigger_to_place_order_ms']):>16}")
     print(f"{'Valid live observations':<32} {baseline['valid_observations']:>16} {direct['valid_observations']:>16}")
-    if 'direct_requests' in direct:
-        print(f"{'Direct requests':<32} {'N/A':>16} {direct['direct_requests']:>16}")
-        print(f"{'Direct successful requests':<32} {'N/A':>16} {direct['direct_successes']:>16}")
-        print(f"{'Direct errors':<32} {'N/A':>16} {direct['direct_errors']:>16}")
+    print(f"{'Direct requests':<32} {'N/A':>16} {direct['direct_requests']:>16}")
+    print(f"{'Direct successful requests':<32} {'N/A':>16} {direct['direct_successes']:>16}")
+    print(f"{'Direct errors':<32} {'N/A':>16} {direct['direct_errors']:>16}")
 
     if baseline['release_to_trigger_ms'] is not None and direct['release_to_trigger_ms'] is not None:
         detection_improvement = baseline['release_to_trigger_ms'] - direct['release_to_trigger_ms']
@@ -447,6 +459,12 @@ def main():
         "baseline": baseline,
         "direct": direct,
         "parameters": vars(args),
+        "test_sku": {
+            "item_id": ITEM_ID,
+            "shop_id": SHOP_ID,
+            "model_id": TEST_MODEL_ID,
+            "variation": dict(TEST_VARIATION),
+        },
     }
     with open("latency_comparison_result.json", "w", encoding="utf-8") as handle:
         json.dump(output, handle, indent=2)
