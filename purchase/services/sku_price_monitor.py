@@ -2,6 +2,8 @@
 Monitors Shopee get_pc responses for the selected SKU.
 """
 
+import asyncio
+import threading
 from threading import Event
 
 from execution.browser.browser_connector import BrowserConnector
@@ -29,6 +31,10 @@ class SkuPriceMonitor:
         self._stopped = True
         self._callback_session = None
         self._callback_registered = False
+        self._capture_done = Event()
+        self._capture_done.set()
+        self._capture_lock = threading.Lock()
+        self._capture_pending = 0
 
     def start(self, session: PurchaseSession):
         self.session = session
@@ -36,6 +42,9 @@ class SkuPriceMonitor:
         self.updated.clear()
         self.triggered.clear()
         self.stop_event.clear()
+        self._capture_done.set()
+        with self._capture_lock:
+            self._capture_pending = 0
         self.monitoring = True
         self._stopped = False
         browser_session = session.browser_session
@@ -113,10 +122,6 @@ class SkuPriceMonitor:
                 print()
                 print("[SkuPriceMonitor] Refreshing PDP for get_pc...")
 
-                # A one-second poll interval must not allow the next reload to
-                # invalidate the previous response while its async callback is
-                # still reading the response body. Serialize each cycle on a
-                # successfully processed get_pc response.
                 self.updated.clear()
 
                 try:
@@ -148,31 +153,53 @@ class SkuPriceMonitor:
                         "during the polling window; retrying."
                     )
 
+                # The next reload must never invalidate a get_pc response whose
+                # body is still being captured by Playwright.
+                if not self._capture_done.wait(timeout=self.poll_interval):
+                    print(
+                        "[SkuPriceMonitor] Waiting for in-flight get_pc response "
+                        "capture before retrying."
+                    )
+                    self._capture_done.wait()
+
         finally:
             self._unregister_callback()
             self.monitoring = False
             print("[SkuPriceMonitor] Monitoring stopped.")
 
-    async def on_browser_response(self, response):
+    def on_browser_response(self, response):
         if self._stopped:
             return
 
         if "/api/v4/pdp/get_pc" not in response.url:
             return
 
+        with self._capture_lock:
+            self._capture_pending += 1
+            self._capture_done.clear()
+
         print("[SkuPriceMonitor] get_pc response callback received.")
+        return self._handle_browser_response(response)
 
+    async def _handle_browser_response(self, response):
         try:
-            data = await response.json()
-        except Exception as e:
-            print(f"[SkuPriceMonitor] Failed to decode get_pc response: {e}")
-            return
+            try:
+                data = await response.json()
+            except Exception as e:
+                print(f"[SkuPriceMonitor] Failed to decode get_pc response: {e}")
+                return
 
-        if not isinstance(data, dict):
-            print("[SkuPriceMonitor] get_pc response is not a JSON object.")
-            return
+            if not isinstance(data, dict):
+                print("[SkuPriceMonitor] get_pc response is not a JSON object.")
+                return
 
-        self._process_get_pc(data)
+            self._process_get_pc(data)
+        finally:
+            with self._capture_lock:
+                self._capture_pending -= 1
+                if self._capture_pending <= 0:
+                    self._capture_pending = 0
+                    self._capture_done.set()
 
     def _process_get_pc(self, data: dict):
         print("[SkuPriceMonitor] get_pc response detected.")
