@@ -23,8 +23,16 @@ variation discovery and production PurchasePipeline path can be exercised.
 """
 
 import argparse
+import os
 import sys
 import time
+
+# Allow direct execution as `python3 tests/test_purchase_response_time.py`
+# from the repository root, where Python otherwise places `tests/` first on
+# sys.path and cannot resolve the production `purchase` package.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
 
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
