@@ -2,7 +2,6 @@
 Monitors Shopee get_pc responses for the selected SKU.
 """
 
-import asyncio
 import threading
 from threading import Event
 
@@ -153,8 +152,8 @@ class SkuPriceMonitor:
                         "during the polling window; retrying."
                     )
 
-                # The next reload must never invalidate a get_pc response whose
-                # body is still being captured by Playwright.
+                # Never navigate away while a get_pc response body is still
+                # being captured by the Playwright event-loop callback.
                 if not self._capture_done.wait(timeout=self.poll_interval):
                     print(
                         "[SkuPriceMonitor] Waiting for in-flight get_pc response "
@@ -174,6 +173,10 @@ class SkuPriceMonitor:
         if "/api/v4/pdp/get_pc" not in response.url:
             return
 
+        # BrowserEngine invokes this synchronous boundary immediately on the
+        # Playwright event-loop thread. Mark the body capture as pending before
+        # returning the async handler, so the monitor thread cannot start a
+        # second reload before the callback task begins execution.
         with self._capture_lock:
             self._capture_pending += 1
             self._capture_done.clear()
