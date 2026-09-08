@@ -10,10 +10,17 @@ from purchase.models.product_reference import ProductReference
 class URLParser:
     """
     Parses Shopee product URLs.
+
+    Supports both Shopee's standard product URL form and the
+    /product/{shop_id}/{item_id} form used by promotional links.
     """
 
     PRODUCT_PATTERN = re.compile(
         r"i\.(\d+)\.(\d+)"
+    )
+
+    PRODUCT_PATH_PATTERN = re.compile(
+        r"/product/(\d+)/(\d+)(?:[/?#]|$)"
     )
 
     @classmethod
@@ -32,6 +39,9 @@ class URLParser:
             raise ValueError("URL cannot be empty.")
 
         match = cls.PRODUCT_PATTERN.search(url)
+
+        if match is None:
+            match = cls.PRODUCT_PATH_PATTERN.search(url)
 
         if match is None:
             raise ValueError("Invalid Shopee product URL.")
