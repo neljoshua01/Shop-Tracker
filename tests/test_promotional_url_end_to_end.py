@@ -43,7 +43,6 @@ Observed SKU used by default:
 
 import argparse
 import sys
-from dataclasses import dataclass
 
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.models.product_info import ProductInfo
@@ -65,31 +64,20 @@ DEFAULT_VARIATION = {
     "Storage": "256GB",
 }
 
-# The value is in Shopee's integer price representation, matching get_pc.
-# It is intentionally NOT used as the default trigger target because that
-# would immediately trigger against the current baseline price.
+# Shopee's integer price representation observed in get_pc.
 OBSERVED_BASELINE_PRICE = 7848100000
-
-
-@dataclass(slots=True)
-class TestResult:
-    preparation_reached: bool = False
-    monitor_started: bool = False
-    trigger_reached: bool = False
-    checkout_reached: bool = False
-    place_order_authorized: bool = False
-    monitored_order_verified: bool = False
-    successful_purchase_verified: bool = False
 
 
 def build_session(
     *,
-    target_price: int | None,
+    target_price: int,
     polling_interval: int,
 ) -> PurchaseSession:
     """Build the same runtime objects consumed by production purchase code."""
 
     reference = ProductReference(
+        shop_id=1275798143,
+        item_id=26342037051,
         url=PROMOTIONAL_URL,
     )
 
@@ -139,14 +127,14 @@ def print_header(args):
     print("=" * 72)
     print("PROMOTIONAL URL — ISOLATED END-TO-END TEST")
     print("=" * 72)
-    print(f"URL:             {PROMOTIONAL_URL}")
-    print(f"Item ID:         26342037051")
-    print(f"Shop ID:         1275798143")
-    print(f"Model ID:        {DEFAULT_MODEL_ID}")
-    print(f"Variation:       {DEFAULT_VARIATION}")
-    print(f"Polling:         {args.polling_interval}s")
-    print(f"Trigger target:  {args.target_price}")
-    print(f"Real Place Order:{args.execute_place_order}")
+    print(f"URL:              {PROMOTIONAL_URL}")
+    print(f"Item ID:          26342037051")
+    print(f"Shop ID:          1275798143")
+    print(f"Model ID:         {DEFAULT_MODEL_ID}")
+    print(f"Variation:        {DEFAULT_VARIATION}")
+    print(f"Polling:          {args.polling_interval}s")
+    print(f"Trigger target:   {args.target_price}")
+    print(f"Real Place Order: {args.execute_place_order}")
     print()
     if args.execute_place_order:
         print("WARNING: REAL PURCHASE MODE ENABLED.")
@@ -160,22 +148,18 @@ def print_header(args):
 def run(args) -> int:
     print_header(args)
 
-    # Import the production safety gate only here so the default test remains
-    # fail-closed even if a previous application run left the runtime state
-    # armed.
     from core.runtime.safety_gate import RuntimeSafetyGate
 
     safety_gate = RuntimeSafetyGate.instance()
 
-    if not args.execute_place_order:
+    # The test itself controls only the in-process runtime gate. It does not
+    # change settings.json or any production configuration.
+    if args.execute_place_order:
+        print("[TEST] Explicit real-order flag received; arming the existing runtime gate.")
+        safety_gate.set_armed(True)
+    else:
         print("[TEST] Forcing the runtime gate to SAFE for this rehearsal.")
-        try:
-            safety_gate.disarm()
-        except AttributeError:
-            # The test must never invent a safety API. If this version exposes
-            # no disarm method, the existing gate remains authoritative and
-            # CheckoutExecutor will fail closed.
-            print("[TEST] Safety gate has no public disarm(); relying on its current state.")
+        safety_gate.reset_to_safe()
 
     session = build_session(
         target_price=args.target_price,
@@ -195,12 +179,11 @@ def run(args) -> int:
         print("=" * 72)
         print("TEST RESULT")
         print("=" * 72)
-        print(f"Pipeline returned:                    {result}")
-        print(f"Final session status:                 {session.status}")
-        print(f"Monitored order identity verified:   {session.monitored_order_identity_verified}")
-        print(f"Monitored order ID:                   {session.monitored_order_id}")
-        print(f"Successful purchase identity verified:{session.successful_purchase_identity_verified}")
-        print(f"Successful purchase reached To Ship: {session.successful_purchase_identity_verified}")
+        print(f"Pipeline returned:                     {result}")
+        print(f"Final session status:                  {session.status}")
+        print(f"Monitored order identity verified:    {session.monitored_order_identity_verified}")
+        print(f"Monitored order ID:                    {session.monitored_order_id}")
+        print(f"Successful purchase identity verified: {session.successful_purchase_identity_verified}")
         print("=" * 72)
 
         if not result:
@@ -238,11 +221,12 @@ def parse_args():
     parser.add_argument(
         "--target-price",
         type=int,
-        default=None,
+        default=OBSERVED_BASELINE_PRICE,
         help=(
             "Purchase trigger target in Shopee integer price units. "
-            "Required for the normal PRICE_TARGET evaluator; choose a value "
-            "that only triggers when the desired event price appears."
+            "Defaults to the observed baseline so the structural flow can "
+            "be exercised before the 9.9 event. For event testing, set the "
+            "desired promotional threshold instead."
         ),
     )
     parser.add_argument(
