@@ -20,8 +20,8 @@ class PurchaseProfileService:
         if profile.quantity < 1:
             raise ValueError("Quantity must be at least 1.")
 
-        if profile.polling_interval < 5:
-            raise ValueError("Polling interval must be at least 5 seconds.")
+        if profile.polling_interval < 1:
+            raise ValueError("Polling interval must be at least 1 second.")
 
         if (
             profile.trigger
