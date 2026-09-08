@@ -66,6 +66,13 @@ from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.execution.cart_preparer import CartPreparer
+from purchase.models.product_info import ProductInfo
+from purchase.models.product_reference import ProductReference
+from purchase.models.purchase_request import PurchaseRequest
+from purchase.models.purchase_session import PurchaseSession
+from purchase.models.trigger_condition import TriggerCondition
+from purchase.models.variation import Variation
+from purchase.models.payment_method import PaymentMethod
 from purchase.parser.sku_price_parser import SkuPriceParser
 
 import tests.test_promotional_url_end_to_end as promotional_test
@@ -85,10 +92,12 @@ TEST_MODEL_ID = 185943879173
 
 # Shopee integer price observed for this SKU during the validated checkout.
 OBSERVED_BASELINE_PRICE = 3101100000
+# Validated checkout target used in the prior production rehearsal.
+TEST_TARGET_PRICE = 3500000000
 
 
 def configure_test_variation():
-    """Configure only the imported TEST fixture for this test process."""
+    """Configure only the imported TEST fixture for live-label discovery."""
     promotional_test.PROMOTIONAL_URL = PROMOTIONAL_URL
     promotional_test.REQUESTED_VARIATION = dict(TEST_VARIATION)
     promotional_test.DEFAULT_MODEL_ID = TEST_MODEL_ID
@@ -272,22 +281,59 @@ def install_controlled_evaluator(controlled: ControlledTriggerEvaluator):
 
 
 def prepare_session(variation_options, polling_interval):
-    session = promotional_test.build_session(
-        target_price=OBSERVED_BASELINE_PRICE,
-        polling_interval=int(polling_interval),
-        variation_options=variation_options,
+    """Build the validated iPad session locally; do not inherit fixture IDs."""
+    reference = ProductReference(
+        shop_id=SHOP_ID,
+        item_id=ITEM_ID,
+        url=PROMOTIONAL_URL,
     )
-    session.variation.name = "Pink / 128GB"
-    session.variation.model_id = TEST_MODEL_ID
-    session.variation.price = OBSERVED_BASELINE_PRICE
-    return session
+
+    request = PurchaseRequest(
+        reference=reference,
+        options=dict(variation_options),
+        quantity=1,
+        auto_checkout=True,
+        target_price=TEST_TARGET_PRICE,
+        payment_method=PaymentMethod.SPAYLATER,
+        trigger=TriggerCondition.PRICE_TARGET,
+        polling_interval=int(polling_interval),
+        lock_selected_variations=True,
+    )
+
+    product = ProductInfo(
+        item_id=ITEM_ID,
+        shop_id=SHOP_ID,
+        product_name="Apple iPad 11th Gen A16 (Wifi)",
+        shop_name="Apple Flagship Store",
+        product_url=PROMOTIONAL_URL,
+        currency="PHP",
+        image="",
+        available_variations=[],
+    )
+
+    variation = Variation(
+        model_id=TEST_MODEL_ID,
+        name="Pink / 128GB",
+        options=dict(variation_options),
+        price=OBSERVED_BASELINE_PRICE,
+        price_before_discount=3569000000,
+        has_stock=True,
+        tier_index=[0, 0],
+        sku_image="",
+    )
+
+    return PurchaseSession(
+        request=request,
+        product=product,
+        variation=variation,
+    )
 
 
 def run_baseline(variation_options, release_delay, polling_interval):
     print("\n" + "=" * 72)
     print("RUN A — CURRENT PRODUCTION MONITOR")
     print("=" * 72)
-    print(f"Product: Apple iPad 11th Gen A16")
+    print("Product: Apple iPad 11th Gen A16")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
     print(f"Item ID: {ITEM_ID}")
     print(f"Model ID: {TEST_MODEL_ID}")
@@ -336,7 +382,7 @@ def run_direct(variation_options, release_delay, interval):
     print("\n" + "=" * 72)
     print("RUN B — CANDIDATE DIRECT get_pc MONITOR")
     print("=" * 72)
-    print(f"Product: Apple iPad 11th Gen A16")
+    print("Product: Apple iPad 11th Gen A16")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
     print(f"Item ID: {ITEM_ID}")
     print(f"Model ID: {TEST_MODEL_ID}")
@@ -407,7 +453,7 @@ def main():
     print("V2 ISOLATED LATENCY COMPARISON")
     print("=" * 72)
     print(f"PDP: {PROMOTIONAL_URL}")
-    print(f"Product: Apple iPad 11th Gen A16")
+    print("Product: Apple iPad 11th Gen A16")
     print(f"Item ID: {ITEM_ID}")
     print(f"Shop ID: {SHOP_ID}")
     print(f"Variation: {TEST_VARIATION['Color']} / {TEST_VARIATION['Storage']}")
@@ -415,6 +461,7 @@ def main():
     print(f"Baseline: {args.baseline_interval:.3f}s browser-generated get_pc")
     print(f"Candidate: {args.direct_interval:.3f}s direct same-page get_pc")
     print(f"Controlled release: {args.release_delay:.3f}s after first valid observation")
+    print("Target price: 3500000000 (validated iPad checkout target)")
     print("Production files changed: NONE")
     print("Place Order: SAFE / detection only")
     print("=" * 72)
@@ -470,11 +517,12 @@ def main():
         "direct": direct,
         "parameters": vars(args),
         "test_sku": {
-            "product": "Apple iPad 11th Gen A16",
+            "product": "Apple iPad 11th Gen A16 (Wifi)",
             "item_id": ITEM_ID,
             "shop_id": SHOP_ID,
             "model_id": TEST_MODEL_ID,
             "variation": dict(TEST_VARIATION),
+            "target_price": TEST_TARGET_PRICE,
             "checkout_total_observed": 31161,
         },
     }
