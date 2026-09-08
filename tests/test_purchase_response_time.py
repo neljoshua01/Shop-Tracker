@@ -26,7 +26,6 @@ import argparse
 import sys
 import time
 
-from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.execution.purchase_pipeline import PurchasePipeline
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.models.purchase_session import PurchaseSession
