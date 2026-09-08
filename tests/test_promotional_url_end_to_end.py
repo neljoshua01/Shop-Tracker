@@ -42,11 +42,16 @@ Observed SKU used by default:
 
 Variation compatibility note:
     The production VariationSelector matches the request against the live PDP
-    section title. The promotional PDP can expose the storage option under a
-    title that differs from the normalized application label "Storage".
-    This test therefore resolves the requested option against the live PDP
-    section before invoking the real production PurchasePipeline. No
-    production selector behavior is changed.
+    section title. The promotional PDP can expose the storage option under
+    a live section title such as "Capacity" during this diagnostic lookup,
+    while the production pipeline may expose/use the application-facing
+    "Storage" section during its own PDP interaction.
+
+    This test therefore uses the diagnostic only to confirm that the requested
+    option value exists on the promotional PDP. It deliberately preserves the
+    original application request labels (Color / Storage) when constructing
+    PurchaseSession so the real production VariationSelector remains the
+    authority for selection. No production selector behavior is changed.
 """
 
 import argparse
@@ -72,6 +77,7 @@ DEFAULT_VARIATION = {
     "Storage": "256GB",
 }
 
+# Shopee's integer price representation observed in get_pc.
 OBSERVED_BASELINE_PRICE = 7848100000
 
 
@@ -115,7 +121,7 @@ def build_session(
     variation = Variation(
         model_id=DEFAULT_MODEL_ID,
         name="Silver / 256GB",
-        options=dict(DEFAULT_VARIATION),
+        options=dict(variation_options),
         price=OBSERVED_BASELINE_PRICE,
         price_before_discount=8699000000,
         has_stock=True,
@@ -132,12 +138,13 @@ def build_session(
 
 def resolve_live_variation_options():
     """
-    Resolve the requested variation labels against the live promotional PDP.
+    Verify the requested variation values against the live promotional PDP.
 
     This is test-only setup. It uses the same browser facade used by the
-    production runtime, discovers the actual PDP section titles, and maps the
-    requested Storage option to the section containing the exact requested
-    value. The resulting request is then passed to the real PurchasePipeline.
+    production runtime and discovers the actual PDP section titles/options.
+    The diagnostic result is intentionally NOT used to rename the production
+    request. The real production VariationSelector remains responsible for
+    resolving and selecting the requested application labels.
     """
 
     from execution.browser.browser_connector import BrowserConnector
@@ -154,7 +161,6 @@ def resolve_live_variation_options():
         section_count = browser.count(sections_locator)
 
         discovered = []
-        resolved = {}
 
         for i in range(section_count):
             section = sections_locator.nth(i)
@@ -183,7 +189,7 @@ def resolve_live_variation_options():
             print(f"[TEST]   {title}: {values}")
 
         for requested_title, requested_value in DEFAULT_VARIATION.items():
-            exact_title = next(
+            exact_title_match = next(
                 (
                     title
                     for title, values in discovered
@@ -196,34 +202,43 @@ def resolve_live_variation_options():
                 None,
             )
 
-            if exact_title is None:
-                exact_value_match = next(
-                    (
-                        title
-                        for title, values in discovered
-                        if any(
-                            value.strip().lower() == requested_value.strip().lower()
-                            for value in values
-                        )
-                    ),
-                    None,
-                )
-                if exact_value_match is None:
-                    raise RuntimeError(
-                        "Promotional PDP does not expose the requested "
-                        f"variation option: {requested_title} -> {requested_value}"
-                    )
-
+            if exact_title_match is not None:
                 print(
-                    "[TEST] Mapping application variation label "
-                    f"'{requested_title}' to live PDP section '{exact_value_match}'."
+                    "[TEST] Live PDP exposes exact application section: "
+                    f"{requested_title} -> {requested_value}"
                 )
-                resolved[exact_value_match] = requested_value
-            else:
-                resolved[exact_title] = requested_value
+                continue
 
-        print(f"[TEST] Resolved production variation request: {resolved}")
-        return resolved
+            value_matches = [
+                title
+                for title, values in discovered
+                if any(
+                    value.strip().lower() == requested_value.strip().lower()
+                    for value in values
+                )
+            ]
+
+            if not value_matches:
+                raise RuntimeError(
+                    "Promotional PDP does not expose the requested "
+                    f"variation value: {requested_title} -> {requested_value}"
+                )
+
+            print(
+                "[TEST] Diagnostic PDP section for "
+                f"{requested_title} -> {requested_value}: "
+                f"{value_matches}"
+            )
+            print(
+                "[TEST] Preserving production request label "
+                f"'{requested_title}' unchanged."
+            )
+
+        print(
+            "[TEST] Resolved production variation request: "
+            f"{DEFAULT_VARIATION}"
+        )
+        return dict(DEFAULT_VARIATION)
 
     finally:
         try:
