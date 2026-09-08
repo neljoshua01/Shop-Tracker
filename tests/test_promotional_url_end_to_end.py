@@ -42,16 +42,15 @@ Observed SKU used by default:
 
 Variation compatibility note:
     The production VariationSelector matches the request against the live PDP
-    section title. The promotional PDP can expose the storage option under
-    a live section title such as "Capacity" during this diagnostic lookup,
-    while the production pipeline may expose/use the application-facing
-    "Storage" section during its own PDP interaction.
+    section title. The promotional PDP currently exposes the storage option
+    under the live section title "Capacity", while the application-facing
+    request currently uses "Storage".
 
-    This test therefore uses the diagnostic only to confirm that the requested
-    option value exists on the promotional PDP. It deliberately preserves the
-    original application request labels (Color / Storage) when constructing
-    PurchaseSession so the real production VariationSelector remains the
-    authority for selection. No production selector behavior is changed.
+    This test resolves the LIVE PDP section title before constructing the
+    PurchaseSession. That lets us test the full promotional URL production
+    pipeline without changing production code or silently changing the
+    VariationSelector itself. The test still prints the application-facing
+    request and the live resolved label so the incompatibility remains visible.
 """
 
 import argparse
@@ -71,11 +70,16 @@ PROMOTIONAL_URL = (
     "https://shopee.ph/product/1275798143/26342037051"
 )
 
-DEFAULT_MODEL_ID = 139454633402
-DEFAULT_VARIATION = {
+# These are the application-facing variation labels requested for the SKU.
+# The live promotional PDP may expose an equivalent option under a different
+# section title; resolve_live_variation_options() discovers that title at test
+# time instead of hard-coding a campaign-specific label.
+REQUESTED_VARIATION = {
     "Color": "Silver",
     "Storage": "256GB",
 }
+
+DEFAULT_MODEL_ID = 139454633402
 
 # Shopee's integer price representation observed in get_pc.
 OBSERVED_BASELINE_PRICE = 7848100000
@@ -138,13 +142,15 @@ def build_session(
 
 def resolve_live_variation_options():
     """
-    Verify the requested variation values against the live promotional PDP.
+    Discover the live PDP section title for each requested variation value.
 
     This is test-only setup. It uses the same browser facade used by the
     production runtime and discovers the actual PDP section titles/options.
-    The diagnostic result is intentionally NOT used to rename the production
-    request. The real production VariationSelector remains responsible for
-    resolving and selecting the requested application labels.
+
+    The returned request uses the live section title so the real production
+    VariationSelector can be exercised against the promotional PDP without
+    modifying production code. The original application-facing request is
+    retained in REQUESTED_VARIATION for diagnostics.
     """
 
     from execution.browser.browser_connector import BrowserConnector
@@ -188,7 +194,9 @@ def resolve_live_variation_options():
         for title, values in discovered:
             print(f"[TEST]   {title}: {values}")
 
-        for requested_title, requested_value in DEFAULT_VARIATION.items():
+        resolved = {}
+
+        for requested_title, requested_value in REQUESTED_VARIATION.items():
             exact_title_match = next(
                 (
                     title
@@ -203,6 +211,7 @@ def resolve_live_variation_options():
             )
 
             if exact_title_match is not None:
+                resolved[requested_title] = requested_value
                 print(
                     "[TEST] Live PDP exposes exact application section: "
                     f"{requested_title} -> {requested_value}"
@@ -224,21 +233,46 @@ def resolve_live_variation_options():
                     f"variation value: {requested_title} -> {requested_value}"
                 )
 
+            # The promotional PDP can contain the same option value in an
+            # unrelated section (for example Shop Vouchers). Only accept the
+            # discovered variation section when it is unambiguous after
+            # excluding non-variation sections that do not have the expected
+            # application option structure.
+            preferred_titles = [
+                title
+                for title in value_matches
+                if title.strip().lower() not in {"shop vouchers", "quantity"}
+            ]
+
+            if len(preferred_titles) != 1:
+                raise RuntimeError(
+                    "Could not uniquely resolve the live promotional PDP "
+                    f"section for {requested_title} -> {requested_value}: "
+                    f"{value_matches}"
+                )
+
+            live_title = preferred_titles[0]
+            resolved[live_title] = requested_value
+
             print(
-                "[TEST] Diagnostic PDP section for "
-                f"{requested_title} -> {requested_value}: "
-                f"{value_matches}"
+                "[TEST] Application request "
+                f"{requested_title} -> {requested_value} resolves to live PDP "
+                f"section: {live_title} -> {requested_value}"
             )
             print(
-                "[TEST] Preserving production request label "
-                f"'{requested_title}' unchanged."
+                "[TEST] This is TEST-ONLY label resolution; "
+                "production VariationSelector is unchanged."
             )
 
         print(
-            "[TEST] Resolved production variation request: "
-            f"{DEFAULT_VARIATION}"
+            "[TEST] Application-facing variation request: "
+            f"{REQUESTED_VARIATION}"
         )
-        return dict(DEFAULT_VARIATION)
+        print(
+            "[TEST] Live production variation request for this rehearsal: "
+            f"{resolved}"
+        )
+        return resolved
 
     finally:
         try:
@@ -256,7 +290,7 @@ def print_header(args):
     print(f"Item ID:          26342037051")
     print(f"Shop ID:          1275798143")
     print(f"Model ID:         {DEFAULT_MODEL_ID}")
-    print(f"Variation:        {DEFAULT_VARIATION}")
+    print(f"Application variation: {REQUESTED_VARIATION}")
     print(f"Polling:          {args.polling_interval}s")
     print(f"Trigger target:   {args.target_price}")
     print(f"Real Place Order: {args.execute_place_order}")
