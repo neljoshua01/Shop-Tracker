@@ -25,6 +25,14 @@ class SkuPriceState:
     promotion_types: tuple[int, ...]
 
     #
+    # Promotion intelligence
+    #
+
+    promotion_detected: bool = False
+
+    promotion_evidence: tuple[str, ...] = ()
+
+    #
     # Promotion state
     #
 
