@@ -3,6 +3,11 @@ from execution.browser.browser_action import BrowserActions
 
 class VariationSelector:
 
+    _VARIATION_ALIASES = {
+        "storage": "capacity",
+        "capacity": "storage",
+    }
+
     def select(
         self,
         session,
@@ -48,20 +53,22 @@ class VariationSelector:
                 f"[VariationSelector] {title} -> {value}"
             )
 
-            section = next(
-                (
-                    section
-                    for section in sections
-                    if section["title"].strip().lower()
-                    == title.strip().lower()
-                ),
-                None,
+            section, resolved_title = self._resolve_section(
+                sections,
+                title,
             )
 
             if section is None:
 
                 raise RuntimeError(
                     f"Variation section not found: {title}"
+                )
+
+            if resolved_title.strip().lower() != title.strip().lower():
+                print(
+                    "[VariationSelector] "
+                    f"Resolved variation section: {title} -> "
+                    f"{resolved_title}"
                 )
 
             button = next(
@@ -91,9 +98,51 @@ class VariationSelector:
             browser.wait_for_timeout(300)
 
             print(
-                f"[VariationSelector] Selected: "
-                f"{title} -> {value}"
+                "[VariationSelector] Selected: "
+                f"{resolved_title} -> {value}"
             )
+
+    def _resolve_section(
+        self,
+        sections,
+        requested_title,
+    ):
+        """Resolve a requested variation heading to the live PDP heading."""
+
+        normalized_title = requested_title.strip().lower()
+
+        section = next(
+            (
+                section
+                for section in sections
+                if section["title"].strip().lower()
+                == normalized_title
+            ),
+            None,
+        )
+
+        if section is not None:
+            return section, section["title"]
+
+        alias = self._VARIATION_ALIASES.get(normalized_title)
+
+        if alias is None:
+            return None, requested_title
+
+        section = next(
+            (
+                section
+                for section in sections
+                if section["title"].strip().lower()
+                == alias
+            ),
+            None,
+        )
+
+        if section is None:
+            return None, requested_title
+
+        return section, section["title"]
 
     def _prepare_quantity(
         self,
