@@ -1,18 +1,11 @@
-"""
-Phase 4 promotional investigation test.
+"""Phase 4 promotional SKU investigation.
 
-TEST-ONLY: this file is isolated from production application code.
-It records the live promotional SKU, get_pc state, PDP variation labels, and
-page state so the September 8/9.9 behavior can be investigated and compared.
+TEST-ONLY. No production application code is modified by this test.
+SAFE / observation-only: never clicks Add to Cart, Checkout, or Place Order.
 
-Important compatibility behavior:
-    The production VariationSelector matches variation requests against the
-    live PDP section title exactly. The promotional PDP can expose the storage
-    option as "Capacity" while the application-facing request is "Storage".
-    This test resolves that label mismatch dynamically. Production code is
-    untouched.
-
-Default mode is SAFE. It never clicks Place Order.
+The test investigates the relationship between the application-facing
+"Storage" label and Shopee's live PDP/ProductInfo label (currently observed as
+"Capacity") and records the exact live SKU/model used for get_pc observation.
 """
 
 import argparse
@@ -31,7 +24,6 @@ PROMOTIONAL_URL = "https://shopee.ph/product/1275798143/26342037051"
 ITEM_ID = 26342037051
 SHOP_ID = 1275798143
 
-# Application-facing request used by the promotional profile.
 REQUESTED_VARIATION = {
     "Color": "Silver",
     "Storage": "256GB",
@@ -52,10 +44,7 @@ def make_run_dir():
 
 
 def save_json(path, data):
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def save_text(path, text):
@@ -63,87 +52,92 @@ def save_text(path, text):
 
 
 def collect_sections(browser_session):
-    """Collect live PDP section/button information through BrowserActions."""
+    """Read live PDP sections without assuming they render immediately."""
     actions = BrowserActions(browser_session)
-    sections = actions.find_all("section")
-    result = []
+    deadline = time.time() + 8
+    last_result = []
 
-    for i in range(actions.count(sections)):
-        section = sections.nth(i)
-        titles = actions.find_all("h2", parent=section)
-        if actions.count(titles) == 0:
-            continue
+    while time.time() < deadline:
+        sections = actions.find_all("section")
+        result = []
 
-        title = actions.text(titles.first).strip()
-        buttons = actions.find_all("button", parent=section)
-        values = []
+        for i in range(actions.count(sections)):
+            section = sections.nth(i)
+            titles = actions.find_all("h2", parent=section)
+            if actions.count(titles) == 0:
+                continue
 
-        for j in range(actions.count(buttons)):
-            button = buttons.nth(j)
-            value = actions.attribute(button, "aria-label")
-            if value:
-                values.append(value.strip())
+            title = actions.text(titles.first).strip()
+            buttons = actions.find_all("button", parent=section)
+            values = []
+            for j in range(actions.count(buttons)):
+                value = actions.attribute(buttons.nth(j), "aria-label")
+                if value:
+                    values.append(value.strip())
 
-        if values:
-            result.append({"title": title, "values": values})
+            if values:
+                result.append({"title": title, "values": values})
 
-    return result
+        last_result = result
+        titles = {item["title"].strip().lower() for item in result}
+        if "color" in titles or "capacity" in titles or "storage" in titles:
+            return result
+
+        actions.wait_for_timeout(500)
+
+    return last_result
 
 
-def resolve_live_variation_options(sections):
-    """Resolve application-facing variation labels to live PDP labels."""
-    print("[PHASE4] Resolving application variation labels against live PDP...")
+def resolve_live_variation_options(sections, product):
+    """Resolve the app request against live PDP/ProductInfo labels.
+
+    DOM section discovery is diagnostic only. ProductInfo is authoritative for
+    the actual parsed variation keys. This prevents a combined/duplicated
+    Shopee DOM section such as "Shop Vouchers" from being mistaken for the
+    variation section.
+    """
+    print("[PHASE4] Resolving application variation labels against live data...")
+
+    product_keys = []
+    for variation in product.available_variations:
+        for key in variation.options:
+            if key not in product_keys:
+                product_keys.append(key)
+
     resolved = {}
-
     for requested_title, requested_value in REQUESTED_VARIATION.items():
-        exact = [
-            section["title"]
-            for section in sections
-            if section["title"].strip().lower() == requested_title.strip().lower()
-            and any(
-                value.strip().lower() == requested_value.strip().lower()
-                for value in section["values"]
-            )
-        ]
-
-        if exact:
-            resolved[exact[0]] = requested_value
-            print(
-                f"[PHASE4] Exact live section: {exact[0]} -> {requested_value}"
-            )
-            continue
-
-        value_matches = [
-            section["title"]
-            for section in sections
+        matching_keys = []
+        for key in product_keys:
             if any(
                 value.strip().lower() == requested_value.strip().lower()
-                for value in section["values"]
-            )
-        ]
-        preferred = [
-            title
-            for title in value_matches
-            if title.strip().lower() not in NON_VARIATION_SECTIONS
-        ]
+                for variation in product.available_variations
+                for option_key, value in variation.options.items()
+                if option_key == key
+            ):
+                matching_keys.append(key)
 
-        if len(preferred) != 1:
-            raise RuntimeError(
-                "Could not uniquely resolve live PDP section for "
-                f"{requested_title} -> {requested_value}: "
-                f"all={value_matches}, preferred={preferred}"
-            )
+        # Prefer an exact application-facing key when it exists.
+        exact = next(
+            (key for key in matching_keys if key.strip().lower() == requested_title.strip().lower()),
+            None,
+        )
+        if exact is not None:
+            live_title = exact
+        else:
+            # Exclude non-variation DOM labels and require a unique ProductInfo key.
+            if len(matching_keys) != 1:
+                raise RuntimeError(
+                    f"Could not uniquely resolve ProductInfo key for "
+                    f"{requested_title} -> {requested_value}: {matching_keys}"
+                )
+            live_title = matching_keys[0]
 
-        live_title = preferred[0]
         resolved[live_title] = requested_value
         print(
-            f"[PHASE4] Application request {requested_title} -> "
-            f"{requested_value} resolves to live PDP {live_title} -> "
-            f"{requested_value}"
+            f"[PHASE4] Application request {requested_title} -> {requested_value} "
+            f"resolves to ProductInfo/PDP label {live_title} -> {requested_value}"
         )
 
-    print(f"[PHASE4] Application-facing request: {REQUESTED_VARIATION}")
-    print(f"[PHASE4] Live test request: {resolved}")
     return resolved
 
 
@@ -208,9 +202,6 @@ def main(args):
         connector.connect()
         browser_session = connector.open_session(owner, PROMOTIONAL_URL)
         actions = BrowserActions(browser_session)
-
-        # BrowserActions expects a BrowserSession, not a raw Playwright Page.
-        # Keep direct page access only for read-only page properties.
         print(f"[PHASE4] Initial URL: {browser_session.page.url}")
         manifest["initial_url"] = browser_session.page.url
 
@@ -218,12 +209,9 @@ def main(args):
         sections = collect_sections(browser_session)
         manifest["live_sections"] = sections
 
-        print("[PHASE4] Live promotional PDP variation sections:")
+        print("[PHASE4] Live promotional PDP DOM sections observed:")
         for section in sections:
             print(f"[PHASE4]   {section['title']}: {section['values']}")
-
-        live_request = resolve_live_variation_options(sections)
-        manifest["live_test_request"] = live_request
 
         parser = ShopeeAPIParser()
         first_product = {"value": None}
@@ -267,6 +255,12 @@ def main(args):
         }
         print(f"[PHASE4] Product: {product.product_name}")
 
+        live_request = resolve_live_variation_options(sections, product)
+        manifest["live_test_request"] = live_request
+        manifest["product_option_keys"] = sorted(
+            {key for v in product.available_variations for key in v.options}
+        )
+
         matching = find_matching_variations(product, live_request)
         if not matching:
             raise RuntimeError(
@@ -274,11 +268,7 @@ def main(args):
                 f"Live request={live_request}. Parsed variations: "
                 + json.dumps(
                     [
-                        {
-                            "model_id": v.model_id,
-                            "name": v.name,
-                            "options": v.options,
-                        }
+                        {"model_id": v.model_id, "name": v.name, "options": v.options}
                         for v in product.available_variations
                     ],
                     ensure_ascii=False,
@@ -290,11 +280,7 @@ def main(args):
                 "Live SKU resolution was not unique: "
                 + json.dumps(
                     [
-                        {
-                            "model_id": v.model_id,
-                            "name": v.name,
-                            "options": v.options,
-                        }
+                        {"model_id": v.model_id, "name": v.name, "options": v.options}
                         for v in matching
                     ],
                     ensure_ascii=False,
@@ -312,10 +298,7 @@ def main(args):
             "tier_index": variation.tier_index,
         }
 
-        print(
-            f"[PHASE4] Exact live SKU: {variation.name} | "
-            f"model={variation.model_id}"
-        )
+        print(f"[PHASE4] Exact live SKU: {variation.name} | model={variation.model_id}")
         print(f"[PHASE4] Live ProductInfo options: {variation.options}")
 
         sku_parser = SkuPriceParser()
@@ -333,62 +316,47 @@ def main(args):
 
             try:
                 data = await response.json()
-                save_json(
-                    run_dir / "api" / f"get_pc_{len(events) + 1:04d}.json",
-                    data,
-                )
+                save_json(run_dir / "api" / f"get_pc_{len(events) + 1:04d}.json", data)
 
-                try:
-                    live_product = parser.parse(data)
-                    live_matches = [
-                        v
-                        for v in live_product.available_variations
-                        if v.model_id == variation.model_id
-                    ]
-                    record["product_variation"] = [
-                        {
-                            "model_id": v.model_id,
-                            "name": v.name,
-                            "options": v.options,
-                            "price": v.price,
-                            "price_before_discount": v.price_before_discount,
-                            "has_stock": v.has_stock,
-                        }
-                        for v in live_matches
-                    ]
-                except Exception as exc:
-                    record["product_parse_error"] = str(exc)
+                live_product = parser.parse(data)
+                live_matches = [
+                    v for v in live_product.available_variations
+                    if v.model_id == variation.model_id
+                ]
+                record["product_variation"] = [
+                    {
+                        "model_id": v.model_id,
+                        "name": v.name,
+                        "options": v.options,
+                        "price": v.price,
+                        "price_before_discount": v.price_before_discount,
+                        "has_stock": v.has_stock,
+                    }
+                    for v in live_matches
+                ]
 
-                try:
-                    state = sku_parser.parse(data, model_id=variation.model_id)
-                    if state is not None:
-                        record["sku_state"] = {
-                            "item_id": state.item_id,
-                            "model_id": state.model_id,
-                            "name": state.name,
-                            "price": state.price,
-                            "price_before_discount": state.price_before_discount,
-                            "promotion_id": state.promotion_id,
-                            "promotion_types": state.promotion_types,
-                            "promotion_price": state.promotion_price,
-                            "promotion_event_status": state.promotion_event_status,
-                            "promotion_seconds_until_start": state.promotion_seconds_until_start,
-                            "promotion_seconds_until_end": state.promotion_seconds_until_end,
-                            "promotion_is_lpp": state.promotion_is_lpp,
-                            "has_stock": state.has_stock,
-                        }
-                except Exception as exc:
-                    record["sku_parse_error"] = str(exc)
-
+                state = sku_parser.parse(data, model_id=variation.model_id)
+                if state is not None:
+                    record["sku_state"] = {
+                        "item_id": state.item_id,
+                        "model_id": state.model_id,
+                        "name": state.name,
+                        "price": state.price,
+                        "price_before_discount": state.price_before_discount,
+                        "promotion_id": state.promotion_id,
+                        "promotion_types": state.promotion_types,
+                        "promotion_price": state.promotion_price,
+                        "promotion_event_status": state.promotion_event_status,
+                        "promotion_seconds_until_start": state.promotion_seconds_until_start,
+                        "promotion_seconds_until_end": state.promotion_seconds_until_end,
+                        "promotion_is_lpp": state.promotion_is_lpp,
+                        "has_stock": state.has_stock,
+                    }
             except Exception as exc:
                 record["error"] = str(exc)
 
             events.append(record)
-            print(
-                "[PHASE4] get_pc",
-                record.get("timestamp"),
-                record.get("sku_state", {}),
-            )
+            print("[PHASE4] get_pc", record.get("timestamp"), record.get("sku_state", {}))
 
         connector.engine.register_response_callback(
             monitor_callback_owner,
@@ -403,28 +371,16 @@ def main(args):
         while time.time() < end:
             if browser_session.page.is_closed():
                 raise RuntimeError("Monitoring page closed during observation.")
-
             try:
                 actions.reload()
             except Exception as exc:
-                events.append(
-                    {
-                        "timestamp": utc_now(),
-                        "type": "reload_error",
-                        "error": str(exc),
-                    }
-                )
+                events.append({"timestamp": utc_now(), "type": "reload_error", "error": str(exc)})
                 print(f"[PHASE4] Reload warning: {exc}")
-
             actions.wait_for_timeout(args.poll_interval * 1000)
 
         manifest["monitor_finished_at"] = utc_now()
         manifest["get_pc_events"] = len(events)
-        snapshot_page(
-            browser_session,
-            run_dir / "after_monitor.txt",
-            "post-monitor page",
-        )
+        snapshot_page(browser_session, run_dir / "after_monitor.txt", "post-monitor page")
         save_json(run_dir / "events.json", events)
         save_json(run_dir / "summary.json", manifest)
 
@@ -432,14 +388,8 @@ def main(args):
         print("PHASE 4 RESULT")
         print("=" * 72)
         print("Product loaded:       PASS")
-        print(
-            "Live label mapping:   PASS | "
-            f"{REQUESTED_VARIATION} -> {live_request}"
-        )
-        print(
-            "Exact SKU resolved:   PASS | "
-            f"model {variation.model_id}"
-        )
+        print(f"Live label mapping:   PASS | {REQUESTED_VARIATION} -> {live_request}")
+        print(f"Exact SKU resolved:   PASS | model {variation.model_id}")
         print(f"get_pc observations:  {len(events)}")
         print(f"Evidence directory:   {run_dir}")
         print("Place Order clicked:  NO")
@@ -462,7 +412,6 @@ def main(args):
                 )
             except Exception:
                 pass
-
         try:
             if browser_session is not None:
                 connector.close_session(owner)
