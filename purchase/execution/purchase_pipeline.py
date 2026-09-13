@@ -22,6 +22,7 @@ from purchase.models.purchase_status import PurchaseStatus
 from purchase.execution.cart_preparer import CartPreparer
 from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.services.sku_price_monitor import SkuPriceMonitor
+from purchase.services.promotion_forensics import PromotionForensicsRecorder
 
 
 class PurchasePipeline:
@@ -78,6 +79,8 @@ class PurchasePipeline:
         )
 
         monitor_thread = None
+        forensics = PromotionForensicsRecorder.start(session)
+        forensics.record_event("pipeline_started", "startup")
 
         try:
 
@@ -347,6 +350,8 @@ class PurchasePipeline:
             # Session cleanup should be handled by the higher-level
             # purchase-profile lifecycle, not by this pipeline.
             #
+
+            PromotionForensicsRecorder.stop(session)
 
             print(
                 "[PurchasePipeline] "
