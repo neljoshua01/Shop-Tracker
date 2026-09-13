@@ -2,8 +2,15 @@
 Phase 4 promotional investigation test.
 
 TEST-ONLY: this file is isolated from production application code.
-It records the live promotional SKU, get_pc state, cart identity, and checkout
-state so the September 8/9.9 behavior can be investigated and compared.
+It records the live promotional SKU, get_pc state, PDP variation labels, and
+page state so the September 8/9.9 behavior can be investigated and compared.
+
+Important compatibility behavior:
+    The production VariationSelector still matches variation requests against
+    the live PDP section title exactly. The promotional PDP can expose the
+    storage option as "Capacity" while the application-facing request is
+    "Storage". This test resolves that label mismatch dynamically and passes
+    the LIVE section title to the test session. Production code is untouched.
 
 Default mode is SAFE. It never clicks Place Order.
 """
@@ -15,16 +22,25 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
+from execution.browser.browser_connector import BrowserConnector
 from purchase.parser.shopee_api_parser import ShopeeAPIParser
 from purchase.parser.sku_price_parser import SkuPriceParser
 
 PROMOTIONAL_URL = "https://shopee.ph/product/1275798143/26342037051"
 ITEM_ID = 26342037051
 SHOP_ID = 1275798143
-REQUESTED_VARIATION = {"Color": "Silver", "Storage": "256GB"}
+
+# Application-facing request used by the promotional profile.
+REQUESTED_VARIATION = {
+    "Color": "Silver",
+    "Storage": "256GB",
+}
+
 DEFAULT_MODEL_ID = 139454633402
+
+# Live PDP section names that are not variation selectors.
+NON_VARIATION_SECTIONS = {"shop vouchers", "quantity"}
 
 
 def utc_now():
@@ -39,7 +55,10 @@ def make_run_dir():
 
 
 def save_json(path, data):
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
 
 
 def save_text(path, text):
@@ -47,81 +66,147 @@ def save_text(path, text):
 
 
 def collect_sections(page):
+    """Collect the same live PDP section/button information used by the UI."""
     actions = BrowserActions(page)
     sections = actions.find_all("section")
     result = []
+
     for i in range(actions.count(sections)):
         section = sections.nth(i)
         titles = actions.find_all("h2", parent=section)
         if actions.count(titles) == 0:
             continue
-        title = actions.text(titles.first)
+
+        title = actions.text(titles.first).strip()
         buttons = actions.find_all("button", parent=section)
         values = []
+
         for j in range(actions.count(buttons)):
             button = buttons.nth(j)
             value = actions.attribute(button, "aria-label")
             if value:
                 values.append(value.strip())
+
         if values:
-            result.append({"title": title, "values": values})
+            result.append(
+                {
+                    "title": title,
+                    "values": values,
+                }
+            )
+
     return result
 
 
-def resolve_live_variation_options(page):
-    sections = collect_sections(page)
-    print("[PHASE4] Live promotional PDP variation sections:")
-    for section in sections:
-        print(f"[PHASE4]   {section['title']}: {section['values']}")
+def resolve_live_variation_options(sections):
+    """
+    Resolve application-facing variation values to the live PDP section names.
+
+    Example:
+        Color -> Color
+        Storage -> Capacity
+
+    The application-facing request remains unchanged for diagnostics; only
+    the test session receives the live PDP labels so production VariationSelector
+    can be exercised without modifying production code.
+    """
+    print("[PHASE4] Resolving application variation labels against live PDP...")
 
     resolved = {}
+
     for requested_title, requested_value in REQUESTED_VARIATION.items():
-        exact = next(
+        exact_title_match = next(
             (
-                s["title"]
-                for s in sections
-                if s["title"].strip().lower() == requested_title.lower()
-                and any(v.lower() == requested_value.lower() for v in s["values"])
+                section["title"]
+                for section in sections
+                if section["title"].strip().lower()
+                == requested_title.strip().lower()
+                and any(
+                    value.strip().lower()
+                    == requested_value.strip().lower()
+                    for value in section["values"]
+                )
             ),
             None,
         )
-        if exact:
-            resolved[exact] = requested_value
+
+        if exact_title_match is not None:
+            resolved[requested_title] = requested_value
+            print(
+                "[PHASE4] Exact application section found: "
+                f"{requested_title} -> {requested_value}"
+            )
             continue
 
-        matches = [
-            s["title"]
-            for s in sections
-            if any(v.lower() == requested_value.lower() for v in s["values"])
-            and s["title"].strip().lower() not in {"shop vouchers", "quantity"}
-        ]
-        if len(matches) != 1:
-            raise RuntimeError(
-                f"Could not uniquely resolve {requested_title} -> {requested_value}: {matches}"
+        value_matches = [
+            section["title"]
+            for section in sections
+            if any(
+                value.strip().lower() == requested_value.strip().lower()
+                for value in section["values"]
             )
-        resolved[matches[0]] = requested_value
+        ]
 
-    return resolved, sections
+        preferred_matches = [
+            title
+            for title in value_matches
+            if title.strip().lower() not in NON_VARIATION_SECTIONS
+        ]
+
+        if len(preferred_matches) != 1:
+            raise RuntimeError(
+                "Could not uniquely resolve live promotional PDP section for "
+                f"{requested_title} -> {requested_value}: "
+                f"all matches={value_matches}, preferred={preferred_matches}"
+            )
+
+        live_title = preferred_matches[0]
+        resolved[live_title] = requested_value
+
+        print(
+            "[PHASE4] Application request "
+            f"{requested_title} -> {requested_value} resolves to live PDP "
+            f"section {live_title} -> {requested_value}"
+        )
+
+    print(f"[PHASE4] Application-facing request: {REQUESTED_VARIATION}")
+    print(f"[PHASE4] Live test request: {resolved}")
+    return resolved
 
 
-def capture_get_pc(owner, session, run_dir):
+def capture_get_pc(owner, browser_session, model_id, run_dir):
+    """Capture every get_pc response during the controlled observation."""
     events = []
     connector = BrowserConnector()
-    engine = connector.engine
     parser = ShopeeAPIParser()
     sku_parser = SkuPriceParser()
 
     async def callback(response):
         if "/api/v4/pdp/get_pc" not in response.url:
             return
+
         timestamp = utc_now()
+
         try:
             data = await response.json()
         except Exception as exc:
-            events.append({"timestamp": timestamp, "type": "get_pc_error", "error": str(exc)})
+            record = {
+                "timestamp": timestamp,
+                "type": "get_pc_error",
+                "url": response.url,
+                "status": response.status,
+                "error": str(exc),
+            }
+            events.append(record)
             return
 
-        record = {"timestamp": timestamp, "type": "get_pc", "url": response.url, "status": response.status}
+        record = {
+            "timestamp": timestamp,
+            "type": "get_pc",
+            "url": response.url,
+            "status": response.status,
+        }
+
         try:
             product = parser.parse(data)
             record["product"] = {
@@ -130,22 +215,21 @@ def capture_get_pc(owner, session, run_dir):
                 "product_name": product.product_name,
                 "variations": [
                     {
-                        "model_id": v.model_id,
-                        "name": v.name,
-                        "options": v.options,
-                        "price": v.price,
-                        "price_before_discount": v.price_before_discount,
-                        "has_stock": v.has_stock,
+                        "model_id": variation.model_id,
+                        "name": variation.name,
+                        "options": variation.options,
+                        "price": variation.price,
+                        "price_before_discount": variation.price_before_discount,
+                        "has_stock": variation.has_stock,
                     }
-                    for v in product.available_variations
-                    if v.model_id == session.get("model_id")
+                    for variation in product.available_variations
+                    if variation.model_id == model_id
                 ],
             }
         except Exception as exc:
             record["product_parse_error"] = str(exc)
 
         try:
-            model_id = session.get("model_id", DEFAULT_MODEL_ID)
             state = sku_parser.parse(data, model_id=model_id)
             if state is not None:
                 record["sku_state"] = {
@@ -167,21 +251,31 @@ def capture_get_pc(owner, session, run_dir):
             record["sku_parse_error"] = str(exc)
 
         events.append(record)
-        save_json(run_dir / "api" / f"get_pc_{len(events):04d}.json", data)
+        save_json(
+            run_dir / "api" / f"get_pc_{len(events):04d}.json",
+            data,
+        )
+
         print(
             "[PHASE4] get_pc",
             record.get("timestamp"),
             record.get("sku_state", {}),
         )
 
-    engine.register_response_callback(owner, callback, session=session["browser_session"])
+    connector.engine.register_response_callback(
+        owner,
+        callback,
+        session=browser_session,
+    )
+
     return connector, events
 
 
-def snapshot_page(session, path, label):
-    actions = BrowserActions(session)
+def snapshot_page(browser_session, path, label):
+    actions = BrowserActions(browser_session)
     try:
-        text = actions.text(actions.find_all("body"))
+        body = actions.find_all("body")
+        text = actions.text(body)
         save_text(path, text)
         print(f"[PHASE4] Saved {label}: {path}")
     except Exception as exc:
@@ -198,14 +292,16 @@ def main(args):
         "requested_variation": REQUESTED_VARIATION,
         "poll_interval": args.poll_interval,
         "monitor_seconds": args.monitor_seconds,
+        "mode": "SAFE / observation only",
         "run_dir": str(run_dir),
     }
     save_json(run_dir / "summary.json", manifest)
 
     owner = object()
+    callback_owner = object()
     connector = BrowserConnector()
     browser_session = None
-    callback_owner = object()
+    capture_connector = None
     events = []
 
     try:
@@ -223,16 +319,26 @@ def main(args):
         browser_session = connector.open_session(owner, PROMOTIONAL_URL)
         actions = BrowserActions(browser_session)
 
-        print(f"[PHASE4] Initial URL: {browser_session.page.url}")
         manifest["initial_url"] = browser_session.page.url
+        print(f"[PHASE4] Initial URL: {browser_session.page.url}")
 
         actions.wait_for_selector("section h2")
-        live_options, sections = resolve_live_variation_options(browser_session)
+        sections = collect_sections(browser_session.page)
         manifest["live_sections"] = sections
-        manifest["resolved_variation"] = live_options
 
+        print("[PHASE4] Live promotional PDP variation sections:")
+        for section in sections:
+            print(
+                f"[PHASE4]   {section['title']}: "
+                f"{section['values']}"
+            )
+
+        live_variation_request = resolve_live_variation_options(sections)
+        manifest["live_test_request"] = live_variation_request
+
+        # Capture a fresh get_pc response so ProductInfo comes from the same
+        # live PDP session being observed.
         parser = ShopeeAPIParser()
-        # Capture the first product API directly through a short callback.
         first_product = {"value": None}
 
         async def initial_callback(response):
@@ -249,11 +355,16 @@ def main(args):
             initial_callback,
             session=browser_session,
         )
+
         actions.reload()
         deadline = time.time() + 10
         while first_product["value"] is None and time.time() < deadline:
             actions.wait_for_timeout(250)
-        connector.engine.unregister_response_callback(callback_owner, session=browser_session)
+
+        connector.engine.unregister_response_callback(
+            callback_owner,
+            session=browser_session,
+        )
 
         product = first_product["value"]
         if product is None:
@@ -265,17 +376,63 @@ def main(args):
             "product_name": product.product_name,
             "url": product.product_url,
         }
+
         print(f"[PHASE4] Product: {product.product_name}")
 
+        if product.item_id != ITEM_ID or product.shop_id != SHOP_ID:
+            raise RuntimeError(
+                "Live ProductInfo identity mismatch: "
+                f"item={product.item_id}, shop={product.shop_id}"
+            )
+
+        # Match the live ProductInfo using the dynamically resolved PDP labels.
         matching = [
-            v for v in product.available_variations
+            variation
+            for variation in product.available_variations
             if all(
-                any(k.lower() == rk.lower() and value.lower() == rv.lower() for k, value in v.options.items())
-                for rk, rv in REQUESTED_VARIATION.items()
+                any(
+                    key.strip().lower() == requested_key.strip().lower()
+                    and value.strip().lower() == requested_value.strip().lower()
+                    for key, value in variation.options.items()
+                )
+                for requested_key, requested_value in live_variation_request.items()
             )
         ]
+
         if not matching:
-            raise RuntimeError("Requested SKU was not found in live ProductInfo.")
+            raise RuntimeError(
+                "Requested live SKU was not found in ProductInfo. "
+                f"Live request={live_variation_request}. "
+                "Parsed variations include: "
+                + json.dumps(
+                    [
+                        {
+                            "model_id": variation.model_id,
+                            "name": variation.name,
+                            "options": variation.options,
+                        }
+                        for variation in product.available_variations
+                    ],
+                    ensure_ascii=False,
+                )
+            )
+
+        if len(matching) > 1:
+            raise RuntimeError(
+                "Live SKU resolution was not unique: "
+                + json.dumps(
+                    [
+                        {
+                            "model_id": variation.model_id,
+                            "name": variation.name,
+                            "options": variation.options,
+                        }
+                        for variation in matching
+                    ],
+                    ensure_ascii=False,
+                )
+            )
+
         variation = matching[0]
         manifest["variation"] = {
             "model_id": variation.model_id,
@@ -286,31 +443,53 @@ def main(args):
             "has_stock": variation.has_stock,
             "tier_index": variation.tier_index,
         }
-        print(f"[PHASE4] Exact live SKU: {variation.name} | model={variation.model_id}")
 
-        session_info = {
-            "browser_session": browser_session,
-            "model_id": variation.model_id,
-        }
-        capture_connector, events = capture_get_pc(callback_owner, session_info, run_dir)
+        print(
+            "[PHASE4] Exact live SKU: "
+            f"{variation.name} | model={variation.model_id}"
+        )
+        print(f"[PHASE4] Live ProductInfo options: {variation.options}")
+
+        capture_connector, events = capture_get_pc(
+            callback_owner,
+            browser_session,
+            variation.model_id,
+            run_dir,
+        )
+
         manifest["monitor_started_at"] = utc_now()
-
         print("[PHASE4] Beginning controlled get_pc observation...")
+
         end = time.time() + args.monitor_seconds
         while time.time() < end:
             if browser_session.page.is_closed():
                 raise RuntimeError("Monitoring page closed during observation.")
+
             try:
                 actions.reload()
             except Exception as exc:
-                events.append({"timestamp": utc_now(), "type": "reload_error", "error": str(exc)})
+                events.append(
+                    {
+                        "timestamp": utc_now(),
+                        "type": "reload_error",
+                        "error": str(exc),
+                    }
+                )
                 print(f"[PHASE4] Reload warning: {exc}")
+
             actions.wait_for_timeout(args.poll_interval * 1000)
 
         manifest["monitor_finished_at"] = utc_now()
-        manifest["get_pc_events"] = len([e for e in events if e.get("type") == "get_pc"])
+        manifest["get_pc_events"] = len(
+            [event for event in events if event.get("type") == "get_pc"]
+        )
 
-        snapshot_page(browser_session, run_dir / "after_monitor.txt", "post-monitor page")
+        snapshot_page(
+            browser_session,
+            run_dir / "after_monitor.txt",
+            "post-monitor page",
+        )
+
         save_json(run_dir / "events.json", events)
         save_json(run_dir / "summary.json", manifest)
 
@@ -318,11 +497,18 @@ def main(args):
         print("=" * 72)
         print("PHASE 4 RESULT")
         print("=" * 72)
-        print(f"Product loaded:       PASS")
-        print(f"Exact SKU resolved:   PASS | model {variation.model_id}")
+        print("Product loaded:       PASS")
+        print(
+            "Live label mapping:   PASS | "
+            f"{REQUESTED_VARIATION} -> {live_variation_request}"
+        )
+        print(
+            "Exact SKU resolved:   PASS | "
+            f"model {variation.model_id}"
+        )
         print(f"get_pc observations:  {manifest['get_pc_events']}")
         print(f"Evidence directory:   {run_dir}")
-        print("Place Order clicked:   NO")
+        print("Place Order clicked:  NO")
         print("=" * 72)
         return 0
 
@@ -332,7 +518,16 @@ def main(args):
         save_json(run_dir / "summary.json", manifest)
         print(f"[PHASE4] FAILED: {exc}")
         return 1
+
     finally:
+        try:
+            connector.engine.unregister_response_callback(
+                callback_owner,
+                session=browser_session,
+            )
+        except Exception:
+            pass
+
         try:
             if browser_session is not None:
                 connector.close_session(owner)
