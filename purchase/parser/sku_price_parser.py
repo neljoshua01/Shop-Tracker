@@ -3,7 +3,9 @@ Extracts the selected SKU pricing and promotion information
 from a Shopee get_pc response.
 """
 import time
+
 from purchase.models.sku_price_state import SkuPriceState
+from purchase.services.promotion_intelligence import PromotionIntelligence
 
 
 class SkuPriceParser:
@@ -107,12 +109,8 @@ class SkuPriceParser:
                     )
                 )
 
-            #
-            # ==========================================
-            # Promotion Event State
-            # ==========================================
-            #
-
+            # The event timing is useful context, but it is not used as the
+            # proof that the selected SKU participates in a promotion.
             promotion_event_status = (
                 self.get_event_status(
                     promotion_reminder_event
@@ -124,6 +122,13 @@ class SkuPriceParser:
                 seconds_until_end,
             ) = self.get_event_timing(
                 promotion_reminder_event
+            )
+
+            promotion = PromotionIntelligence.analyze(
+                model,
+                event_status=promotion_event_status,
+                seconds_until_start=seconds_until_start,
+                seconds_until_end=seconds_until_end,
             )
 
             return SkuPriceState(
@@ -148,6 +153,10 @@ class SkuPriceParser:
                 ),
 
                 promotion_types=promotion_types,
+
+                promotion_detected=promotion.detected,
+
+                promotion_evidence=promotion.evidence,
 
                 #
                 # Promotion state
@@ -247,8 +256,6 @@ class SkuPriceParser:
         end_time = reminder_event.get(
             "end_time"
         )
-
-        import time
 
         now = int(time.time())
 
