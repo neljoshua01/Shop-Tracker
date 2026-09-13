@@ -60,10 +60,7 @@ def make_run_dir():
 
 
 def save_json(path, data):
-    path.write_text(
-        json.dumps(data, indent=2, ensure_ascii=False, default=str),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
 
 
 def save_text(path, text):
@@ -78,34 +75,19 @@ def capture_get_pc(browser_session, target_url, run_dir):
     async def _capture():
         def on_response(response):
             captured.append(response)
-
         page.on("response", on_response)
         try:
             await page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
             await page.wait_for_timeout(OBSERVE_AFTER_NAVIGATION_SECONDS * 1000)
-
             records = []
             get_pc = []
             for response in captured:
-                records.append({
-                    "url": response.url,
-                    "status": response.status,
-                    "method": response.request.method,
-                    "resource_type": response.request.resource_type,
-                })
+                records.append({"url": response.url, "status": response.status, "method": response.request.method, "resource_type": response.request.resource_type})
                 if "/api/v4/pdp/get_pc" in response.url:
                     try:
-                        get_pc.append({
-                            "status": response.status,
-                            "url": response.url,
-                            "data": await response.json(),
-                        })
+                        get_pc.append({"status": response.status, "url": response.url, "data": await response.json()})
                     except Exception as exc:
-                        get_pc.append({
-                            "status": response.status,
-                            "url": response.url,
-                            "json_error": repr(exc),
-                        })
+                        get_pc.append({"status": response.status, "url": response.url, "json_error": repr(exc)})
             return page.url, records, get_pc
         finally:
             try:
@@ -115,66 +97,40 @@ def capture_get_pc(browser_session, target_url, run_dir):
 
     final_url, records, get_pc = runtime.submit(_capture()).result(timeout=50)
     save_json(run_dir / "api" / "pdp_responses.json", records)
-
     parsed = []
     for index, response in enumerate([x for x in get_pc if "data" in x], start=1):
         save_json(run_dir / "api" / f"get_pc_{index:02d}.json", response["data"])
-        parsed.append({
-            "status": response["status"],
-            "url": response["url"],
-            "product": ShopeeAPIParser().parse(response["data"]),
-        })
+        parsed.append({"status": response["status"], "url": response["url"], "product": ShopeeAPIParser().parse(response["data"])})
     return final_url, records, parsed
 
 
 def resolve_live_request(product):
-    """Resolve application-facing Storage against the live PDP label."""
     keys = []
     for variation in product.available_variations:
         for key in variation.options:
             if key not in keys:
                 keys.append(key)
-
     resolved = {}
     for requested_title, requested_value in REQUESTED_VARIATION.items():
-        live_title = next(
-            (key for key in keys if key.strip().lower() == requested_title.strip().lower()),
-            None,
-        )
+        live_title = next((key for key in keys if key.strip().lower() == requested_title.strip().lower()), None)
         if live_title is None:
             matches = []
             for key in keys:
-                values = {
-                    str(v.options.get(key, "")).strip().lower()
-                    for v in product.available_variations
-                    if key in v.options
-                }
+                values = {str(v.options.get(key, "")).strip().lower() for v in product.available_variations if key in v.options}
                 if requested_value.strip().lower() in values:
                     matches.append(key)
             if len(matches) != 1:
-                raise RuntimeError(
-                    f"Could not uniquely resolve {requested_title} -> {requested_value}: {matches}"
-                )
+                raise RuntimeError(f"Could not uniquely resolve {requested_title} -> {requested_value}: {matches}")
             live_title = matches[0]
         resolved[live_title] = requested_value
-        print(
-            f"[PHASE4] Application request {requested_title} -> {requested_value} "
-            f"resolves to ProductInfo label {live_title} -> {requested_value}"
-        )
+        print(f"[PHASE4] Application request {requested_title} -> {requested_value} resolves to ProductInfo label {live_title} -> {requested_value}")
     return resolved
 
 
 def find_matching_variations(product, request):
     matches = []
     for variation in product.available_variations:
-        if all(
-            any(
-                key.strip().lower() == wanted_key.strip().lower()
-                and str(value).strip().lower() == wanted_value.strip().lower()
-                for key, value in variation.options.items()
-            )
-            for wanted_key, wanted_value in request.items()
-        ):
+        if all(any(key.strip().lower() == wanted_key.strip().lower() and str(value).strip().lower() == wanted_value.strip().lower() for key, value in variation.options.items()) for wanted_key, wanted_value in request.items()):
             matches.append(variation)
     return matches
 
@@ -214,7 +170,6 @@ def collect_cart_get(browser_session, run_dir):
         def on_response(response):
             if "/api/v4/cart/get" in response.url:
                 captured.append(response)
-
         page.on("response", on_response)
         try:
             await page.goto(CART_URL, wait_until="domcontentloaded", timeout=30000)
@@ -222,17 +177,9 @@ def collect_cart_get(browser_session, run_dir):
             payloads = []
             for response in captured:
                 try:
-                    payloads.append({
-                        "url": response.url,
-                        "status": response.status,
-                        "data": await response.json(),
-                    })
+                    payloads.append({"url": response.url, "status": response.status, "data": await response.json()})
                 except Exception as exc:
-                    payloads.append({
-                        "url": response.url,
-                        "status": response.status,
-                        "json_error": repr(exc),
-                    })
+                    payloads.append({"url": response.url, "status": response.status, "json_error": repr(exc)})
             return page.url, payloads
         finally:
             try:
@@ -245,30 +192,13 @@ def collect_cart_get(browser_session, run_dir):
     for payload in payloads:
         if "data" in payload:
             identities.extend(walk_identity(payload["data"]))
-
-    evidence = {
-        "cart_final_url": final_url,
-        "cart_get_response_count": len(payloads),
-        "identities": identities,
-        "exact_requested_matches": [
-            x for x in identities
-            if str(x.get("item_id")) == str(ITEM_ID)
-            and str(x.get("model_id")) == str(browser_session._phase4_target_model_id)
-        ],
-    }
+    evidence = {"cart_final_url": final_url, "cart_get_response_count": len(payloads), "identities": identities}
     save_json(run_dir / "api" / "cart_identity_after_app_add.json", evidence)
     return evidence
 
 
 def inspect_checkbox_candidates(browser_session, item_id, model_id, product_name, run_dir):
-    """Mirror ONLY CheckoutExecutor's current cart identity decision.
-
-    Production code inspected:
-        checkbox -> up to 8 parents -> item/model identity;
-        otherwise first product-name match -> first parent containing a checkbox.
-
-    This function is intentionally test-only and does not call CheckoutExecutor.
-    """
+    """Mirror ONLY CheckoutExecutor's current cart identity decision."""
     actions = BrowserActions(browser_session)
     checkboxes = actions.find_all("input.stardust-checkbox__input")
     count = actions.count(checkboxes)
@@ -283,88 +213,43 @@ def inspect_checkbox_candidates(browser_session, item_id, model_id, product_name
             current = actions.parent(current)
             if current is None:
                 break
-
             attrs = {}
-            for name in (
-                "data-item-id",
-                "data-model-id",
-                "data-product-id",
-                "data-sku-id",
-                "data-id",
-            ):
+            for name in ("data-item-id", "data-model-id", "data-product-id", "data-sku-id", "data-id"):
                 value = actions.attribute(current, name)
                 if value:
                     attrs[name] = str(value)
-
             text = actions.text(current) or ""
-            item_match = str(item_id) in " ".join(attrs.values()) or str(item_id) in text
-            model_match = str(model_id) in " ".join(attrs.values()) or str(model_id) in text
-            parent_trace.append({
-                "level": level,
-                "attributes": attrs,
-                "text": text[:1200],
-                "item_match": item_match,
-                "model_match": model_match,
-            })
-
+            identity_text = " ".join(attrs.values())
+            item_match = str(item_id) in identity_text or str(item_id) in text
+            model_match = str(model_id) in identity_text or str(model_id) in text
+            parent_trace.append({"level": level, "attributes": attrs, "text": text[:1200], "item_match": item_match, "model_match": model_match})
             if item_match:
-                target = {
-                    "strategy": "stable_item_identity",
-                    "checkbox_index": index,
-                    "parent_level": level,
-                    "item_match": True,
-                    "model_match": model_match,
-                    "parent_trace": parent_trace,
-                }
+                target = {"strategy": "stable_item_identity", "checkbox_index": index, "parent_level": level, "item_match": True, "model_match": model_match, "parent_trace": parent_trace}
                 break
-
-        candidates.append({
-            "checkbox_index": index,
-            "parent_trace": parent_trace,
-        })
+        candidates.append({"checkbox_index": index, "parent_trace": parent_trace})
         if target is not None:
             break
 
+    product_count = 0
     if target is None:
         products = actions.find_all(f"text={product_name}")
         product_count = actions.count(products)
-        fallback = None
         if product_count > 0:
             current = actions.first(products)
             for level in range(1, 9):
                 current = actions.parent(current)
                 if current is None:
                     break
-                checkbox_locator = actions.find_all(
-                    "input.stardust-checkbox__input",
-                    parent=current,
-                )
+                checkbox_locator = actions.find_all("input.stardust-checkbox__input", parent=current)
                 checkbox_count = actions.count(checkbox_locator)
                 if checkbox_count > 0:
-                    fallback = {
-                        "strategy": "product_name_fallback",
-                        "product_name_match_count": product_count,
-                        "fallback_parent_level": level,
-                        "fallback_checkbox_count": checkbox_count,
-                        "fallback_checkbox_index": None,
-                        "product_text": (actions.text(current) or "")[:2000],
-                    }
-                    target = fallback
+                    target = {"strategy": "product_name_fallback", "product_name_match_count": product_count, "fallback_parent_level": level, "fallback_checkbox_count": checkbox_count, "product_text": (actions.text(current) or "")[:2000], "product_name": product_name}
                     break
-        if target is None:
-            target = {
-                "strategy": "unresolved",
-                "product_name_match_count": product_count,
-            }
 
-    evidence = {
-        "expected_item_id": str(item_id),
-        "expected_model_id": str(model_id),
-        "product_name": product_name,
-        "checkbox_count": count,
-        "candidate_trace": candidates,
-        "decision": target,
-    }
+    if target is None:
+        target = {"strategy": "unresolved", "product_name_match_count": product_count}
+
+    evidence = {"expected_item_id": str(item_id), "expected_model_id": str(model_id), "product_name": product_name, "checkbox_count": count, "candidate_trace": candidates, "decision": target}
     save_json(run_dir / "checkout_identity_decision.json", evidence)
 
     print()
@@ -394,11 +279,10 @@ def execute_selected_checkout(browser_session, decision, run_dir):
 
     actions = BrowserActions(browser_session)
     checkboxes = actions.find_all("input.stardust-checkbox__input")
-
     if decision.get("strategy") == "stable_item_identity":
         checkbox = checkboxes.nth(decision["checkbox_index"])
     else:
-        product_locator = actions.find_all(f"text={decision['product_name']}" if "product_name" in decision else "")
+        product_locator = actions.find_all(f"text={decision['product_name']}")
         if actions.count(product_locator) == 0:
             raise RuntimeError("Fallback product-name locator disappeared before checkout.")
         current = actions.first(product_locator)
@@ -407,10 +291,7 @@ def execute_selected_checkout(browser_session, decision, run_dir):
             current = actions.parent(current)
             if current is None:
                 break
-            checkbox_locator = actions.find_all(
-                "input.stardust-checkbox__input",
-                parent=current,
-            )
+            checkbox_locator = actions.find_all("input.stardust-checkbox__input", parent=current)
             if actions.count(checkbox_locator) > 0:
                 checkbox = actions.first(checkbox_locator)
                 break
@@ -426,7 +307,6 @@ def execute_selected_checkout(browser_session, decision, run_dir):
         actions.click(actions.first(ui))
         actions.wait_for_timeout(500)
     after = actions.attribute(checkbox, "aria-checked")
-
     print(f"[PHASE4] Investigated checkbox aria-checked: {before} -> {after}")
     if after != "true":
         raise RuntimeError("Investigated cart row could not be selected.")
@@ -442,15 +322,9 @@ def execute_selected_checkout(browser_session, decision, run_dir):
     async def _navigate_and_capture():
         def on_response(response):
             url = response.url
-            if "/checkout" in url or "/api/v4/" in url and any(
-                token in url.lower() for token in ("checkout", "order", "cart")
-            ):
-                network.append({
-                    "url": url,
-                    "status": response.status,
-                    "method": response.request.method,
-                })
-
+            low = url.lower()
+            if "/checkout" in low or ("/api/v4/" in low and any(token in low for token in ("checkout", "order", "cart"))):
+                network.append({"url": url, "status": response.status, "method": response.request.method})
         page.on("response", on_response)
         try:
             actions.click(actions.first(checkout_buttons))
@@ -464,24 +338,15 @@ def execute_selected_checkout(browser_session, decision, run_dir):
 
     checkout_url = runtime.submit(_navigate_and_capture()).result(timeout=50)
     save_json(run_dir / "api" / "checkout_network.json", network)
-
     body_text = ""
     try:
-        body = actions.find_all("body")
-        body_text = actions.text(body)
+        body_text = actions.text(actions.find_all("body"))
     except Exception as exc:
         body_text = f"<body snapshot failed: {exc!r}>"
     save_text(run_dir / "checkout_page.txt", body_text)
 
-    result = {
-        "checkout_url": checkout_url,
-        "checkout_reached": "/checkout" in checkout_url,
-        "network": network,
-        "place_order_clicked": False,
-        "payment_selected": False,
-    }
+    result = {"checkout_url": checkout_url, "checkout_reached": "/checkout" in checkout_url, "network": network, "payment_selected": False, "place_order_clicked": False}
     save_json(run_dir / "checkout_observation.json", result)
-
     print()
     print("=" * 72)
     print("CHECKOUT PAGE OBSERVATION")
@@ -499,8 +364,7 @@ def execute_selected_checkout(browser_session, decision, run_dir):
 def snapshot_page(browser_session, path):
     try:
         actions = BrowserActions(browser_session)
-        body = actions.find_all("body")
-        save_text(path, actions.text(body))
+        save_text(path, actions.text(actions.find_all("body")))
     except Exception as exc:
         save_text(path, f"snapshot failed: {exc!r}")
 
@@ -530,7 +394,6 @@ def main():
     owner = object()
     connector = BrowserConnector()
     browser_session = None
-
     try:
         print("=" * 72)
         print("PHASE 4 — CHECKOUT CART-IDENTITY INVESTIGATION")
@@ -546,62 +409,34 @@ def main():
 
         connector.connect()
         browser_session = connector.open_session(owner, PROMOTIONAL_URL)
-
-        promo_final_url, _, promo_get_pc = capture_get_pc(
-            browser_session, PROMOTIONAL_URL, run_dir
-        )
+        promo_final_url, _, promo_get_pc = capture_get_pc(browser_session, PROMOTIONAL_URL, run_dir)
         print(f"[PHASE4] Promotional final URL: {promo_final_url}")
         print(f"[PHASE4] Promotional get_pc responses: {len(promo_get_pc)}")
 
         canonical_get_pc = []
         canonical_final_url = None
         if not promo_get_pc:
-            canonical_final_url, _, canonical_get_pc = capture_get_pc(
-                browser_session, CANONICAL_URL, run_dir
-            )
+            canonical_final_url, _, canonical_get_pc = capture_get_pc(browser_session, CANONICAL_URL, run_dir)
             print(f"[PHASE4] Canonical final URL: {canonical_final_url}")
             print(f"[PHASE4] Canonical get_pc responses: {len(canonical_get_pc)}")
 
         parsed_entry = promo_get_pc[-1] if promo_get_pc else (canonical_get_pc[-1] if canonical_get_pc else None)
         if parsed_entry is None:
             raise RuntimeError("No parseable get_pc response was produced.")
-
         product = parsed_entry["product"]
         if product.item_id != ITEM_ID or product.shop_id != SHOP_ID:
-            raise RuntimeError(
-                f"Unexpected ProductInfo item/shop: {product.item_id}/{product.shop_id}"
-            )
+            raise RuntimeError(f"Unexpected ProductInfo item/shop: {product.item_id}/{product.shop_id}")
 
         live_request = resolve_live_request(product)
         matching = find_matching_variations(product, live_request)
         if len(matching) != 1:
-            raise RuntimeError(
-                "Live SKU resolution was not unique: "
-                + json.dumps(
-                    [{"model_id": v.model_id, "name": v.name, "options": v.options} for v in matching],
-                    ensure_ascii=False,
-                )
-            )
+            raise RuntimeError("Live SKU resolution was not unique: " + json.dumps([{"model_id": v.model_id, "name": v.name, "options": v.options} for v in matching], ensure_ascii=False))
         variation = matching[0]
         print(f"[PHASE4] Exact requested live SKU: {variation.name} | model={variation.model_id}")
         print(f"[PHASE4] Live ProductInfo options: {variation.options}")
 
-        request = PurchaseRequest(
-            reference=ProductReference(shop_id=SHOP_ID, item_id=ITEM_ID, url=PROMOTIONAL_URL),
-            options=dict(variation.options),
-            quantity=QUANTITY,
-        )
-        session = PurchaseSession(
-            request=request,
-            product=product,
-            variation=variation,
-            browser_session=browser_session,
-            browser_owner=owner,
-        )
-
-        # Test-only marker used by collect_cart_get; it is attached to the
-        # browser session object only and never persisted to settings or code.
-        browser_session._phase4_target_model_id = variation.model_id
+        request = PurchaseRequest(reference=ProductReference(shop_id=SHOP_ID, item_id=ITEM_ID, url=PROMOTIONAL_URL), options=dict(variation.options), quantity=QUANTITY)
+        session = PurchaseSession(request=request, product=product, variation=variation, browser_session=browser_session, browser_owner=owner)
 
         print()
         print("=" * 72)
@@ -616,33 +451,12 @@ def main():
         save_json(run_dir / "summary.json", manifest)
 
         cart_evidence = collect_cart_get(browser_session, run_dir)
-        exact = [
-            x for x in cart_evidence["identities"]
-            if str(x.get("item_id")) == str(ITEM_ID)
-            and str(x.get("model_id")) == str(variation.model_id)
-        ]
+        exact = [x for x in cart_evidence["identities"] if str(x.get("item_id")) == str(ITEM_ID) and str(x.get("model_id")) == str(variation.model_id)]
         print(f"[PHASE4] /api/v4/cart/get exact item+model matches: {len(exact)}")
 
-        decision = inspect_checkbox_candidates(
-            browser_session,
-            ITEM_ID,
-            variation.model_id,
-            product.product_name,
-            run_dir,
-        )
-        if decision.get("strategy") == "product_name_fallback":
-            # Preserve the exact product name for the second test-only pass.
-            decision["product_name"] = product.product_name
-            save_json(run_dir / "checkout_identity_decision.json", decision)
-
+        decision = inspect_checkbox_candidates(browser_session, ITEM_ID, variation.model_id, product.product_name, run_dir)
         checkout_result = execute_selected_checkout(browser_session, decision, run_dir)
-        manifest.update({
-            "checkout_executed": True,
-            "checkout_result": checkout_result,
-            "identity_decision": decision,
-            "cart_exact_item_model_match": bool(exact),
-            "finished_at": utc_now(),
-        })
+        manifest.update({"checkout_executed": True, "checkout_result": checkout_result, "identity_decision": decision, "cart_exact_item_model_match": bool(exact), "finished_at": utc_now()})
         save_json(run_dir / "summary.json", manifest)
         snapshot_page(browser_session, run_dir / "final_page.txt")
 
