@@ -2,6 +2,7 @@
 
 import json
 import threading
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -30,6 +31,8 @@ class PromotionForensicsRecorder:
         self._sequence = 0
         self._sequence_lock = threading.Lock()
         self._file_lock = threading.Lock()
+        self._snapshot_futures = []
+        self._response_counts = Counter()
         self.started_at = datetime.now(timezone.utc)
 
         item_id = session.product.item_id
@@ -71,7 +74,8 @@ class PromotionForensicsRecorder:
                 return existing
             recorder = cls(session)
             cls._active[key] = recorder
-            return recorder
+        print(f"[PromotionForensics] Recording run: {recorder.run_dir}")
+        return recorder
 
     @classmethod
     def get(cls, session):
@@ -97,6 +101,7 @@ class PromotionForensicsRecorder:
         self.record_event("forensics_attached", "monitoring", {
             "page_url": browser_session.page.url,
         })
+        print("[PromotionForensics] API response capture attached to purchase session.")
 
     async def on_browser_response(self, response):
         if not self._is_relevant(response.url):
@@ -107,6 +112,7 @@ class PromotionForensicsRecorder:
         url = response.url
         endpoint = self._endpoint(url)
         phase = self._phase_for_endpoint(endpoint)
+        self._response_counts[phase] += 1
         base = {
             "event": "api_response",
             "sequence": sequence,
@@ -171,6 +177,7 @@ class PromotionForensicsRecorder:
         try:
             from core.runtime.async_runtime import AsyncRuntime
             future = AsyncRuntime.instance().submit(self._capture_page(phase, page))
+            self._snapshot_futures.append(future)
             future.add_done_callback(self._snapshot_callback)
         except Exception as exc:
             self.record_event("page_snapshot_schedule_failed", phase, {"error": repr(exc)})
@@ -208,6 +215,13 @@ class PromotionForensicsRecorder:
             self.record_event("page_snapshot_failed", "snapshot", {"error": repr(exc)})
 
     def stop(self):
+        for future in list(self._snapshot_futures):
+            try:
+                future.result(timeout=10)
+            except Exception as exc:
+                self.record_event("page_snapshot_wait_failed", "final", {"error": repr(exc)})
+        self._snapshot_futures.clear()
+
         if self._callback_registered and self.browser_session is not None:
             try:
                 self._engine_ref.unregister_response_callback(self, session=self.browser_session)
@@ -221,12 +235,16 @@ class PromotionForensicsRecorder:
             "duration_seconds": round((finished_at - self.started_at).total_seconds(), 3),
         })
         self._write_json(self.run_dir / "final_summary.json", {
+            "schema_version": 1,
             "finished_at": finished_at.isoformat(),
             "duration_seconds": round((finished_at - self.started_at).total_seconds(), 3),
+            "response_counts_by_phase": dict(self._response_counts),
             "event_log": "events.jsonl",
             "api_directory": "api",
             "page_directory": "pages",
+            "purpose": "Reconstruct promotional price/promotion state and trace it through cart and checkout.",
         })
+        print(f"[PromotionForensics] Evidence preserved: {self.run_dir}")
 
     def _is_relevant(self, url):
         low = url.lower()
