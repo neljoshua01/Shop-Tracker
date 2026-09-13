@@ -57,9 +57,7 @@ class PromotionForensicsRecorder:
                 "place_order_is_not_clicked_by_checkout_executor": True,
             },
         })
-        self._append_event({
-            "event": "forensics_started",
-            "phase": "startup",
+        self.record_event("forensics_started", "startup", {
             "item_id": item_id,
             "model_id": model_id,
         })
@@ -96,9 +94,7 @@ class PromotionForensicsRecorder:
         self._engine_ref = engine
         engine.register_response_callback(self, self.on_browser_response, session=browser_session)
         self._callback_registered = True
-        self._append_event({
-            "event": "forensics_attached",
-            "phase": "monitoring",
+        self.record_event("forensics_attached", "monitoring", {
             "page_url": browser_session.page.url,
         })
 
@@ -112,6 +108,7 @@ class PromotionForensicsRecorder:
         endpoint = self._endpoint(url)
         phase = self._phase_for_endpoint(endpoint)
         base = {
+            "event": "api_response",
             "sequence": sequence,
             "timestamp": timestamp,
             "phase": phase,
@@ -159,6 +156,16 @@ class PromotionForensicsRecorder:
 
         self._append_event(base)
 
+    def record_event(self, event, phase, data=None):
+        payload = {
+            "event": event,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "phase": phase,
+        }
+        if data:
+            payload.update(data)
+        self._append_event(payload)
+
     def record_phase(self, phase, page):
         """Schedule a page text/HTML snapshot on the Playwright runtime."""
         try:
@@ -166,7 +173,7 @@ class PromotionForensicsRecorder:
             future = AsyncRuntime.instance().submit(self._capture_page(phase, page))
             future.add_done_callback(self._snapshot_callback)
         except Exception as exc:
-            self._append_event({"event": "page_snapshot_schedule_failed", "phase": phase, "error": repr(exc)})
+            self.record_event("page_snapshot_schedule_failed", phase, {"error": repr(exc)})
 
     async def _capture_page(self, phase, page):
         timestamp = datetime.now(timezone.utc).isoformat()
@@ -198,20 +205,18 @@ class PromotionForensicsRecorder:
         try:
             future.result()
         except Exception as exc:
-            self._append_event({"event": "page_snapshot_failed", "error": repr(exc)})
+            self.record_event("page_snapshot_failed", "snapshot", {"error": repr(exc)})
 
     def stop(self):
         if self._callback_registered and self.browser_session is not None:
             try:
                 self._engine_ref.unregister_response_callback(self, session=self.browser_session)
             except Exception as exc:
-                self._append_event({"event": "forensics_unregister_warning", "error": repr(exc)})
+                self.record_event("forensics_unregister_warning", "final", {"error": repr(exc)})
             self._callback_registered = False
 
         finished_at = datetime.now(timezone.utc)
-        self._append_event({
-            "event": "forensics_stopped",
-            "phase": "final",
+        self.record_event("forensics_stopped", "final", {
             "finished_at": finished_at.isoformat(),
             "duration_seconds": round((finished_at - self.started_at).total_seconds(), 3),
         })
