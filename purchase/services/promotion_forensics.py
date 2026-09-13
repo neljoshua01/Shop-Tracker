@@ -8,7 +8,6 @@ runtime logs directory, which is already excluded from source control.
 
 import json
 import threading
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -132,6 +131,17 @@ class PromotionForensicsRecorder:
             }
         )
 
+    def record_event(self, event, phase, details=None):
+        """Record a structured lifecycle or promotion observation event."""
+        payload = {
+            "event": event,
+            "phase": phase,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        if details:
+            payload.update(details)
+        self._append_event(payload)
+
     async def on_browser_response(self, response):
         if not self._is_relevant(response.url):
             return
@@ -168,7 +178,6 @@ class PromotionForensicsRecorder:
             self._append_event(base)
             return
 
-        extension = ".json"
         parsed = None
         if "json" in (base.get("content_type") or "").lower():
             try:
