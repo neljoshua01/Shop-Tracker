@@ -33,6 +33,9 @@ class SkuPriceMonitor:
     def start(self, session: PurchaseSession):
         self.session = session
         self.latest_state = None
+        session.monitored_item_id = None
+        session.monitored_model_id = None
+        session.monitored_sku_identity_verified = False
         self.updated.clear()
         self.triggered.clear()
         self.stop_event.clear()
@@ -187,9 +190,32 @@ class SkuPriceMonitor:
                 print("[SkuPriceMonitor] Selected SKU not found in response.")
                 return
 
-            if state.item_id != self.session.product.item_id:
+            expected_item_id = self.session.product.item_id
+            expected_model_id = self.session.variation.model_id
+
+            if state.item_id != expected_item_id:
                 print("[SkuPriceMonitor] Ignoring unrelated item.")
                 return
+
+            if state.model_id != expected_model_id:
+                print(
+                    "[SkuPriceMonitor] SKU identity mismatch: "
+                    f"expected item/model {expected_item_id}/{expected_model_id}, "
+                    f"received {state.item_id}/{state.model_id}."
+                )
+                return
+
+            # The parser already selects the requested model_id. Keep an
+            # explicit runtime identity record so the exact model observed in
+            # live get_pc data is carried with this purchase session.
+            self.session.monitored_item_id = state.item_id
+            self.session.monitored_model_id = state.model_id
+            self.session.monitored_sku_identity_verified = True
+
+            print(
+                "[SkuPriceMonitor] SKU identity verified: "
+                f"item={state.item_id}, model={state.model_id}"
+            )
 
             self.latest_state = state
             self.updated.set()
