@@ -143,16 +143,7 @@ def walk_identity(node, path="root", results=None):
         item = normalized.get("item_id", normalized.get("itemid"))
         model = normalized.get("model_id", normalized.get("modelid"))
         if item is not None or model is not None:
-            results.append({
-                "path": path,
-                "item_id": item,
-                "model_id": model,
-                "shop_id": normalized.get("shop_id", normalized.get("shopid")),
-                "name": normalized.get("name") or normalized.get("model_name") or normalized.get("item_name"),
-                "price": normalized.get("price"),
-                "origin_cart_item_price": normalized.get("origin_cart_item_price"),
-                "promotion_id": normalized.get("promotion_id", normalized.get("promotionid")),
-            })
+            results.append({"path": path, "item_id": item, "model_id": model, "shop_id": normalized.get("shop_id", normalized.get("shopid")), "name": normalized.get("name") or normalized.get("model_name") or normalized.get("item_name"), "price": normalized.get("price"), "origin_cart_item_price": normalized.get("origin_cart_item_price"), "promotion_id": normalized.get("promotion_id", normalized.get("promotionid"))})
         for key, value in node.items():
             walk_identity(value, f"{path}.{key}", results)
     elif isinstance(node, list):
@@ -327,7 +318,13 @@ def execute_selected_checkout(browser_session, decision, run_dir):
                 network.append({"url": url, "status": response.status, "method": response.request.method})
         page.on("response", on_response)
         try:
-            actions.click(actions.first(checkout_buttons))
+            # BrowserActions.click() waits for Playwright's navigation/action
+            # completion. Shopee can keep that navigation pending long enough
+            # to trip the generic 10-second BrowserActions timeout. For this
+            # TEST ONLY investigation, dispatch the already-selected Check Out
+            # button in the page and then observe navigation explicitly.
+            checkout_button = actions.first(checkout_buttons)
+            await checkout_button.evaluate("el => el.click()")
             await page.wait_for_timeout(OBSERVE_CHECKOUT_SECONDS * 1000)
             return page.url
         finally:
@@ -338,7 +335,6 @@ def execute_selected_checkout(browser_session, decision, run_dir):
 
     checkout_url = runtime.submit(_navigate_and_capture()).result(timeout=50)
     save_json(run_dir / "api" / "checkout_network.json", network)
-    body_text = ""
     try:
         body_text = actions.text(actions.find_all("body"))
     except Exception as exc:
