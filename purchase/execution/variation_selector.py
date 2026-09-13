@@ -23,6 +23,11 @@ class VariationSelector:
             "section h2",
         )
 
+        # Shopee can render the PDP sections incrementally after the first
+        # heading appears. Give the section tree a brief stabilization window
+        # before taking the locator snapshot used by variation resolution.
+        browser.wait_for_timeout(500)
+
         sections = self._get_sections(browser)
 
         self._select_requested_variations(
