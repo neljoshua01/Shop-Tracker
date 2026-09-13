@@ -5,9 +5,10 @@ TEST-ONLY. This file does not modify production application code.
 Purpose:
     1. Search local project artifacts for the historical 9.9 internal price
        990000000 and print the surrounding evidence.
-    2. Capture the current live PDP get_pc response and recursively locate
-       every occurrence of 990000000 plus all price/promotion fields associated
-       with the requested item/model.
+    2. Capture the current live PDP get_pc response, save the COMPLETE raw
+       JSON response bodies, and recursively locate every occurrence of
+       990000000 plus all price/promotion fields associated with the requested
+       item/model.
 
 Safety boundary:
     - No production purchase pipeline is executed.
@@ -17,10 +18,6 @@ Safety boundary:
     - No payment.
     - No Place Order.
     - settings.json is not read or modified.
-
-This test is useful after the promotion has ended because the historical
-artifact scan can recover evidence already saved locally, while the live
-capture documents the current post-promotion state for comparison.
 """
 
 import json
@@ -36,6 +33,7 @@ SHOP_ID = 1275798143
 TARGET_MODEL_IDS = {139454633402, 139454633406}
 HISTORICAL_PRICE = 990000000
 OBSERVE_SECONDS = 8
+OWNER = "phase4_price_forensics"
 
 SEARCH_ROOTS = (
     Path("tests/output"),
@@ -111,6 +109,33 @@ def extract_target_records(node, path="root", out=None):
     return out
 
 
+def find_numeric_price_hits(node, target, path="root", out=None):
+    """Find exact numeric/string occurrences of the historical price anywhere."""
+    if out is None:
+        out = []
+
+    if isinstance(node, dict):
+        for key, value in node.items():
+            child_path = f"{path}.{key}"
+            numeric = number_like(value)
+            if isinstance(numeric, (int, float)) and not isinstance(numeric, bool):
+                if numeric == target:
+                    out.append(
+                        {
+                            "path": child_path,
+                            "key": str(key),
+                            "value": numeric,
+                        }
+                    )
+            find_numeric_price_hits(value, target, child_path, out)
+
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            find_numeric_price_hits(value, target, f"{path}[{index}]", out)
+
+    return out
+
+
 def find_historical_hits():
     """Search local artifacts for the exact historical internal price."""
     hits = []
@@ -180,6 +205,10 @@ async def capture_live_get_pc(browser_session):
             }
             try:
                 body = await response.json()
+                # Preserve the complete raw get_pc response for later forensic
+                # inspection. The previous test only retained extracted fields,
+                # which could hide the exact promotion/price nesting.
+                entry["body"] = body
                 entry["target_records"] = extract_target_records(body)
                 entry["historical_price_hits"] = find_numeric_price_hits(
                     body,
@@ -194,33 +223,6 @@ async def capture_live_get_pc(browser_session):
             page.remove_listener("response", on_response)
         except Exception:
             pass
-
-
-def find_numeric_price_hits(node, target, path="root", out=None):
-    """Find exact numeric/string occurrences of the historical price anywhere."""
-    if out is None:
-        out = []
-
-    if isinstance(node, dict):
-        for key, value in node.items():
-            child_path = f"{path}.{key}"
-            numeric = number_like(value)
-            if isinstance(numeric, (int, float)) and not isinstance(numeric, bool):
-                if numeric == target:
-                    out.append(
-                        {
-                            "path": child_path,
-                            "key": str(key),
-                            "value": numeric,
-                        }
-                    )
-            find_numeric_price_hits(value, target, child_path, out)
-
-    elif isinstance(node, list):
-        for index, value in enumerate(node):
-            find_numeric_price_hits(value, target, f"{path}[{index}]", out)
-
-    return out
 
 
 def main():
@@ -256,13 +258,26 @@ def main():
     try:
         print()
         print("========== LIVE GET_PC CAPTURE ==========")
-        browser_session = connector.open_session(
-            "phase4_price_forensics",
-            PROMOTIONAL_URL,
-        )
+        browser_session = connector.open_session(OWNER, PROMOTIONAL_URL)
         final_url, live_records = runtime.submit(
             capture_live_get_pc(browser_session)
         ).result(timeout=60)
+
+        run_dir.mkdir(parents=True, exist_ok=True)
+        api_dir = run_dir / "api"
+        api_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save each COMPLETE raw get_pc JSON body separately. This is the main
+        # forensic artifact needed to determine whether 990000000 exists in
+        # any nested price/promotion structure that the summary extractor
+        # could otherwise miss.
+        for response in live_records:
+            body = response.get("body")
+            if body is not None:
+                save_json(
+                    api_dir / f"get_pc_{response['index']:02d}.json",
+                    body,
+                )
 
         live_target_records = []
         live_price_hits = []
@@ -270,10 +285,17 @@ def main():
             live_target_records.extend(response.get("target_records", []))
             live_price_hits.extend(response.get("historical_price_hits", []))
 
+        # Also save the extracted evidence independently of the raw bodies so
+        # it is easy to compare runs without parsing the large response again.
+        save_json(api_dir / "get_pc_response_index.json", live_records)
+        save_json(api_dir / "target_records.json", live_target_records)
+        save_json(api_dir / "historical_price_hits.json", live_price_hits)
+
         print(f"Live final URL: {final_url}")
         print(f"get_pc responses: {len(live_records)}")
         print(f"Target records: {len(live_target_records)}")
         print(f"Live 990000000 hits: {len(live_price_hits)}")
+        print(f"Raw get_pc directory: {api_dir}")
 
         for hit in live_price_hits:
             print(
@@ -282,7 +304,10 @@ def main():
             )
 
         for record in live_target_records:
-            if record.get("model_id") in TARGET_MODEL_IDS or str(record.get("item_id")) == str(ITEM_ID):
+            if (
+                record.get("model_id") in TARGET_MODEL_IDS
+                or str(record.get("item_id")) == str(ITEM_ID)
+            ):
                 print(
                     "[FORENSICS] TARGET: "
                     f"path={record.get('path')} "
@@ -320,7 +345,10 @@ def main():
                 "response_count": len(live_records),
                 "target_records": live_target_records,
                 "historical_price_hits": live_price_hits,
-                "response_summaries": live_records,
+                "raw_response_files": [
+                    str(path.relative_to(run_dir))
+                    for path in sorted(api_dir.glob("get_pc_*.json"))
+                ],
             },
         }
         save_json(run_dir / "forensics_summary.json", summary)
@@ -342,7 +370,9 @@ def main():
 
     finally:
         if browser_session is not None:
-            connector.close_session(browser_session)
+            # BrowserConnector.close_session expects the same owner key used
+            # by open_session(), not the BrowserSession object itself.
+            connector.close_session(OWNER)
 
 
 if __name__ == "__main__":
