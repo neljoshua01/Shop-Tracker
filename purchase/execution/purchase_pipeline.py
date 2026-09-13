@@ -33,20 +33,12 @@ class PurchasePipeline:
         self.checkout_executor = CheckoutExecutor()
         self._cancelled = threading.Event()
 
-    # =====================================================
-    # STOP
-    # =====================================================
-
     def stop(self):
         self._cancelled.set()
         try:
             self.sku_monitor.stop()
         except Exception as e:
             print("[PurchasePipeline] Monitor stop warning: " f"{e}")
-
-    # =====================================================
-    # RUN
-    # =====================================================
 
     def run(self, session: PurchaseSession, on_trigger=None):
         print()
@@ -60,9 +52,9 @@ class PurchasePipeline:
                 print("[PurchasePipeline] Pipeline already cancelled.")
                 return False
 
-            # Start the forensic run before any purchase work. The recorder
-            # attaches as soon as the browser session exists and remains active
-            # through monitoring, cart/checkout, and final pipeline cleanup.
+            # Start the forensic run before purchase work. It attaches as soon
+            # as the browser session exists and remains active through the
+            # promotional monitor and any cart/checkout transition.
             forensics = PromotionForensicsRecorder.start(session)
             forensics.record_event("pipeline_started", "pipeline", {
                 "status": session.status.value if hasattr(session.status, "value") else str(session.status),
@@ -175,6 +167,16 @@ class PurchasePipeline:
             session.status = PurchaseStatus.CHECKING_OUT
 
             checkout_success = self.checkout_executor.execute(session)
+
+            # Preserve the checkout page even when verification fails. This is
+            # one of the most useful artifacts for diagnosing price, identity,
+            # payment, protection, and Place Order failures.
+            if session.browser_session is not None:
+                forensics.record_phase("checkout_result", session.browser_session.page)
+                forensics.record_event("checkout_execution_returned", "checkout", {
+                    "success": checkout_success,
+                    "page_url": session.browser_session.page.url,
+                })
 
             if not checkout_success:
                 forensics.record_event("checkout_failed", "checkout")
