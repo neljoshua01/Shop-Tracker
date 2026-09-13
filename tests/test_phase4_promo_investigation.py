@@ -100,23 +100,28 @@ def collect_sections(browser_session):
 
 
 def capture_get_pc(browser_session, label, run_dir, item_id=None, shop_id=None):
-    """Reload the page and capture one matching get_pc response directly.
+    """Navigate/reload the PDP and capture one matching get_pc response.
 
-    This is intentionally implemented inside the test rather than through
-    BrowserEngine response callbacks. The response body is consumed while
-    the Playwright response is still owned by the active Playwright loop.
+    The expectation is installed before navigation starts. This matters for
+    Shopee because get_pc can be emitted during the navigation itself, before
+    a later DOM-ready wait would have an opportunity to observe it.
+
+    The entire Playwright operation runs through the existing AsyncRuntime;
+    no production response-callback plumbing is used.
     """
     runtime = AsyncRuntime.instance()
     page = browser_session.page
+    target_url = page.url or PROMOTIONAL_URL
 
     async def _capture():
         async with page.expect_response(
             lambda response: "/api/v4/pdp/get_pc" in response.url,
-            timeout=15000,
+            timeout=20000,
         ) as response_info:
-            await page.reload(
+            await page.goto(
+                target_url,
                 wait_until="domcontentloaded",
-                timeout=15000,
+                timeout=20000,
             )
 
         response = await response_info.value
@@ -124,9 +129,12 @@ def capture_get_pc(browser_session, label, run_dir, item_id=None, shop_id=None):
         return response.status, response.url, data
 
     try:
-        status, url, data = runtime.submit(_capture()).result(timeout=25)
+        future = runtime.submit(_capture())
+        status, url, data = future.result(timeout=30)
     except Exception as exc:
-        raise RuntimeError(f"Could not capture {label} get_pc response: {exc!r}") from exc
+        raise RuntimeError(
+            f"Could not capture {label} get_pc response: {exc!r}"
+        ) from exc
 
     parsed = ShopeeAPIParser().parse(data)
 
@@ -167,7 +175,6 @@ def resolve_live_variation_options(product):
             ),
             None,
         )
-
         if exact_key is not None:
             live_title = exact_key
         else:
@@ -221,56 +228,6 @@ def snapshot_page(browser_session, path, label):
         print(f"[PHASE4] Saved {label}: {path}")
     except Exception as exc:
         print(f"[PHASE4] Could not snapshot {label}: {exc!r}")
-
-
-def build_sku_record(product, variation, sku_parser):
-    matches = [
-        v
-        for v in product.available_variations
-        if v.model_id == variation.model_id
-    ]
-
-    record = {
-        "product_variation": [
-            {
-                "model_id": v.model_id,
-                "name": v.name,
-                "options": v.options,
-                "price": v.price,
-                "price_before_discount": v.price_before_discount,
-                "has_stock": v.has_stock,
-            }
-            for v in matches
-        ],
-    }
-
-    state = sku_parser.parse(
-        {
-            "data": {
-                "item": product.raw_item,
-            }
-        },
-        model_id=variation.model_id,
-    ) if hasattr(product, "raw_item") else None
-
-    if state is not None:
-        record["sku_state"] = {
-            "item_id": state.item_id,
-            "model_id": state.model_id,
-            "name": state.name,
-            "price": state.price,
-            "price_before_discount": state.price_before_discount,
-            "promotion_id": state.promotion_id,
-            "promotion_types": state.promotion_types,
-            "promotion_price": state.promotion_price,
-            "promotion_event_status": state.promotion_event_status,
-            "promotion_seconds_until_start": state.promotion_seconds_until_start,
-            "promotion_seconds_until_end": state.promotion_seconds_until_end,
-            "promotion_is_lpp": state.promotion_is_lpp,
-            "has_stock": state.has_stock,
-        }
-
-    return record
 
 
 def main(args):
@@ -423,7 +380,10 @@ def main(args):
                     if v.model_id == variation.model_id
                 ]
 
-                state = sku_parser.parse(raw_data, model_id=variation.model_id)
+                state = sku_parser.parse(
+                    raw_data,
+                    model_id=variation.model_id,
+                )
                 record = {
                     "timestamp": utc_now(),
                     "type": "get_pc",
@@ -461,23 +421,22 @@ def main(args):
 
                 events.append(record)
                 print(
-                    f"[PHASE4] {label}: "
-                    f"{record.get('sku_state', {})}"
+                    "[PHASE4] get_pc",
+                    record.get("timestamp"),
+                    record.get("sku_state", {}),
                 )
             except Exception as exc:
-                record = {
-                    "timestamp": utc_now(),
-                    "type": "capture_error",
-                    "error": repr(exc),
-                }
-                events.append(record)
-                print(f"[PHASE4] {label} warning: {exc!r}")
-
-            remaining = end - time.time()
-            if remaining > 0:
-                actions.wait_for_timeout(
-                    min(args.poll_interval, int(remaining)) * 1000
+                events.append(
+                    {
+                        "timestamp": utc_now(),
+                        "type": "get_pc_error",
+                        "error": repr(exc),
+                    }
                 )
+                print(f"[PHASE4] get_pc warning: {exc!r}")
+
+            if time.time() < end:
+                actions.wait_for_timeout(args.poll_interval * 1000)
 
         manifest["monitor_finished_at"] = utc_now()
         manifest["get_pc_events"] = len(events)
