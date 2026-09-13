@@ -217,6 +217,18 @@ class SkuPriceMonitor:
                 f"item={state.item_id}, model={state.model_id}"
             )
 
+            if state.promotion_detected:
+                print(
+                    "[SkuPriceMonitor] PROMOTION DETECTED for exact SKU: "
+                    f"item={state.item_id}, model={state.model_id}, "
+                    f"promotion_id={state.promotion_id}, "
+                    f"types={state.promotion_types}"
+                )
+            else:
+                print(
+                    "[SkuPriceMonitor] No exact-SKU promotion evidence detected."
+                )
+
             self.latest_state = state
             self.updated.set()
 
@@ -233,6 +245,8 @@ class SkuPriceMonitor:
             print(f"[SkuPriceMonitor] SKU: {state.name}")
             print(f"[SkuPriceMonitor] Price: {state.price}")
             print(f"[SkuPriceMonitor] Price before discount: {state.price_before_discount}")
+            print(f"[SkuPriceMonitor] Promotion detected: {state.promotion_detected}")
+            print(f"[SkuPriceMonitor] Promotion evidence: {state.promotion_evidence}")
             print(f"[SkuPriceMonitor] Promotion ID: {state.promotion_id}")
             print(f"[SkuPriceMonitor] Promotion types: {state.promotion_types}")
             print(f"[SkuPriceMonitor] Deep discount: {state.deep_discount}")
