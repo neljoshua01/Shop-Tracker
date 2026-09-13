@@ -116,7 +116,6 @@ def resolve_live_variation_options(sections, product):
             ):
                 matching_keys.append(key)
 
-        # Prefer an exact application-facing key when it exists.
         exact = next(
             (key for key in matching_keys if key.strip().lower() == requested_title.strip().lower()),
             None,
@@ -124,7 +123,6 @@ def resolve_live_variation_options(sections, product):
         if exact is not None:
             live_title = exact
         else:
-            # Exclude non-variation DOM labels and require a unique ProductInfo key.
             if len(matching_keys) != 1:
                 raise RuntimeError(
                     f"Could not uniquely resolve ProductInfo key for "
@@ -205,9 +203,16 @@ def main(args):
         print(f"[PHASE4] Initial URL: {browser_session.page.url}")
         manifest["initial_url"] = browser_session.page.url
 
-        actions.wait_for_selector("section h2")
+        # Do not use a hard wait_for_selector here. Shopee's promotional PDP
+        # can render its section tree asynchronously; collect_sections already
+        # polls the live DOM for the relevant variation sections.
         sections = collect_sections(browser_session)
         manifest["live_sections"] = sections
+
+        if not sections:
+            raise RuntimeError(
+                "No PDP sections with buttons were observed within 8 seconds."
+            )
 
         print("[PHASE4] Live promotional PDP DOM sections observed:")
         for section in sections:
@@ -400,7 +405,7 @@ def main(args):
         manifest["finished_at"] = utc_now()
         manifest["error"] = str(exc)
         save_json(run_dir / "summary.json", manifest)
-        print(f"[PHASE4] FAILED: {exc}")
+        print(f"[PHASE4] FAILED: {exc!r}")
         return 1
 
     finally:
