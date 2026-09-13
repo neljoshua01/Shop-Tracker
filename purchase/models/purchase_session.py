@@ -45,6 +45,12 @@ class PurchaseSession:
 
     browser_session: Optional[BrowserSession] = None
 
+    # Live get_pc identity established for the selected SKU before a
+    # purchase trigger is allowed to carry the session forward.
+    monitored_item_id: Optional[int] = None
+    monitored_model_id: Optional[int] = None
+    monitored_sku_identity_verified: bool = False
+
     # Step 1: authoritative order identity established after Place Order.
     # These fields remain unset until Shopee's My Purchase order-list
     # response confirms the exact monitored SKU.
