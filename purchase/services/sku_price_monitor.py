@@ -10,6 +10,7 @@ from purchase.models.purchase_session import PurchaseSession
 from purchase.models.sku_price_state import SkuPriceState
 from purchase.parser.sku_price_parser import SkuPriceParser
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
+from purchase.services.promotion_forensics import PromotionForensicsRecorder
 
 
 class SkuPriceMonitor:
@@ -233,6 +234,32 @@ class SkuPriceMonitor:
             self.updated.set()
 
             should_trigger = self.evaluator.evaluate(self.session, state)
+
+            recorder = PromotionForensicsRecorder.get(self.session)
+            if recorder is not None:
+                recorder.record_event(
+                    "sku_state_processed",
+                    "pdp_get_pc",
+                    {
+                        "item_id": state.item_id,
+                        "model_id": state.model_id,
+                        "sku": state.name,
+                        "price": state.price,
+                        "price_before_discount": state.price_before_discount,
+                        "promotion_detected": state.promotion_detected,
+                        "promotion_evidence": state.promotion_evidence,
+                        "promotion_id": state.promotion_id,
+                        "promotion_types": state.promotion_types,
+                        "deep_discount": state.deep_discount,
+                        "promotion_price": state.promotion_price,
+                        "promotion_event_status": state.promotion_event_status,
+                        "promotion_seconds_until_start": state.promotion_seconds_until_start,
+                        "promotion_seconds_until_end": state.promotion_seconds_until_end,
+                        "promotion_is_lpp": state.promotion_is_lpp,
+                        "has_stock": state.has_stock,
+                        "trigger_evaluation": should_trigger,
+                    },
+                )
 
             if should_trigger:
                 print("[SkuPriceMonitor] PURCHASE TRIGGERED.")
