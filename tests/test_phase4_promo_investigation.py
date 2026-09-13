@@ -7,9 +7,10 @@ The test investigates the relationship between the application-facing
 "Storage" label and Shopee's live ProductInfo label (currently observed as
 "Capacity") and records the exact live SKU/model used for get_pc observation.
 
-Important: Shopee's promotional PDP DOM is treated as diagnostic only. The
-investigation is driven by the live get_pc ProductInfo response so an unstable
-or combined PDP section tree cannot prevent SKU investigation.
+The promotional PDP DOM is diagnostic only. ProductInfo is obtained from a
+fresh get_pc response using Playwright's response-wait mechanism directly in
+the test. This avoids depending on unstable PDP DOM structure or the
+production response-callback plumbing.
 """
 
 import argparse
@@ -23,6 +24,7 @@ from execution.browser.browser_action import BrowserActions
 from execution.browser.browser_connector import BrowserConnector
 from purchase.parser.shopee_api_parser import ShopeeAPIParser
 from purchase.parser.sku_price_parser import SkuPriceParser
+from core.runtime.async_runtime import AsyncRuntime
 
 PROMOTIONAL_URL = "https://shopee.ph/product/1275798143/26342037051"
 ITEM_ID = 26342037051
@@ -57,11 +59,7 @@ def save_text(path, text):
 
 
 def collect_sections(browser_session):
-    """Collect whatever PDP section/button information is currently visible.
-
-    This is diagnostic only. It must never be a prerequisite for ProductInfo
-    or SKU resolution because Shopee's promotional PDP DOM is unstable.
-    """
+    """Collect PDP section/button information for diagnostics only."""
     actions = BrowserActions(browser_session)
     deadline = time.time() + 8
     last_result = []
@@ -90,15 +88,10 @@ def collect_sections(browser_session):
 
             if result:
                 last_result = result
-
-                titles = {
-                    item["title"].strip().lower()
-                    for item in result
-                }
+                titles = {item["title"].strip().lower() for item in result}
                 if "color" in titles or "capacity" in titles or "storage" in titles:
                     return result
         except Exception:
-            # PDP DOM inspection is deliberately non-fatal.
             pass
 
         actions.wait_for_timeout(500)
@@ -106,14 +99,54 @@ def collect_sections(browser_session):
     return last_result
 
 
-def resolve_live_variation_options(product):
-    """Resolve the app request against live ProductInfo option keys.
+def capture_get_pc(browser_session, label, run_dir, item_id=None, shop_id=None):
+    """Reload the page and capture one matching get_pc response directly.
 
-    ProductInfo is authoritative for the parsed variation keys. This prevents
-    a combined/duplicated Shopee DOM section such as "Shop Vouchers" from
-    being mistaken for the actual variation section.
+    This is intentionally implemented inside the test rather than through
+    BrowserEngine response callbacks. The response body is consumed while
+    the Playwright response is still owned by the active Playwright loop.
     """
-    print("[PHASE4] Resolving application variation labels against live data...")
+    runtime = AsyncRuntime.instance()
+    page = browser_session.page
+
+    async def _capture():
+        async with page.expect_response(
+            lambda response: "/api/v4/pdp/get_pc" in response.url,
+            timeout=15000,
+        ) as response_info:
+            await page.reload(
+                wait_until="domcontentloaded",
+                timeout=15000,
+            )
+
+        response = await response_info.value
+        data = await response.json()
+        return response.status, response.url, data
+
+    try:
+        status, url, data = runtime.submit(_capture()).result(timeout=25)
+    except Exception as exc:
+        raise RuntimeError(f"Could not capture {label} get_pc response: {exc!r}") from exc
+
+    parsed = ShopeeAPIParser().parse(data)
+
+    if item_id is not None and parsed.item_id != item_id:
+        raise RuntimeError(
+            f"{label} get_pc item mismatch: expected {item_id}, got {parsed.item_id}"
+        )
+    if shop_id is not None and parsed.shop_id != shop_id:
+        raise RuntimeError(
+            f"{label} get_pc shop mismatch: expected {shop_id}, got {parsed.shop_id}"
+        )
+
+    save_json(run_dir / "api" / f"{label}_get_pc.json", data)
+    print(f"[PHASE4] Captured {label} get_pc: {status} {url}")
+    return parsed, data, url
+
+
+def resolve_live_variation_options(product):
+    """Resolve the app request against live ProductInfo option keys."""
+    print("[PHASE4] Resolving application variation labels against live ProductInfo...")
 
     product_keys = []
     for variation in product.available_variations:
@@ -134,10 +167,10 @@ def resolve_live_variation_options(product):
             ),
             None,
         )
+
         if exact_key is not None:
             live_title = exact_key
         else:
-            # Find which ProductInfo key actually carries the requested value.
             matching_keys = [
                 key
                 for key in product_keys
@@ -190,6 +223,56 @@ def snapshot_page(browser_session, path, label):
         print(f"[PHASE4] Could not snapshot {label}: {exc!r}")
 
 
+def build_sku_record(product, variation, sku_parser):
+    matches = [
+        v
+        for v in product.available_variations
+        if v.model_id == variation.model_id
+    ]
+
+    record = {
+        "product_variation": [
+            {
+                "model_id": v.model_id,
+                "name": v.name,
+                "options": v.options,
+                "price": v.price,
+                "price_before_discount": v.price_before_discount,
+                "has_stock": v.has_stock,
+            }
+            for v in matches
+        ],
+    }
+
+    state = sku_parser.parse(
+        {
+            "data": {
+                "item": product.raw_item,
+            }
+        },
+        model_id=variation.model_id,
+    ) if hasattr(product, "raw_item") else None
+
+    if state is not None:
+        record["sku_state"] = {
+            "item_id": state.item_id,
+            "model_id": state.model_id,
+            "name": state.name,
+            "price": state.price,
+            "price_before_discount": state.price_before_discount,
+            "promotion_id": state.promotion_id,
+            "promotion_types": state.promotion_types,
+            "promotion_price": state.promotion_price,
+            "promotion_event_status": state.promotion_event_status,
+            "promotion_seconds_until_start": state.promotion_seconds_until_start,
+            "promotion_seconds_until_end": state.promotion_seconds_until_end,
+            "promotion_is_lpp": state.promotion_is_lpp,
+            "has_stock": state.has_stock,
+        }
+
+    return record
+
+
 def main(args):
     run_dir = make_run_dir()
     manifest = {
@@ -206,8 +289,6 @@ def main(args):
     save_json(run_dir / "summary.json", manifest)
 
     owner = object()
-    product_callback_owner = object()
-    monitor_callback_owner = object()
     connector = BrowserConnector()
     browser_session = None
     events = []
@@ -229,11 +310,8 @@ def main(args):
         print(f"[PHASE4] Initial URL: {browser_session.page.url}")
         manifest["initial_url"] = browser_session.page.url
 
-        # DOM inspection is diagnostic. Failure to discover section/button
-        # nodes must not block the actual ProductInfo investigation.
         sections = collect_sections(browser_session)
         manifest["live_sections"] = sections
-
         if sections:
             print("[PHASE4] Live promotional PDP DOM sections observed:")
             for section in sections:
@@ -241,44 +319,16 @@ def main(args):
         else:
             print(
                 "[PHASE4] PDP section/button DOM not observed; "
-                "continuing with live get_pc ProductInfo."
+                "continuing with direct get_pc capture."
             )
 
-        parser = ShopeeAPIParser()
-        first_product = {"value": None}
-
-        async def product_callback(response):
-            if "/api/v4/pdp/get_pc" not in response.url:
-                return
-            try:
-                data = await response.json()
-                product = parser.parse(data)
-                if product.item_id == ITEM_ID and product.shop_id == SHOP_ID:
-                    first_product["value"] = product
-                    save_json(run_dir / "api" / "initial_get_pc.json", data)
-            except Exception:
-                pass
-
-        connector.engine.register_response_callback(
-            product_callback_owner,
-            product_callback,
-            session=browser_session,
+        product, initial_data, initial_url = capture_get_pc(
+            browser_session,
+            "initial",
+            run_dir,
+            item_id=ITEM_ID,
+            shop_id=SHOP_ID,
         )
-
-        # Force a fresh ProductInfo response while remaining on the same PDP.
-        actions.reload()
-        deadline = time.time() + 10
-        while first_product["value"] is None and time.time() < deadline:
-            actions.wait_for_timeout(250)
-
-        connector.engine.unregister_response_callback(
-            product_callback_owner,
-            session=browser_session,
-        )
-
-        product = first_product["value"]
-        if product is None:
-            raise RuntimeError("No matching product get_pc response was captured.")
 
         manifest["product"] = {
             "item_id": product.item_id,
@@ -286,17 +336,17 @@ def main(args):
             "product_name": product.product_name,
             "url": product.product_url,
         }
+        manifest["initial_get_pc_url"] = initial_url
+
         print(f"[PHASE4] Product: {product.product_name}")
-        print(
-            "[PHASE4] ProductInfo option keys: "
-            f"{sorted({key for v in product.available_variations for key in v.options})}"
+        product_option_keys = sorted(
+            {key for v in product.available_variations for key in v.options}
         )
+        print(f"[PHASE4] ProductInfo option keys: {product_option_keys}")
+        manifest["product_option_keys"] = product_option_keys
 
         live_request = resolve_live_variation_options(product)
         manifest["live_test_request"] = live_request
-        manifest["product_option_keys"] = sorted(
-            {key for v in product.available_variations for key in v.options}
-        )
 
         matching = find_matching_variations(product, live_request)
         if not matching:
@@ -350,44 +400,48 @@ def main(args):
         print(f"[PHASE4] Live ProductInfo options: {variation.options}")
 
         sku_parser = SkuPriceParser()
+        manifest["monitor_started_at"] = utc_now()
+        print("[PHASE4] Beginning controlled get_pc observation...")
 
-        async def monitor_callback(response):
-            if "/api/v4/pdp/get_pc" not in response.url:
-                return
-
-            record = {
-                "timestamp": utc_now(),
-                "type": "get_pc",
-                "url": response.url,
-                "status": response.status,
-            }
-
+        end = time.time() + args.monitor_seconds
+        sequence = 0
+        while time.time() < end:
+            sequence += 1
+            label = f"monitor_{sequence:04d}"
             try:
-                data = await response.json()
-                save_json(
-                    run_dir / "api" / f"get_pc_{len(events) + 1:04d}.json",
-                    data,
+                live_product, raw_data, response_url = capture_get_pc(
+                    browser_session,
+                    label,
+                    run_dir,
+                    item_id=ITEM_ID,
+                    shop_id=SHOP_ID,
                 )
 
-                live_product = parser.parse(data)
                 live_matches = [
                     v
                     for v in live_product.available_variations
                     if v.model_id == variation.model_id
                 ]
-                record["product_variation"] = [
-                    {
-                        "model_id": v.model_id,
-                        "name": v.name,
-                        "options": v.options,
-                        "price": v.price,
-                        "price_before_discount": v.price_before_discount,
-                        "has_stock": v.has_stock,
-                    }
-                    for v in live_matches
-                ]
 
-                state = sku_parser.parse(data, model_id=variation.model_id)
+                state = sku_parser.parse(raw_data, model_id=variation.model_id)
+                record = {
+                    "timestamp": utc_now(),
+                    "type": "get_pc",
+                    "url": response_url,
+                    "status": 200,
+                    "product_variation": [
+                        {
+                            "model_id": v.model_id,
+                            "name": v.name,
+                            "options": v.options,
+                            "price": v.price,
+                            "price_before_discount": v.price_before_discount,
+                            "has_stock": v.has_stock,
+                        }
+                        for v in live_matches
+                    ],
+                }
+
                 if state is not None:
                     record["sku_state"] = {
                         "item_id": state.item_id,
@@ -404,41 +458,26 @@ def main(args):
                         "promotion_is_lpp": state.promotion_is_lpp,
                         "has_stock": state.has_stock,
                     }
-            except Exception as exc:
-                record["error"] = repr(exc)
 
-            events.append(record)
-            print(
-                "[PHASE4] get_pc",
-                record.get("timestamp"),
-                record.get("sku_state", {}),
-            )
-
-        connector.engine.register_response_callback(
-            monitor_callback_owner,
-            monitor_callback,
-            session=browser_session,
-        )
-
-        manifest["monitor_started_at"] = utc_now()
-        print("[PHASE4] Beginning controlled get_pc observation...")
-
-        end = time.time() + args.monitor_seconds
-        while time.time() < end:
-            if browser_session.page.is_closed():
-                raise RuntimeError("Monitoring page closed during observation.")
-            try:
-                actions.reload()
-            except Exception as exc:
-                events.append(
-                    {
-                        "timestamp": utc_now(),
-                        "type": "reload_error",
-                        "error": repr(exc),
-                    }
+                events.append(record)
+                print(
+                    f"[PHASE4] {label}: "
+                    f"{record.get('sku_state', {})}"
                 )
-                print(f"[PHASE4] Reload warning: {exc!r}")
-            actions.wait_for_timeout(args.poll_interval * 1000)
+            except Exception as exc:
+                record = {
+                    "timestamp": utc_now(),
+                    "type": "capture_error",
+                    "error": repr(exc),
+                }
+                events.append(record)
+                print(f"[PHASE4] {label} warning: {exc!r}")
+
+            remaining = end - time.time()
+            if remaining > 0:
+                actions.wait_for_timeout(
+                    min(args.poll_interval, int(remaining)) * 1000
+                )
 
         manifest["monitor_finished_at"] = utc_now()
         manifest["get_pc_events"] = len(events)
@@ -470,17 +509,6 @@ def main(args):
         return 1
 
     finally:
-        for callback_owner in (
-            product_callback_owner,
-            monitor_callback_owner,
-        ):
-            try:
-                connector.engine.unregister_response_callback(
-                    callback_owner,
-                    session=browser_session,
-                )
-            except Exception:
-                pass
         try:
             if browser_session is not None:
                 connector.close_session(owner)
