@@ -92,25 +92,73 @@ class CheckoutExecutor:
 
         if target_checkbox is None:
             print("[CheckoutExecutor] Stable cart identity not found.")
-            print("[CheckoutExecutor] Trying product-name fallback...")
+            print("[CheckoutExecutor] Trying exact variation fallback...")
+
             product_locator = actions.find_all(f"text={session.product.product_name}")
             product_count = actions.count(product_locator)
             print(f"[CheckoutExecutor] Product-name matches: {product_count}")
-            if product_count > 0:
-                current = actions.first(product_locator)
-                for _ in range(8):
+
+            candidates = []
+            requested_options = {
+                str(key).strip().lower(): str(value).strip().lower()
+                for key, value in session.request.options.items()
+            }
+
+            for product_index in range(product_count):
+                current = product_locator.nth(product_index)
+                for level in range(1, 9):
                     current = actions.parent(current)
                     if current is None:
                         break
+
                     checkbox_locator = actions.find_all(
                         "input.stardust-checkbox__input",
                         parent=current,
                     )
-                    if actions.count(checkbox_locator) > 0:
-                        target_checkbox = actions.first(checkbox_locator)
-                        target_container = current
-                        print("[CheckoutExecutor] Target cart item resolved using product-name fallback.")
-                        break
+                    if actions.count(checkbox_locator) == 0:
+                        continue
+
+                    candidate_text = (actions.text(current) or "").strip().lower()
+                    matched_options = [
+                        value
+                        for value in requested_options.values()
+                        if value and value in candidate_text
+                    ]
+
+                    candidates.append(
+                        {
+                            "checkbox": actions.first(checkbox_locator),
+                            "container": current,
+                            "matched_options": matched_options,
+                            "option_count": len(requested_options),
+                        }
+                    )
+                    break
+
+            exact_variation_candidates = [
+                candidate
+                for candidate in candidates
+                if candidate["option_count"] > 0
+                and len(candidate["matched_options"]) == candidate["option_count"]
+            ]
+
+            print(
+                "[CheckoutExecutor] Exact variation candidates: "
+                f"{len(exact_variation_candidates)}"
+            )
+
+            if len(exact_variation_candidates) == 1:
+                candidate = exact_variation_candidates[0]
+                target_checkbox = candidate["checkbox"]
+                target_container = candidate["container"]
+                print("[CheckoutExecutor] Target cart item resolved using exact variation fallback.")
+            elif len(exact_variation_candidates) > 1:
+                print("[CheckoutExecutor] Cart identity is ambiguous; multiple exact variation matches found.")
+                return False
+            else:
+                print("[CheckoutExecutor] Exact cart identity could not be verified.")
+                print("[CheckoutExecutor] Checkout aborted safely; no cart item was selected.")
+                return False
 
         if target_checkbox is None:
             print("[CheckoutExecutor] Target product could not be resolved inside the cart.")
@@ -217,12 +265,6 @@ class CheckoutExecutor:
             print("[CheckoutExecutor] ARMED: Place Order button is no longer available; action aborted.")
             return False
 
-        # -------------------------------------------------
-        # STEP 7E
-        # -------------------------------------------------
-        # Arm the passive post-order observer immediately before the final
-        # click. This closes the race window in which Shopee could redirect
-        # faster than a tracker started after the click.
         async def validate_created_order(_navigation):
             if session.monitored_order_identity_verified:
                 return
@@ -243,13 +285,6 @@ class CheckoutExecutor:
             print("[CheckoutExecutor] STEP 1: monitored-to-order identity VALIDATED.")
             print(f"[CheckoutExecutor] STEP 1: Order ID {identity.order_id} belongs to the monitored product.")
 
-            # -------------------------------------------------
-            # STEP 2 — SUCCESSFUL PURCHASE / TO SHIP
-            # -------------------------------------------------
-            # Step 2 consumes only the exact identity established by Step 1.
-            # It opens a separate tab and waits for the same order/product to
-            # reach Shopee's To Ship state. It performs no payment or write
-            # action and does not interfere with the existing checkout page.
             if session.successful_purchase_identity_verified:
                 return
 
