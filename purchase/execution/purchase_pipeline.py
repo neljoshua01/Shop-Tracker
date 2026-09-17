@@ -80,6 +80,12 @@ class PurchasePipeline:
 
         monitor_thread = None
         forensics = PromotionForensicsRecorder.start(session)
+
+        # Register the forensic callback before opening/preparing the browser
+        # session. BrowserEngine will bind the owner callback to the newly
+        # created BrowserSession, allowing capture of the complete
+        # PDP -> Add-to-Cart -> Cart -> Checkout response sequence.
+        forensics.attach_engine(self.cart_preparer.browser.engine)
         forensics.record_event("pipeline_started", "startup")
 
         try:
@@ -98,6 +104,7 @@ class PurchasePipeline:
             # =================================================
 
             session.status = PurchaseStatus.PREPARING
+            forensics.record_event("cart_preparation_started", "cart")
 
             print(
                 "[PurchasePipeline] "
@@ -112,6 +119,24 @@ class PurchasePipeline:
             #
             self.cart_preparer.prepare(session)
 
+            if session.browser_session is not None:
+                forensics.bind_session(session.browser_session)
+                forensics.record_phase(
+                    "cart_prepared",
+                    session.browser_session.page,
+                )
+
+            forensics.record_event(
+                "cart_preparation_completed",
+                "cart",
+                {
+                    "item_id": session.product.item_id,
+                    "model_id": session.variation.model_id,
+                    "sku": ",".join(str(v) for v in session.request.options.values()),
+                    "quantity": session.request.quantity,
+                },
+            )
+
             print(
                 "[PurchasePipeline] "
                 "Cart preparation complete."
@@ -125,6 +150,8 @@ class PurchasePipeline:
                 "[PurchasePipeline] "
                 "Starting SKU monitor..."
             )
+
+            forensics.record_event("sku_monitor_started", "pdp")
 
             monitor_thread = threading.Thread(
                 target=self.sku_monitor.monitor,
@@ -179,6 +206,16 @@ class PurchasePipeline:
             print(
                 "[PurchasePipeline] "
                 "========== PURCHASE TRIGGER RECEIVED =========="
+            )
+
+            forensics.record_event(
+                "purchase_trigger_received",
+                "trigger",
+                {
+                    "item_id": session.monitored_item_id,
+                    "model_id": session.monitored_model_id,
+                    "sku_identity_verified": session.monitored_sku_identity_verified,
+                },
             )
 
             if on_trigger:
@@ -260,6 +297,8 @@ class PurchasePipeline:
                 "Starting checkout execution..."
             )
 
+            forensics.record_event("checkout_execution_started", "cart")
+
             session.status = PurchaseStatus.CHECKING_OUT
 
             checkout_success = (
@@ -275,6 +314,10 @@ class PurchasePipeline:
                     "Checkout execution failed."
                 )
 
+                forensics.record_event(
+                    "checkout_execution_failed",
+                    "checkout",
+                )
                 session.status = PurchaseStatus.FAILED
 
                 return False
@@ -282,6 +325,15 @@ class PurchasePipeline:
             # =================================================
             # 8. CHECKOUT VERIFIED
             # =================================================
+
+            forensics.record_event(
+                "checkout_execution_completed",
+                "checkout",
+                {
+                    "item_id": session.product.item_id,
+                    "model_id": session.variation.model_id,
+                },
+            )
 
             session.status = PurchaseStatus.COMPLETED
 
