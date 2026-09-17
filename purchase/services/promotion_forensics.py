@@ -31,6 +31,7 @@ class PromotionForensicsRecorder:
     def __init__(self, session):
         self.session = session
         self.browser_session = None
+        self._engine_ref = None
         self._callback_registered = False
         self._sequence = 0
         self._sequence_lock = threading.Lock()
@@ -104,18 +105,24 @@ class PromotionForensicsRecorder:
         return recorder
 
     def attach(self, browser_session):
+        """Attach to an already-created BrowserSession."""
+        self.attach_engine(self._engine_ref or self._default_engine(), browser_session)
+
+    def attach_engine(self, engine, browser_session=None):
+        """Register before or after session creation.
+
+        When no BrowserSession exists yet, the BrowserEngine owner callback is
+        registered first. BrowserEngine will bind that callback automatically
+        when the PurchaseSession opens its page. This is required so the
+        recorder can observe Add-to-Cart and cart responses, not only later
+        monitoring responses.
+        """
         if self._callback_registered:
-            return
-        self.browser_session = browser_session
-        browser_engine = getattr(browser_session, "_forensics_engine", None)
-        if browser_engine is None:
-            # The BrowserSession intentionally does not own the engine. The
-            # caller supplies the engine through attach_engine().
+            if browser_session is not None:
+                self.browser_session = browser_session
             return
 
-    def attach_engine(self, engine, browser_session):
-        if self._callback_registered:
-            return
+        self._engine_ref = engine
         self.browser_session = browser_session
         engine.register_response_callback(
             self,
@@ -126,7 +133,19 @@ class PromotionForensicsRecorder:
         self._append_event(
             {
                 "event": "forensics_attached",
-                "phase": "monitoring",
+                "phase": "startup" if browser_session is None else "monitoring",
+                "page_url": getattr(getattr(browser_session, "page", None), "url", None),
+                "session_bound": browser_session is not None,
+            }
+        )
+
+    def bind_session(self, browser_session):
+        """Associate the recorder with the session created after pre-registration."""
+        self.browser_session = browser_session
+        self._append_event(
+            {
+                "event": "forensics_session_bound",
+                "phase": "cart",
                 "page_url": browser_session.page.url,
             }
         )
@@ -178,12 +197,14 @@ class PromotionForensicsRecorder:
             self._append_event(base)
             return
 
+        # Do not depend on Content-Type to decide whether the response is
+        # JSON. Shopee responses can still be JSON when that header is absent
+        # or inconsistent. This makes raw forensic capture more reliable.
         parsed = None
-        if "json" in (base.get("content_type") or "").lower():
-            try:
-                parsed = json.loads(body.decode("utf-8"))
-            except Exception:
-                parsed = None
+        try:
+            parsed = json.loads(body.decode("utf-8"))
+        except Exception:
+            parsed = None
 
         if parsed is not None:
             raw_path = self.api_dir / f"{sequence:06d}_{phase}_{endpoint}.json"
@@ -265,50 +286,79 @@ class PromotionForensicsRecorder:
             )
 
     def stop(self):
-        if self._callback_registered and self.browser_session is not None:
+        """Stop capture and always attempt to write the final summary."""
+        try:
+            if self._callback_registered and self._engine_ref is not None:
+                try:
+                    self._engine_ref.unregister_response_callback(
+                        self,
+                        session=self.browser_session,
+                    )
+                except Exception as exc:
+                    self._append_event(
+                        {
+                            "event": "forensics_unregister_warning",
+                            "error": repr(exc),
+                        }
+                    )
+                finally:
+                    self._callback_registered = False
+
+            finished_at = datetime.now(timezone.utc)
+            duration_seconds = round(
+                (finished_at - self.started_at).total_seconds(),
+                3,
+            )
+            self._append_event(
+                {
+                    "event": "forensics_stopped",
+                    "phase": "final",
+                    "finished_at": finished_at.isoformat(),
+                    "duration_seconds": duration_seconds,
+                }
+            )
+
+            event_count = 0
+            event_path = self.run_dir / "events.jsonl"
+            if event_path.exists():
+                try:
+                    event_count = sum(1 for _ in event_path.open("r", encoding="utf-8"))
+                except Exception:
+                    event_count = 0
+
+            api_files = len(list(self.api_dir.iterdir())) if self.api_dir.exists() else 0
+            page_files = len(list(self.page_dir.iterdir())) if self.page_dir.exists() else 0
+
+            self._write_json(
+                self.run_dir / "final_summary.json",
+                {
+                    "schema_version": 1,
+                    "finished_at": finished_at.isoformat(),
+                    "duration_seconds": duration_seconds,
+                    "event_log": "events.jsonl",
+                    "api_directory": "api",
+                    "page_directory": "pages",
+                    "event_count": event_count,
+                    "api_file_count": api_files,
+                    "page_file_count": page_files,
+                },
+            )
+        except Exception as exc:
+            # Finalization must not change purchase outcome or hide the
+            # original pipeline error. Keep a finalization warning in the
+            # structured log whenever possible.
             try:
-                engine = self._engine
-                engine.unregister_response_callback(
-                    self,
-                    session=self.browser_session,
-                )
-            except Exception as exc:
                 self._append_event(
                     {
-                        "event": "forensics_unregister_warning",
+                        "event": "forensics_finalization_warning",
+                        "phase": "final",
                         "error": repr(exc),
                     }
                 )
-            self._callback_registered = False
+            except Exception:
+                pass
 
-        finished_at = datetime.now(timezone.utc)
-        self._append_event(
-            {
-                "event": "forensics_stopped",
-                "phase": "final",
-                "finished_at": finished_at.isoformat(),
-                "duration_seconds": round(
-                    (finished_at - self.started_at).total_seconds(),
-                    3,
-                ),
-            }
-        )
-        self._write_json(
-            self.run_dir / "final_summary.json",
-            {
-                "finished_at": finished_at.isoformat(),
-                "duration_seconds": round(
-                    (finished_at - self.started_at).total_seconds(),
-                    3,
-                ),
-                "event_log": "events.jsonl",
-                "api_directory": "api",
-                "page_directory": "pages",
-            },
-        )
-
-    @property
-    def _engine(self):
+    def _default_engine(self):
         from execution.browser.browser_connector import BrowserConnector
 
         return BrowserConnector().engine
