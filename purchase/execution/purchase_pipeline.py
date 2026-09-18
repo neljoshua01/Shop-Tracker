@@ -8,10 +8,11 @@ Phase 1 deliberately removes the cart as an execution dependency:
         -> SKU monitoring
         -> IME execution decision
         -> native PDP Buy Now DOM dispatch
+        -> Shopee Buy Now cart handoff verification
         -> Checkout verification
 
 Auto Checkout OFF stops at the trigger and leaves the browser session on the
-selected product context. Auto Checkout ON continues into direct checkout,
+selected product context. Auto Checkout ON continues through the native Buy Now handoff into checkout,
 but the final Place Order action remains separately safety-gated.
 """
 
