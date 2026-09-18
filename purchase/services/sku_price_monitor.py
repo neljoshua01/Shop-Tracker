@@ -12,7 +12,6 @@ from purchase.models.sku_price_state import SkuPriceState
 from purchase.parser.sku_price_parser import SkuPriceParser
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
-from purchase.models.ime_state import IMEState
 from purchase.services.ime_state_mapper import IMEStateMapper
 
 
