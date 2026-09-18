@@ -251,7 +251,9 @@ class DirectCheckoutInitializer:
 
         checkout_result = actions.click_visible_button_by_labels(
             list(self.CART_CHECKOUT_LABELS),
-            timeout=10000,
+            timeout=15000,
+            wait_for_url="**/checkout**",
+            navigation_timeout=15000,
         )
 
         print(
@@ -266,19 +268,22 @@ class DirectCheckoutInitializer:
             )
             return False
 
-        try:
-            actions.wait_for_url("**/checkout**", timeout=10000)
-        except Exception as exc:
+        if not checkout_result.get("url_wait_satisfied", False):
             current_url = session.browser_session.page.url
             print(
                 "[DirectCheckoutInitializer] "
-                f"Checkout navigation was not observed after cart handoff: {exc}"
+                "Checkout URL was not observed by the pre-armed navigation waiter."
+            )
+            print(
+                "[DirectCheckoutInitializer] "
+                f"Navigation wait error: {checkout_result.get('url_wait_error')}"
             )
             print(
                 "[DirectCheckoutInitializer] "
                 f"Current URL after cart Check Out: {current_url}"
             )
-            return False
+            if "/checkout" not in current_url:
+                return False
 
         current_url = session.browser_session.page.url
         print(
