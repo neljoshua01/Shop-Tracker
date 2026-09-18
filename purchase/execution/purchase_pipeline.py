@@ -403,6 +403,27 @@ class PurchasePipeline:
             # purchase-profile lifecycle, not by this pipeline.
             #
 
+            # Record the terminal pipeline lifecycle event before finalizing
+            # the recorder. This covers normal exits such as a safe checkout
+            # stop when the live promotional price is no longer available.
+            try:
+                forensics.record_event(
+                    "pipeline_finished",
+                    "final",
+                    {
+                        "status": getattr(session.status, "value", str(session.status)),
+                        "browser_session_preserved": session.browser_session is not None,
+                    },
+                )
+            except Exception as e:
+                print(
+                    "[PurchasePipeline] "
+                    f"Forensics terminal event warning: {e}"
+                )
+
+            # Finalize forensic capture on every normal pipeline exit.
+            # The recorder isolates cleanup failures so they cannot suppress
+            # final_summary.json.
             PromotionForensicsRecorder.stop(session)
 
             print(
