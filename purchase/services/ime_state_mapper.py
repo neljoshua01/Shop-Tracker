@@ -29,7 +29,7 @@ class IMEStateMapper:
         if state.has_stock:
             return IMEState.SKU_AVAILABLE
 
-        if state.promotion_event_status == "LIVE":
+        if state.promotion_detected and state.promotion_event_status == "LIVE":
             return IMEState.PROMOTION_LIVE
 
         return IMEState.PRICE_OBSERVED
