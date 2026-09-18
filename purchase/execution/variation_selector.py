@@ -12,7 +12,6 @@ class VariationSelector:
         self,
         session,
     ):
-
         print("[VariationSelector] Selecting variations...")
 
         browser = BrowserActions(
@@ -48,12 +47,10 @@ class VariationSelector:
         sections,
         requested_options,
     ):
-
         print()
         print("========== SELECTING VARIATIONS ==========")
 
         for title, value in requested_options.items():
-
             print(
                 f"[VariationSelector] {title} -> {value}"
             )
@@ -64,7 +61,6 @@ class VariationSelector:
             )
 
             if section is None:
-
                 raise RuntimeError(
                     f"Variation section not found: {title}"
                 )
@@ -87,18 +83,69 @@ class VariationSelector:
             )
 
             if button is None:
-
                 raise RuntimeError(
                     f"Variation option not found: "
                     f"{title} -> {value}"
                 )
 
-            # Shopee can leave a transient promotional layer over PDP
-            # controls. These locators are already scoped to the exact
-            # requested variation button, so force is safe here.
-            browser.force_click(
-                button["locator"]
+            print(
+                "[VariationSelector] "
+                f"Resolved control: {resolved_title} -> {value}"
             )
+
+            try:
+                # The PDP can rerender its variation tree as soon as an
+                # option is interacted with. Re-locate the exact button from
+                # the live section immediately before clicking instead of
+                # relying only on the locator captured during the section
+                # snapshot.
+                live_button = browser.find_all(
+                    "button",
+                    parent=section["locator"],
+                )
+
+                matching_live_button = None
+                live_count = browser.count(live_button)
+
+                for index in range(live_count):
+                    candidate = live_button.nth(index)
+                    candidate_value = browser.attribute(
+                        candidate,
+                        "aria-label",
+                    )
+
+                    if (
+                        candidate_value is not None
+                        and candidate_value.strip().lower()
+                        == value.strip().lower()
+                    ):
+                        matching_live_button = candidate
+                        break
+
+                if matching_live_button is None:
+                    # Fall back to the snapshot locator if Shopee has
+                    # temporarily replaced the section subtree.
+                    matching_live_button = button["locator"]
+
+                print(
+                    "[VariationSelector] "
+                    f"Clicking live control: {resolved_title} -> {value}"
+                )
+
+                browser.force_click(
+                    matching_live_button,
+                )
+
+                print(
+                    "[VariationSelector] "
+                    f"Click completed: {resolved_title} -> {value}"
+                )
+
+            except Exception as exc:
+                raise RuntimeError(
+                    "Failed to click PDP variation option: "
+                    f"{title} -> {value}: {exc}"
+                ) from exc
 
             browser.wait_for_timeout(300)
 
@@ -113,7 +160,6 @@ class VariationSelector:
         requested_title,
     ):
         """Resolve a requested variation heading to the live PDP heading."""
-
         normalized_title = requested_title.strip().lower()
 
         section = next(
@@ -156,7 +202,6 @@ class VariationSelector:
         requested_quantity,
     ):
         """Set and verify the PDP quantity before Add To Cart."""
-
         try:
             requested_quantity = int(
                 requested_quantity
@@ -248,7 +293,6 @@ class VariationSelector:
         decrease_count = browser.count(decrease)
 
         if current_quantity < requested_quantity:
-
             if increase_count == 0:
                 raise RuntimeError(
                     "PDP Increase quantity control not found."
@@ -271,7 +315,6 @@ class VariationSelector:
                 browser.wait_for_timeout(300)
 
         elif current_quantity > requested_quantity:
-
             if decrease_count == 0:
                 raise RuntimeError(
                     "PDP Decrease quantity control not found."
@@ -335,7 +378,6 @@ class VariationSelector:
         self,
         browser,
     ):
-
         sections = []
 
         locator = browser.find_all("section")
@@ -347,7 +389,6 @@ class VariationSelector:
         )
 
         for i in range(count):
-
             section = locator.nth(i)
 
             titles = browser.find_all(
@@ -374,7 +415,6 @@ class VariationSelector:
             section_buttons = []
 
             for j in range(button_count):
-
                 button = buttons.nth(j)
 
                 value = browser.attribute(
