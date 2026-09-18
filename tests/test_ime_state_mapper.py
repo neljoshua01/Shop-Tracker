@@ -34,7 +34,11 @@ def make_state(**overrides):
 
 def make_session(target_price=10000):
     return SimpleNamespace(
-        request=SimpleNamespace(target_price=target_price),
+        request=SimpleNamespace(
+            target_price=target_price,
+            options={"Color": "Black", "Storage": "256GB"},
+            quantity=2,
+        ),
     )
 
 
@@ -89,6 +93,11 @@ def test_execution_decision_carries_exact_observed_context():
     assert isinstance(decision, ExecutionDecision)
     assert decision.item_id == 100
     assert decision.model_id == 200
+    assert decision.variation_options == (
+        ("Color", "Black"),
+        ("Storage", "256GB"),
+    )
+    assert decision.quantity == 2
     assert decision.promotion_id == 123
     assert decision.target_price == 10000
     assert decision.execution_state is IMEState.EXECUTION_READY
