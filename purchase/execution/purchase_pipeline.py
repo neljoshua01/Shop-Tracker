@@ -1,18 +1,18 @@
 """
-Coordinates the purchase execution pipeline.
+Coordinates the Intelligent Monitoring Engine purchase pipeline.
 
-The pipeline always prepares the requested product in the Shopee cart,
-then monitors the selected SKU.
+Phase 1 deliberately removes the cart as an execution dependency:
 
-Auto Checkout only changes what happens AFTER a purchase trigger:
+    Product Profile
+        -> selected PDP variation/quantity
+        -> SKU monitoring
+        -> IME execution decision
+        -> Shopee Buy Now
+        -> Checkout verification
 
-    Auto Checkout OFF:
-        Trigger is recorded and monitoring stops.
-        The prepared cart/session remains available.
-
-    Auto Checkout ON:
-        Trigger stops monitoring and starts CheckoutExecutor.
-        CheckoutExecutor proceeds only up to Place Order detection.
+Auto Checkout OFF stops at the trigger and leaves the browser session on the
+selected product context. Auto Checkout ON continues into direct checkout,
+but the final Place Order action remains separately safety-gated.
 """
 
 import threading
@@ -21,7 +21,7 @@ from purchase.models.purchase_session import PurchaseSession
 from purchase.models.purchase_status import PurchaseStatus
 from purchase.models.ime_state import IMEState
 from purchase.models.execution_decision import ExecutionDecision
-from purchase.execution.cart_preparer import CartPreparer
+from purchase.execution.direct_checkout_initializer import DirectCheckoutInitializer
 from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.services.sku_price_monitor import SkuPriceMonitor
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
@@ -30,44 +30,22 @@ from purchase.services.promotion_forensics import PromotionForensicsRecorder
 class PurchasePipeline:
 
     def __init__(self):
-
-        self.cart_preparer = CartPreparer()
+        self.direct_checkout_initializer = DirectCheckoutInitializer()
         self.sku_monitor = SkuPriceMonitor()
         self.checkout_executor = CheckoutExecutor()
         self.execution_decision: ExecutionDecision | None = None
-
         self._cancelled = threading.Event()
 
-    # =====================================================
-    # STOP
-    # =====================================================
-
     def stop(self):
-        """
-        Stop the SKU monitor.
-
-        IMPORTANT:
-        This does NOT close the purchase browser session.
-
-        The prepared cart belongs to the purchase session and must
-        remain available after monitoring stops.
-        """
-
+        """Stop monitoring without closing the purchase browser session."""
         self._cancelled.set()
-
         try:
             self.sku_monitor.stop()
-
         except Exception as e:
-
             print(
                 "[PurchasePipeline] "
                 f"Monitor stop warning: {e}"
             )
-
-    # =====================================================
-    # RUN
-    # =====================================================
 
     def run(
         self,
@@ -75,7 +53,6 @@ class PurchasePipeline:
         on_trigger=None,
         ime_state: IMEState | None = None,
     ):
-
         print()
         print(
             "[PurchasePipeline] "
@@ -87,76 +64,55 @@ class PurchasePipeline:
         session.execution_decision = None
         forensics = PromotionForensicsRecorder.start(session)
 
-        # Register the forensic callback before opening/preparing the browser
-        # session. BrowserEngine will bind the owner callback to the newly
-        # created BrowserSession, allowing capture of the complete
-        # PDP -> Add-to-Cart -> Cart -> Checkout response sequence.
-        forensics.attach_engine(self.cart_preparer.browser.engine)
-        forensics.record_event("pipeline_started", "startup")
+        forensics.attach_engine(self.direct_checkout_initializer.browser.engine)
+        forensics.record_event(
+            "pipeline_started",
+            "startup",
+            {"cart_flow_enabled": False},
+        )
 
         try:
-
             if self._cancelled.is_set():
-
-                print(
-                    "[PurchasePipeline] "
-                    "Pipeline already cancelled."
-                )
-
+                print("[PurchasePipeline] Pipeline already cancelled.")
                 return False
 
             # =================================================
-            # 1. PREPARE CART
+            # 1. PREPARE PRODUCT CONTEXT — NO CART
             # =================================================
-
             session.status = PurchaseStatus.PREPARING
-            forensics.record_event("cart_preparation_started", "cart")
+            forensics.record_event(
+                "product_context_preparation_started",
+                "pdp",
+            )
 
             print(
                 "[PurchasePipeline] "
-                "Preparing cart..."
+                "Preparing selected product context without cart..."
             )
-
-            #
-            # IMPORTANT:
-            #
-            # Cart preparation ALWAYS happens regardless of
-            # Auto Checkout.
-            #
-            self.cart_preparer.prepare(session)
+            self.direct_checkout_initializer.prepare(session)
 
             if session.browser_session is not None:
                 forensics.bind_session(session.browser_session)
                 forensics.record_phase(
-                    "cart_prepared",
+                    "product_context_prepared",
                     session.browser_session.page,
                 )
 
             forensics.record_event(
-                "cart_preparation_completed",
-                "cart",
+                "product_context_preparation_completed",
+                "pdp",
                 {
                     "item_id": session.product.item_id,
                     "model_id": session.variation.model_id,
-                    "sku": ",".join(str(v) for v in session.request.options.values()),
+                    "variation_options": dict(session.request.options),
                     "quantity": session.request.quantity,
                 },
-            )
-
-            print(
-                "[PurchasePipeline] "
-                "Cart preparation complete."
             )
 
             # =================================================
             # 2. START SKU MONITOR
             # =================================================
-
-            print(
-                "[PurchasePipeline] "
-                "Starting SKU monitor..."
-            )
-
+            print("[PurchasePipeline] Starting SKU monitor...")
             forensics.record_event("sku_monitor_started", "pdp")
 
             monitor_thread = threading.Thread(
@@ -168,46 +124,28 @@ class PurchasePipeline:
                 },
                 daemon=True,
             )
-
             monitor_thread.start()
 
             # =================================================
             # 3. WAIT FOR TRIGGER
             # =================================================
-
-            print(
-                "[PurchasePipeline] "
-                "Waiting for purchase trigger..."
-            )
-
+            print("[PurchasePipeline] Waiting for purchase trigger...")
             triggered = self.sku_monitor.wait_for_trigger(
                 cancellation_event=self._cancelled,
             )
 
             if not triggered:
-
                 if self._cancelled.is_set():
-
-                    print(
-                        "[PurchasePipeline] "
-                        "Pipeline cancelled."
-                    )
-
+                    print("[PurchasePipeline] Pipeline cancelled.")
                     return False
 
-                print(
-                    "[PurchasePipeline] "
-                    "Purchase trigger not received."
-                )
-
+                print("[PurchasePipeline] Purchase trigger not received.")
                 session.status = PurchaseStatus.FAILED
-
                 return False
 
             # =================================================
-            # 4. TRIGGER RECEIVED
+            # 4. BUILD EXECUTION DECISION
             # =================================================
-
             print()
             print(
                 "[PurchasePipeline] "
@@ -234,6 +172,11 @@ class PurchasePipeline:
             self.execution_decision = ExecutionDecision(
                 item_id=latest_state.item_id,
                 model_id=latest_state.model_id,
+                variation_options=tuple(sorted(
+                    (str(key), str(value))
+                    for key, value in session.request.options.items()
+                )),
+                quantity=session.request.quantity,
                 promotion_id=latest_state.promotion_id,
                 target_price=session.request.target_price,
                 execution_state=current_ime_state,
@@ -251,6 +194,10 @@ class PurchasePipeline:
                     "execution_decision": {
                         "item_id": self.execution_decision.item_id,
                         "model_id": self.execution_decision.model_id,
+                        "variation_options": dict(
+                            self.execution_decision.variation_options
+                        ),
+                        "quantity": self.execution_decision.quantity,
                         "promotion_id": self.execution_decision.promotion_id,
                         "target_price": self.execution_decision.target_price,
                         "execution_state": self.execution_decision.execution_state.value,
@@ -259,112 +206,107 @@ class PurchasePipeline:
             )
 
             if on_trigger:
-
                 on_trigger()
 
             # =================================================
             # 5. STOP MONITORING
             # =================================================
-
-            print(
-                "[PurchasePipeline] "
-                "Stopping SKU monitor..."
-            )
-
+            print("[PurchasePipeline] Stopping SKU monitor...")
             self.sku_monitor.stop()
-
-            #
-            # Wake the pipeline if it is waiting.
-            #
             self._cancelled.set()
 
-            if (
-                monitor_thread is not None
-                and monitor_thread.is_alive()
-            ):
-
-                monitor_thread.join(
-                    timeout=10,
-                )
+            if monitor_thread is not None and monitor_thread.is_alive():
+                monitor_thread.join(timeout=10)
 
             # =================================================
             # 6. AUTO CHECKOUT OFF
             # =================================================
-
             if not session.request.auto_checkout:
-
                 print()
+                print("[PurchasePipeline] Auto Checkout is OFF.")
                 print(
                     "[PurchasePipeline] "
-                    "Auto Checkout is OFF."
+                    "Trigger recorded; browser remains on the selected PDP context."
                 )
-
-                print(
-                    "[PurchasePipeline] "
-                    "Trigger recorded."
+                forensics.record_event(
+                    "auto_checkout_disabled",
+                    "trigger",
+                    {"cart_flow_enabled": False},
                 )
-
-                print(
-                    "[PurchasePipeline] "
-                    "Prepared cart will remain available."
-                )
-
-                #
-                # IMPORTANT:
-                #
-                # Do NOT close the browser session here.
-                #
-                # Do NOT remove the prepared cart.
-                #
-                # The cart is intentionally left visible for
-                # monitoring/manual action.
-                #
-
                 return True
 
             # =================================================
-            # 7. AUTO CHECKOUT ON
+            # 7. DIRECT CHECKOUT
             # =================================================
-
             print()
+            print("[PurchasePipeline] Auto Checkout is ON.")
             print(
                 "[PurchasePipeline] "
-                "Auto Checkout is ON."
+                "Starting direct checkout without cart..."
             )
-
-            print(
-                "[PurchasePipeline] "
-                "Starting checkout execution..."
+            forensics.record_event(
+                "checkout_execution_started",
+                "checkout",
+                {
+                    "checkout_route": "pdp_buy_now",
+                    "cart_flow_enabled": False,
+                },
             )
-
-            forensics.record_event("checkout_execution_started", "cart")
 
             session.status = PurchaseStatus.CHECKING_OUT
 
-            checkout_success = (
-                self.checkout_executor.execute(
-                    session,
+            direct_checkout_started = forensics.record_event(
+                "direct_checkout_initialization_started",
+                "checkout",
+                {
+                    "item_id": self.execution_decision.item_id,
+                    "model_id": self.execution_decision.model_id,
+                    "promotion_id": self.execution_decision.promotion_id,
+                },
+            )
+
+            checkout_initialized = self.direct_checkout_initializer.initialize(
+                session,
+                self.execution_decision,
+            )
+
+            if not checkout_initialized:
+                print(
+                    "[PurchasePipeline] "
+                    "Direct checkout initialization failed."
                 )
+                forensics.record_event(
+                    "direct_checkout_initialization_failed",
+                    "checkout",
+                    {
+                        "cart_flow_fallback": False,
+                    },
+                )
+                session.status = PurchaseStatus.FAILED
+                return False
+
+            forensics.record_event(
+                "direct_checkout_initialization_completed",
+                "checkout",
+                {
+                    "cart_flow_enabled": False,
+                    "url": session.browser_session.page.url,
+                },
+            )
+
+            checkout_success = self.checkout_executor.execute(
+                session,
+                forensics=forensics,
             )
 
             if not checkout_success:
-
-                print(
-                    "[PurchasePipeline] "
-                    "Checkout execution failed."
-                )
-
+                print("[PurchasePipeline] Checkout execution failed.")
                 forensics.record_event(
                     "checkout_execution_failed",
                     "checkout",
                 )
                 session.status = PurchaseStatus.FAILED
-
                 return False
-
-            # =================================================
-            # 8. CHECKOUT VERIFIED
-            # =================================================
 
             forensics.record_event(
                 "checkout_execution_completed",
@@ -372,6 +314,7 @@ class PurchasePipeline:
                 {
                     "item_id": session.product.item_id,
                     "model_id": session.variation.model_id,
+                    "cart_flow_enabled": False,
                 },
             )
 
@@ -382,77 +325,40 @@ class PurchasePipeline:
                 "[PurchasePipeline] "
                 "Checkout page reached and verified."
             )
+            print("[PurchasePipeline] Place Order detected.")
 
-            print(
-                "[PurchasePipeline] "
-                "Place Order detected."
-            )
-
-            #
-            # CheckoutExecutor intentionally stops here.
-            # It does NOT click Place Order.
-            #
-
+            # CheckoutExecutor intentionally stops here unless a separate
+            # runtime safety authorization is explicitly present.
             return True
 
         except Exception:
-
             session.status = PurchaseStatus.FAILED
-
             raise
 
         finally:
-
-            #
-            # Always stop monitoring.
-            #
             try:
-
                 self.sku_monitor.stop()
-
             except Exception as e:
-
                 print(
                     "[PurchasePipeline] "
                     f"Final monitor stop warning: {e}"
                 )
 
-            #
-            # Give the monitor thread time to finish.
-            #
-            if (
-                monitor_thread is not None
-                and monitor_thread.is_alive()
-            ):
+            if monitor_thread is not None and monitor_thread.is_alive():
+                monitor_thread.join(timeout=10)
 
-                monitor_thread.join(
-                    timeout=10,
-                )
-
-            #
-            # IMPORTANT:
-            #
-            # DO NOT close session.browser_session here.
-            #
-            # The browser session owns the prepared cart.
-            #
-            # Closing it here was the reason the cart/profile
-            # disappeared after the pipeline completed.
-            #
-            # Session cleanup should be handled by the higher-level
-            # purchase-profile lifecycle, not by this pipeline.
-            #
-
-            # Record the terminal pipeline lifecycle event before finalizing
-            # the recorder. This covers normal exits such as a safe checkout
-            # stop when the live promotional price is no longer available.
             try:
                 forensics.record_event(
                     "pipeline_finished",
                     "final",
                     {
-                        "status": getattr(session.status, "value", str(session.status)),
+                        "status": getattr(
+                            session.status,
+                            "value",
+                            str(session.status),
+                        ),
                         "browser_session_preserved": session.browser_session is not None,
+                        "cart_flow_enabled": False,
                     },
                 )
             except Exception as e:
@@ -461,9 +367,6 @@ class PurchasePipeline:
                     f"Forensics terminal event warning: {e}"
                 )
 
-            # Finalize forensic capture on every normal pipeline exit.
-            # The recorder isolates cleanup failures so they cannot suppress
-            # final_summary.json.
             PromotionForensicsRecorder.stop(session)
 
             print(
