@@ -53,3 +53,8 @@ class SkuPriceState:
     promotion_is_lpp: Optional[bool] = None
 
     has_stock: bool = False
+
+    # Conservative browser-session health signal. This confirms that the
+    # active browser context can expose Shopee cookies; it is not an
+    # authentication or anti-bot bypass guarantee.
+    cookie_integrity: bool = False
