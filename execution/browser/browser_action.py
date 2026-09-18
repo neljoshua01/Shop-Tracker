@@ -423,7 +423,14 @@ class BrowserActions:
 
                     try:
                         await page_wait_for_click_settle(self.session.page)
+                        if navigation_task is not None:
+                            try:
+                                await navigation_task
+                            except Exception as exc:
+                                navigation_error = repr(exc)
                     finally:
+                        if navigation_task is not None and not navigation_task.done():
+                            navigation_task.cancel()
                         self.session.page.remove_listener(
                             "framenavigated",
                             _record_navigation,
