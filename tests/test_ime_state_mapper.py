@@ -92,3 +92,14 @@ def test_execution_decision_carries_exact_observed_context():
     assert decision.promotion_id == 123
     assert decision.target_price == 10000
     assert decision.execution_state is IMEState.EXECUTION_READY
+
+
+def test_live_event_without_exact_promotion_evidence_stays_price_observed():
+    state = make_state(
+        promotion_detected=False,
+        has_stock=False,
+        cookie_integrity=False,
+    )
+    session = make_session()
+
+    assert IMEStateMapper().map(session, state) is IMEState.PRICE_OBSERVED
