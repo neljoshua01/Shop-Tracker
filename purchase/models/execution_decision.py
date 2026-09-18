@@ -16,6 +16,8 @@ from purchase.models.ime_state import IMEState
 class ExecutionDecision:
     item_id: int
     model_id: int
+    variation_options: tuple[tuple[str, str], ...]
+    quantity: int
     promotion_id: Optional[int]
     target_price: Optional[int]
     execution_state: IMEState
