@@ -131,7 +131,7 @@ def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
             captured.setdefault("diagnostics", []).append(labels)
             return [{"tag": "BUTTON", "text": labels[0], "visible": True}]
 
-        def click_visible_button_by_labels(self, labels, timeout=10000):
+        def click_visible_button_by_labels(self, labels, timeout=10000, **kwargs):
             captured.setdefault("clicks", []).append(labels)
             if labels[0] == "buy now":
                 return {
