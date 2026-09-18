@@ -60,7 +60,7 @@ def test_direct_checkout_initializer_rejects_model_mismatch():
         initializer._validate_decision(session, decision)
 
 
-def test_initialize_dispatches_native_buy_now_dom(monkeypatch):
+def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     session = make_session()
     decision = make_decision()
     initializer = object.__new__(DirectCheckoutInitializer)
@@ -74,9 +74,9 @@ def test_initialize_dispatches_native_buy_now_dom(monkeypatch):
         def __init__(self, _session):
             pass
 
-        def evaluate(self, expression, arg=None, timeout=10000):
-            captured["expression"] = expression
-            captured["arg"] = arg
+        def click_visible_button_by_labels(self, labels, timeout=10000):
+            captured["labels"] = labels
+            captured["timeout"] = timeout
             return {"found": True, "clicked": True, "text": "Buy Now"}
 
         def wait_for_url(self, url, timeout=10000):
@@ -91,11 +91,11 @@ def test_initialize_dispatches_native_buy_now_dom(monkeypatch):
     session.browser_session = SimpleNamespace(page=FakePage())
 
     assert initializer.initialize(session, decision) is True
-    assert captured["arg"] == ["buy now", "bilihin na"]
-    assert "**/checkout**" in captured["wait_for_url"][0]
+    assert captured["labels"] == ["buy now", "bilihin na"]
+    assert captured["wait_for_url"][0] == "**/checkout**"
 
 
-def test_initialize_fails_when_native_buy_now_dom_dispatch_fails(monkeypatch):
+def test_initialize_fails_when_buy_now_cannot_be_clicked(monkeypatch):
     session = make_session()
     decision = make_decision()
     initializer = object.__new__(DirectCheckoutInitializer)
@@ -107,7 +107,7 @@ def test_initialize_fails_when_native_buy_now_dom_dispatch_fails(monkeypatch):
         def __init__(self, _session):
             pass
 
-        def evaluate(self, expression, arg=None, timeout=10000):
+        def click_visible_button_by_labels(self, labels, timeout=10000):
             return {"found": False, "clicked": False}
 
     monkeypatch.setattr(
