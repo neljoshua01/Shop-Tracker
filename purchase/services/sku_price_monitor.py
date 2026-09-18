@@ -2,6 +2,7 @@
 Monitors Shopee get_pc responses for the selected SKU.
 """
 
+from dataclasses import replace
 from threading import Event
 
 from execution.browser.browser_connector import BrowserConnector
@@ -11,6 +12,8 @@ from purchase.models.sku_price_state import SkuPriceState
 from purchase.parser.sku_price_parser import SkuPriceParser
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
+from purchase.models.ime_state import IMEState
+from purchase.services.ime_state_mapper import IMEStateMapper
 
 
 class SkuPriceMonitor:
@@ -25,6 +28,7 @@ class SkuPriceMonitor:
         self.triggered = Event()
         self.stop_event = Event()
         self.evaluator = PurchaseTriggerEvaluator()
+        self.ime_state_mapper = IMEStateMapper()
         self.monitoring = False
         self.poll_interval = 5
         self._stopped = True
