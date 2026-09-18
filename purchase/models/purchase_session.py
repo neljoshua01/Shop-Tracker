@@ -3,6 +3,7 @@ Represents a purchase attempt.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from purchase.models.product_info import ProductInfo
 from purchase.models.purchase_request import PurchaseRequest
@@ -44,6 +45,11 @@ class PurchaseSession:
     #
     status: PurchaseStatus = field(
         default=PurchaseStatus.CREATED,
+    )
+
+    # Runtime start timestamp for UI/runtime lifecycle reporting.
+    started_at: datetime = field(
+        default_factory=lambda: datetime.now(timezone.utc),
     )
 
     browser_session: Optional[BrowserSession] = None
