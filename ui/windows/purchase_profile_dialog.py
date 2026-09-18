@@ -166,7 +166,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         self.settings_card = self._card(self.scroll, "4", "Purchase Settings", "Monitoring and purchase rules")
         self.settings_card.grid(row=1, column=1, sticky="nsew", padx=(6, 0), pady=(0, 10))
 
-        self.checkout_card = self._card(self.scroll, "5", "Auto Checkout", "Uses configured cart, payment, shipping, and OTP")
+        self.checkout_card = self._card(self.scroll, "5", "Auto Checkout", "Uses selected PDP variation, payment, shipping, and OTP")
         self.checkout_card.grid(row=2, column=0, sticky="nsew", padx=(0, 6), pady=(0, 4))
 
         self.summary_card = self._card(self.scroll, "6", "Purchase Summary", "Updates as you configure the profile")
@@ -437,7 +437,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         self.auto_switch.grid(row=0, column=1, sticky="e")
         ctk.CTkLabel(
             self.checkout_card,
-            text="When enabled, the existing purchase pipeline prepares cart and verifies checkout. Global Armed Mode remains the final safety gate.",
+            text="When enabled, the purchase pipeline uses the selected PDP variation and Buy Now to reach checkout. Global Armed Mode remains the final safety gate.",
             font=fonts.SMALL, text_color=colors.TEXT_SECONDARY, justify="left", anchor="w", wraplength=350,
         ).pack(fill="x", padx=14, pady=(0, 10))
 
