@@ -208,6 +208,11 @@ class SkuPriceMonitor:
                 print("[SkuPriceMonitor] Selected SKU not found in response.")
                 return
 
+            state = replace(
+                state,
+                cookie_integrity=cookie_integrity,
+            )
+
             expected_item_id = self.session.product.item_id
             expected_model_id = self.session.variation.model_id
 
