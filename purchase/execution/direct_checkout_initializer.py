@@ -29,13 +29,22 @@ class DirectCheckoutInitializer:
         self.variation_selector = VariationSelector()
 
     def prepare(self, session):
-        """Open the PDP and establish the selected variation/quantity for monitoring."""
+        """Open the PDP and establish the selected variation/quantity once."""
         self._open_product(session)
         self.variation_selector.select(session)
 
+        session.pdp_context_prepared = True
+        session.pdp_selection_verified = True
+
         print(
             "[DirectCheckoutInitializer] "
-            "Product context prepared; cart flow is not used."
+            "Product context prepared; variation/quantity are now frozen for "
+            "this purchase session."
+        )
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Prepared SKU: item={session.product.item_id}, "
+            f"model={session.variation.model_id}, quantity={session.request.quantity}"
         )
 
     def initialize(self, session, decision):
@@ -48,16 +57,34 @@ class DirectCheckoutInitializer:
         the old Add To Cart purchase flow.
         """
         self._validate_decision(session, decision)
-        self._open_product(session)
 
-        # Monitoring refreshes the PDP to obtain fresh get_pc data. Shopee's
-        # rendered variation state can be reset by that refresh, even though
-        # the execution decision still identifies the exact monitored SKU.
+        if not session.pdp_context_prepared or not session.pdp_selection_verified:
+            print(
+                "[DirectCheckoutInitializer] "
+                "PDP execution context was not prepared and verified."
+            )
+            return False
+
+        if (
+            session.browser_session is None
+            or session.browser_session.page.is_closed()
+            or "/product/" not in session.browser_session.page.url
+        ):
+            print(
+                "[DirectCheckoutInitializer] "
+                "Prepared PDP context is no longer available for Buy Now."
+            )
+            return False
+
         print(
             "[DirectCheckoutInitializer] "
-            "Restoring exact PDP variation before Buy Now."
+            "Pre-Buy-Now state verification: prepared PDP context is intact."
         )
-        self.variation_selector.select(session)
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Frozen SKU: item={session.product.item_id}, "
+            f"model={session.variation.model_id}, quantity={session.request.quantity}"
+        )
 
         actions = BrowserActions(session.browser_session)
 

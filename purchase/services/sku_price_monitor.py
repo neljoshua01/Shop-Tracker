@@ -4,6 +4,7 @@ Monitors Shopee get_pc responses for the selected SKU.
 
 from dataclasses import replace
 from threading import Event
+import json
 
 from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
@@ -93,71 +94,118 @@ class SkuPriceMonitor:
 
         print()
         print("[SkuPriceMonitor] ========== CONTINUOUS MONITORING ==========")
-        print("[SkuPriceMonitor] Selected PDP variation remains active while monitoring.")
+        print("[SkuPriceMonitor] Preserving the prepared PDP; monitoring uses direct get_pc polling without page reloads.")
         actions = BrowserActions(browser_session)
 
         try:
             if browser_session.page.url != session.request.reference.url:
-                print(
-                    "[SkuPriceMonitor] Navigating to PDP for browser-generated "
-                    "get_pc monitoring..."
-                )
-                actions.goto(session.request.reference.url)
+                print("[SkuPriceMonitor] Prepared PDP URL changed unexpectedly; monitoring cannot preserve the execution context.")
+                self.stop()
+                return
 
+            get_pc_url = self._find_get_pc_url(browser_session)
+            if not get_pc_url:
+                actions.wait_for_timeout(1000)
+                get_pc_url = self._find_get_pc_url(browser_session)
+
+            if not get_pc_url:
+                print("[SkuPriceMonitor] Could not establish a get_pc URL without reloading the prepared PDP.")
+                return
+
+            session.monitoring_get_pc_url = get_pc_url
             print(f"[SkuPriceMonitor] Monitoring PDP: {browser_session.page.url}")
+            print(f"[SkuPriceMonitor] Direct get_pc URL established: {get_pc_url}")
 
             while self.monitoring:
                 if cancellation_event is not None and cancellation_event.is_set():
                     print("[SkuPriceMonitor] Cancellation received.")
                     break
-
                 if self.triggered.is_set():
                     print("[SkuPriceMonitor] Purchase trigger received.")
                     break
-
                 if browser_session.page.is_closed():
                     print("[SkuPriceMonitor] Monitoring page was closed.")
                     break
 
-                print()
-                print("[SkuPriceMonitor] Refreshing PDP for get_pc...")
-
                 self.updated.clear()
-
                 try:
-                    actions.reload()
-                except Exception as e:
+                    result = actions.evaluate(
+                        """
+                        async (url) => {
+                            const started = performance.now();
+                            try {
+                                const response = await fetch(url, {
+                                    method: "GET",
+                                    credentials: "include",
+                                    cache: "no-store",
+                                });
+                                const body = await response.text();
+                                return {
+                                    ok: response.ok,
+                                    status: response.status,
+                                    url: response.url,
+                                    elapsed_ms: performance.now() - started,
+                                    body,
+                                };
+                            } catch (error) {
+                                return {
+                                    ok: false, status: 0, url,
+                                    elapsed_ms: performance.now() - started,
+                                    body: "", error: String(error),
+                                };
+                            }
+                        }
+                        """,
+                        get_pc_url,
+                        timeout=15000,
+                    )
+                    if result.get("ok"):
+                        try:
+                            data = json.loads(result.get("body") or "")
+                        except Exception as exc:
+                            print(f"[SkuPriceMonitor] Direct get_pc returned invalid JSON: {exc}")
+                        else:
+                            self._process_get_pc(data, cookie_integrity=self._cookie_integrity(browser_session))
+                    else:
+                        print("[SkuPriceMonitor] Direct get_pc request failed: "
+                              f"status={result.get("status")} error={result.get("error")}")
+                except Exception as exc:
                     if browser_session.page.is_closed():
                         print("[SkuPriceMonitor] Monitoring session closed.")
                         break
-                    print(f"[SkuPriceMonitor] PDP refresh failed: {e}")
+                    print(f"[SkuPriceMonitor] Direct get_pc polling warning: {exc}")
 
                 if self.triggered.is_set() or not self.monitoring:
                     break
-
-                print()
-                print(
-                    "[SkuPriceMonitor] "
-                    f"Waiting up to {self.poll_interval}s for get_pc processing..."
-                )
-
-                if self.updated.wait(timeout=self.poll_interval):
-                    if self.triggered.is_set():
-                        break
-                    print("[SkuPriceMonitor] get_pc processing complete.")
-                elif self.stop_event.is_set():
+                if self.stop_event.wait(timeout=self.poll_interval):
                     break
-                else:
-                    print(
-                        "[SkuPriceMonitor] No valid get_pc response processed "
-                        "during the polling window; retrying."
-                    )
 
         finally:
             self._unregister_callback()
             self.monitoring = False
             print("[SkuPriceMonitor] Monitoring stopped.")
 
+    def _find_get_pc_url(self, browser_session):
+        """Return the latest browser-generated get_pc URL without navigation."""
+        return BrowserActions(browser_session).evaluate(
+            """
+            () => {
+                const entries = performance.getEntriesByType("resource");
+                const matches = entries.map(entry => entry.name)
+                    .filter(name => name.includes("/api/v4/pdp/get_pc"));
+                return matches.length ? matches[matches.length - 1] : null;
+            }
+            """, timeout=10000,
+        )
+
+    def _cookie_integrity(self, browser_session):
+        """Read the conservative session-cookie health signal synchronously."""
+        try:
+            return BrowserActions(browser_session).evaluate(
+                "() => document.cookie.length > 0", timeout=5000,
+            ) is True
+        except Exception:
+            return False
     async def on_browser_response(self, response):
         if self._stopped:
             return

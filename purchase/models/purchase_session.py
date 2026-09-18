@@ -1,6 +1,4 @@
-"""
-Represents a purchase attempt.
-"""
+"""Represents a purchase attempt."""
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -18,68 +16,44 @@ from purchase.models.execution_decision import ExecutionDecision
 
 @dataclass(slots=True)
 class PurchaseSession:
-    """
-    Runtime state of a purchase.
+    """Runtime state of a purchase."""
 
-    This object is progressively populated as
-    the purchase advances.
-    """
-
-    #
-    # Original user request
-    #
     request: PurchaseRequest
-
-    #
-    # Product discovered from Shopee
-    #
     product: ProductInfo
-
-    #
-    # Selected SKU
-    #
     variation: Variation
 
-    #
-    # Current pipeline state
-    #
-    status: PurchaseStatus = field(
-        default=PurchaseStatus.CREATED,
-    )
+    status: PurchaseStatus = field(default=PurchaseStatus.CREATED)
 
-    # Runtime start timestamp for UI/runtime lifecycle reporting.
     started_at: datetime = field(
         default_factory=lambda: datetime.now(timezone.utc),
     )
 
     browser_session: Optional[BrowserSession] = None
 
-    # Live get_pc identity established for the selected SKU before a
-    # purchase trigger is allowed to carry the session forward.
     monitored_item_id: Optional[int] = None
     monitored_model_id: Optional[int] = None
     monitored_sku_identity_verified: bool = False
 
-    # Formal Intelligent Monitoring Engine state for the latest observed SKU.
-    ime_state: Optional[IMEState] = None
+    # PDP preparation is a one-time execution invariant. Once the requested
+    # variation/quantity is prepared, the monitor must not reconstruct it at
+    # trigger time.
+    pdp_context_prepared: bool = False
+    pdp_selection_verified: bool = False
 
-    # Decision captured when the purchase trigger becomes actionable.
+    # URL of the browser-generated get_pc request captured from the prepared
+    # PDP. Monitoring can poll this endpoint without reloading the PDP, which
+    # preserves the rendered variation state for native Buy Now execution.
+    monitoring_get_pc_url: Optional[str] = None
+
+    ime_state: Optional[IMEState] = None
     execution_decision: Optional[ExecutionDecision] = None
 
-    # Step 1: authoritative order identity established after Place Order.
-    # These fields remain unset until Shopee's My Purchase order-list
-    # response confirms the exact monitored SKU.
     monitored_order_id: Optional[int] = None
     monitored_checkout_id: Optional[int] = None
     monitored_order_identity_verified: bool = False
 
-    # Step 2: successful-purchase identity established after the same
-    # Step 1 order is confirmed in Shopee's To Ship page.
     successful_purchase_identity_verified: bool = False
 
-    # Opaque, hashable engine owner for this one purchase attempt.
-    # Services use this token rather than using themselves as an
-    # owner, so the browser page survives service handoffs.
     browser_owner: object = field(
         default_factory=object,
         repr=False,
