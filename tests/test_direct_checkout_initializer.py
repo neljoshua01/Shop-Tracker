@@ -111,6 +111,109 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     assert captured["wait_for_url"][0] == "**/checkout**"
 
 
+
+def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
+    session = make_session()
+    decision = make_decision()
+    initializer = object.__new__(DirectCheckoutInitializer)
+
+    captured = {}
+
+    class FakePage:
+        url = "https://shopee.ph/cart"
+
+    class FakeActions:
+        def __init__(self, _session):
+            self.page = session.browser_session.page
+
+        def capture_pdp_purchase_controls(self, labels, timeout=10000):
+            captured.setdefault("diagnostics", []).append(labels)
+            return [{"tag": "BUTTON", "text": labels[0], "visible": True}]
+
+        def click_visible_button_by_labels(self, labels, timeout=10000):
+            captured.setdefault("clicks", []).append(labels)
+            if labels[0] == "buy now":
+                return {
+                    "found": True,
+                    "clicked": True,
+                    "text": "Buy Now",
+                    "navigations": [
+                        "https://shopee.ph/cart?itemKeys=100.200.&shopId=300"
+                    ],
+                }
+            self.page.url = "https://shopee.ph/checkout"
+            return {
+                "found": True,
+                "clicked": True,
+                "text": "Check Out",
+                "navigations": ["https://shopee.ph/checkout"],
+            }
+
+        def wait_for_url(self, url, timeout=10000):
+            captured.setdefault("waits", []).append((url, timeout))
+
+    monkeypatch.setattr(
+        "purchase.execution.direct_checkout_initializer.BrowserActions",
+        FakeActions,
+    )
+
+    initializer._open_product = lambda _session: None
+    session.browser_session = SimpleNamespace(page=FakePage())
+
+    class FakeVariationSelector:
+        def select(self, selected_session):
+            captured["variation_session"] = selected_session
+
+    initializer.variation_selector = FakeVariationSelector()
+
+    assert initializer.initialize(session, decision) is True
+    assert captured["variation_session"] is session
+    assert captured["clicks"][0] == ["buy now", "bilihin na", "buy with voucher"]
+    assert captured["clicks"][1] == ["check out", "checkout", "proceed to checkout"]
+    assert captured["waits"][-1][0] == "**/checkout**"
+
+
+def test_initialize_rejects_buy_now_cart_identity_mismatch(monkeypatch):
+    session = make_session()
+    decision = make_decision()
+    initializer = object.__new__(DirectCheckoutInitializer)
+
+    class FakePage:
+        url = "https://shopee.ph/cart"
+
+    class FakeActions:
+        def __init__(self, _session):
+            pass
+
+        def capture_pdp_purchase_controls(self, labels, timeout=10000):
+            return []
+
+        def click_visible_button_by_labels(self, labels, timeout=10000):
+            return {
+                "found": True,
+                "clicked": True,
+                "text": "Buy Now",
+                "navigations": [
+                    "https://shopee.ph/cart?itemKeys=999.888.&shopId=300"
+                ],
+            }
+
+    monkeypatch.setattr(
+        "purchase.execution.direct_checkout_initializer.BrowserActions",
+        FakeActions,
+    )
+
+    initializer._open_product = lambda _session: None
+    session.browser_session = SimpleNamespace(page=FakePage())
+
+    class FakeVariationSelector:
+        def select(self, selected_session):
+            pass
+
+    initializer.variation_selector = FakeVariationSelector()
+
+    assert initializer.initialize(session, decision) is False
+
 def test_initialize_fails_when_buy_now_cannot_be_clicked(monkeypatch):
     session = make_session()
     decision = make_decision()
