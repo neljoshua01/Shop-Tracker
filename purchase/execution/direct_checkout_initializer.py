@@ -11,6 +11,8 @@ The direct URL method remains available only as an isolated experiment and is
 not used by the production initializer.
 """
 
+from urllib.parse import parse_qs, urlparse
+
 from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
 from purchase.execution.variation_selector import VariationSelector
@@ -19,6 +21,7 @@ from purchase.execution.variation_selector import VariationSelector
 class DirectCheckoutInitializer:
 
     BUY_NOW_LABELS = ("buy now", "bilihin na", "buy with voucher")
+    CART_CHECKOUT_LABELS = ("check out", "checkout", "proceed to checkout")
 
     def __init__(self):
         self.browser = BrowserConnector()
@@ -36,11 +39,12 @@ class DirectCheckoutInitializer:
 
     def initialize(self, session, decision):
         """
-        Carry the exact execution decision into checkout using the active PDP.
+        Carry the exact execution decision into checkout using Shopee's native
+        PDP Buy Now flow.
 
-        No direct /checkout URL navigation is used. The Buy Now control is
-        clicked through Playwright so Shopee receives the normal browser
-        interaction rather than a page-context Element.click() dispatch.
+        Shopee may route Buy Now through a cart state before checkout. That
+        intermediate route is treated as a Buy Now-generated handoff, not as
+        the old Add To Cart purchase flow.
         """
         self._validate_decision(session, decision)
         self._open_product(session)
@@ -48,9 +52,6 @@ class DirectCheckoutInitializer:
         # Monitoring refreshes the PDP to obtain fresh get_pc data. Shopee's
         # rendered variation state can be reset by that refresh, even though
         # the execution decision still identifies the exact monitored SKU.
-        # Re-establish the requested variation/quantity in the live PDP UI
-        # immediately before Buy Now so Shopee's own handler receives a valid
-        # purchase context.
         print(
             "[DirectCheckoutInitializer] "
             "Restoring exact PDP variation before Buy Now."
@@ -110,36 +111,190 @@ class DirectCheckoutInitializer:
             )
             return False
 
+        current_url = session.browser_session.page.url
+        navigations = result.get("navigations", [])
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Buy Now navigation chain: {navigations}"
+        )
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Current URL after Buy Now: {current_url}"
+        )
+
+        if "/checkout" in current_url:
+            print(
+                "[DirectCheckoutInitializer] "
+                "Checkout page reached directly through Shopee's PDP Buy Now handler."
+            )
+            return True
+
+        cart_url = next(
+            (
+                url
+                for url in navigations
+                if "/cart" in url and "itemKeys=" in url
+            ),
+            None,
+        )
+
+        if cart_url is None and "/cart" in current_url:
+            cart_url = current_url
+
+        if cart_url is not None:
+            return self._continue_buy_now_cart_handoff(
+                session,
+                decision,
+                actions,
+                cart_url,
+            )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            "Buy Now did not produce a recognized cart or checkout handoff."
+        )
+        return False
+
+    def _continue_buy_now_cart_handoff(
+        self,
+        session,
+        decision,
+        actions,
+        cart_url,
+    ):
+        """
+        Verify the cart state created by PDP Buy Now, then continue to checkout.
+
+        This is deliberately not CartPreparer: the cart was created by
+        Shopee's native Buy Now handler, not by the purchase pipeline's
+        Add To Cart flow.
+        """
+        print(
+            "[DirectCheckoutInitializer] "
+            "========== BUY NOW CART HANDOFF =========="
+        )
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Buy Now cart URL: {cart_url}"
+        )
+
+        query = parse_qs(urlparse(cart_url).query)
+        item_keys = query.get("itemKeys", [])
+
+        if not item_keys:
+            print(
+                "[DirectCheckoutInitializer] "
+                "Buy Now cart handoff did not expose itemKeys."
+            )
+            return False
+
+        expected_key = f"{decision.item_id}.{decision.model_id}"
+        matched = any(
+            expected_key in str(item_key)
+            for item_key in item_keys
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Expected cart item key: {expected_key}"
+        )
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Observed cart itemKeys: {item_keys}"
+        )
+
+        if not matched:
+            print(
+                "[DirectCheckoutInitializer] "
+                "Cart handoff SKU identity mismatch."
+            )
+            return False
+
+        print(
+            "[DirectCheckoutInitializer] "
+            "Cart handoff SKU identity verified."
+        )
+
+        # The Buy Now flow may redirect from the itemKeys URL to plain /cart.
+        # Wait for the final cart document before inspecting its controls.
+        if "/cart" not in session.browser_session.page.url:
+            try:
+                actions.wait_for_url("**/cart**", timeout=10000)
+            except Exception as exc:
+                print(
+                    "[DirectCheckoutInitializer] "
+                    f"Cart page was not reached after Buy Now: {exc}"
+                )
+                return False
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Cart page ready: {session.browser_session.page.url}"
+        )
+
+        cart_diagnostic = actions.capture_pdp_purchase_controls(
+            labels=list(self.CART_CHECKOUT_LABELS),
+            timeout=10000,
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Cart checkout-control diagnostic: {cart_diagnostic}"
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            "Clicking cart Check Out control with Playwright."
+        )
+
+        checkout_result = actions.click_visible_button_by_labels(
+            list(self.CART_CHECKOUT_LABELS),
+            timeout=10000,
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Cart Check Out click result: {checkout_result}"
+        )
+
+        if not checkout_result or not checkout_result.get("clicked"):
+            print(
+                "[DirectCheckoutInitializer] "
+                "Cart Check Out control was not available."
+            )
+            return False
+
         try:
             actions.wait_for_url("**/checkout**", timeout=10000)
         except Exception as exc:
             current_url = session.browser_session.page.url
             print(
                 "[DirectCheckoutInitializer] "
-                f"Checkout navigation was not observed: {exc}"
+                f"Checkout navigation was not observed after cart handoff: {exc}"
             )
             print(
                 "[DirectCheckoutInitializer] "
-                f"Current URL after Playwright click: {current_url}"
+                f"Current URL after cart Check Out: {current_url}"
             )
             return False
 
         current_url = session.browser_session.page.url
         print(
             "[DirectCheckoutInitializer] "
-            f"URL after Playwright Buy Now click: {current_url}"
+            f"URL after cart Check Out: {current_url}"
         )
 
         if "/checkout" not in current_url:
             print(
                 "[DirectCheckoutInitializer] "
-                "Checkout page was not reached."
+                "Checkout page was not reached after cart handoff."
             )
             return False
 
         print(
             "[DirectCheckoutInitializer] "
-            "Checkout page reached through Shopee's PDP Buy Now handler."
+            "Checkout page reached through Buy Now -> cart -> checkout."
         )
         return True
 
