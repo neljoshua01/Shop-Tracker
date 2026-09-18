@@ -176,9 +176,22 @@ class SkuPriceMonitor:
             print("[SkuPriceMonitor] get_pc response is not a JSON object.")
             return
 
-        self._process_get_pc(data)
+        browser_session = self.session.browser_session
+        cookie_integrity = False
 
-    def _process_get_pc(self, data: dict):
+        if browser_session is not None and not browser_session.page.is_closed():
+            try:
+                cookies = await browser_session.context.cookies("https://shopee.ph")
+                cookie_integrity = any(
+                    "shopee.ph" in str(cookie.get("domain", "")).lower()
+                    for cookie in cookies
+                )
+            except Exception as e:
+                print(f"[SkuPriceMonitor] Cookie integrity check warning: {e}")
+
+        self._process_get_pc(data, cookie_integrity=cookie_integrity)
+
+    def _process_get_pc(self, data: dict, cookie_integrity: bool = False):
         print("[SkuPriceMonitor] get_pc response detected.")
 
         if self.session is None:
