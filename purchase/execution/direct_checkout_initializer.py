@@ -1,9 +1,10 @@
 """Initialize checkout from the already-selected PDP variation.
 
-The production path keeps the active PDP/browser session and invokes the
-visible Buy Now control with a real Playwright locator click. This preserves
-Shopee's own frontend event handling and lets the site initialize its checkout
-state from the selected PDP SKU.
+The production path keeps the active PDP/browser session, restores the exact
+variation after monitoring refreshes, and invokes the visible Buy Now control
+with a real Playwright locator click. Shopee may route that native Buy Now
+handoff through /cart before /checkout, so the initializer verifies the
+Buy Now-generated cart identity and continues through its Check Out control.
 
 The initializer never clicks Place Order.
 
