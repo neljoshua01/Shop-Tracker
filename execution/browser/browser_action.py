@@ -155,9 +155,9 @@ class BrowserActions:
         name: str,
     ) -> str | None:
         return self._submit(
-        locator.get_attribute(name),
-        timeout=10,
-    )
+            locator.get_attribute(name),
+            timeout=10,
+        )
 
     def click(
         self,
@@ -176,6 +176,26 @@ class BrowserActions:
         """Click a known interactive control despite transient overlays."""
         return self._submit(
             locator.click(force=True),
+            timeout=10,
+        )
+
+    def scroll_into_view(
+        self,
+        locator,
+    ):
+        """Ensure a known interactive control is in the viewport."""
+        return self._submit(
+            locator.scroll_into_view_if_needed(),
+            timeout=10,
+        )
+
+    def dom_click(
+        self,
+        locator,
+    ):
+        """Dispatch the element's native DOM click handler."""
+        return self._submit(
+            locator.evaluate("el => el.click()"),
             timeout=10,
         )
 
