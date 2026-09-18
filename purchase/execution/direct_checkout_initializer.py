@@ -45,6 +45,18 @@ class DirectCheckoutInitializer:
         self._validate_decision(session, decision)
         self._open_product(session)
 
+        # Monitoring refreshes the PDP to obtain fresh get_pc data. Shopee's
+        # rendered variation state can be reset by that refresh, even though
+        # the execution decision still identifies the exact monitored SKU.
+        # Re-establish the requested variation/quantity in the live PDP UI
+        # immediately before Buy Now so Shopee's own handler receives a valid
+        # purchase context.
+        print(
+            "[DirectCheckoutInitializer] "
+            "Restoring exact PDP variation before Buy Now."
+        )
+        self.variation_selector.select(session)
+
         actions = BrowserActions(session.browser_session)
 
         print(
