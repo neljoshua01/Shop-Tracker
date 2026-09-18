@@ -68,7 +68,7 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     captured = {}
 
     class FakePage:
-        url = "https://shopee.ph/checkout"
+        url = "https://shopee.ph/product/1275798143/100"
 
     class FakeActions:
         def __init__(self, _session):
@@ -121,7 +121,7 @@ def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
     captured = {}
 
     class FakePage:
-        url = "https://shopee.ph/cart"
+        url = "https://shopee.ph/product/1275798143/100"
 
     class FakeActions:
         def __init__(self, _session):
@@ -134,6 +134,7 @@ def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
         def click_visible_button_by_labels(self, labels, timeout=10000, **kwargs):
             captured.setdefault("clicks", []).append(labels)
             if labels[0] == "buy now":
+                self.page.url = "https://shopee.ph/cart"
                 return {
                     "found": True,
                     "clicked": True,
