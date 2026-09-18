@@ -18,7 +18,7 @@ from purchase.execution.variation_selector import VariationSelector
 
 class DirectCheckoutInitializer:
 
-    BUY_NOW_LABELS = ("buy now", "bilihin na")
+    BUY_NOW_LABELS = ("buy now", "bilihin na", "buy with voucher")
 
     def __init__(self):
         self.browser = BrowserConnector()
