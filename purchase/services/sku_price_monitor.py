@@ -93,7 +93,7 @@ class SkuPriceMonitor:
 
         print()
         print("[SkuPriceMonitor] ========== CONTINUOUS MONITORING ==========")
-        print("[SkuPriceMonitor] Prepared cart remains intact while monitoring the PDP.")
+        print("[SkuPriceMonitor] Selected PDP variation remains active while monitoring.")
         actions = BrowserActions(browser_session)
 
         try:
