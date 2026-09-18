@@ -74,6 +74,11 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
         def __init__(self, _session):
             pass
 
+        def capture_pdp_purchase_controls(self, labels, timeout=10000):
+            captured["diagnostic_labels"] = labels
+            captured["diagnostic_timeout"] = timeout
+            return [{"tag": "BUTTON", "text": "Buy Now", "visible": True}]
+
         def click_visible_button_by_labels(self, labels, timeout=10000):
             captured["labels"] = labels
             captured["timeout"] = timeout
@@ -91,7 +96,7 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     session.browser_session = SimpleNamespace(page=FakePage())
 
     assert initializer.initialize(session, decision) is True
-    assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
+    assert captured["diagnostic_labels"] == ["buy now", "bilihin na", "buy with voucher", "add to cart"]\n    assert captured["diagnostic_timeout"] == 10000\n    assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
     assert captured["wait_for_url"][0] == "**/checkout**"
 
 
