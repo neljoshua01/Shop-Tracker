@@ -286,29 +286,35 @@ class PromotionForensicsRecorder:
             )
 
     def stop(self):
-        """Stop capture and always attempt to write the final summary."""
-        try:
-            if self._callback_registered and self._engine_ref is not None:
-                try:
-                    self._engine_ref.unregister_response_callback(
-                        self,
-                        session=self.browser_session,
-                    )
-                except Exception as exc:
-                    self._append_event(
-                        {
-                            "event": "forensics_unregister_warning",
-                            "error": repr(exc),
-                        }
-                    )
-                finally:
-                    self._callback_registered = False
+        """Finalize capture without allowing one cleanup step to block the summary."""
+        finished_at = datetime.now(timezone.utc)
+        duration_seconds = round(
+            (finished_at - self.started_at).total_seconds(),
+            3,
+        )
+        warnings = []
 
-            finished_at = datetime.now(timezone.utc)
-            duration_seconds = round(
-                (finished_at - self.started_at).total_seconds(),
-                3,
-            )
+        # Finalization is deliberately best-effort and isolated step-by-step.
+        # A failed callback unregister, event append, directory scan, or other
+        # cleanup operation must not prevent final_summary.json from being
+        # written for an otherwise normally completed pipeline run.
+        if self._callback_registered and self._engine_ref is not None:
+            try:
+                self._engine_ref.unregister_response_callback(
+                    self,
+                    session=self.browser_session,
+                )
+            except Exception as exc:
+                warnings.append(
+                    {
+                        "step": "unregister_response_callback",
+                        "error": repr(exc),
+                    }
+                )
+            finally:
+                self._callback_registered = False
+
+        try:
             self._append_event(
                 {
                     "event": "forensics_stopped",
@@ -317,42 +323,86 @@ class PromotionForensicsRecorder:
                     "duration_seconds": duration_seconds,
                 }
             )
+        except Exception as exc:
+            warnings.append(
+                {
+                    "step": "append_forensics_stopped",
+                    "error": repr(exc),
+                }
+            )
 
-            event_count = 0
+        event_count = 0
+        try:
             event_path = self.run_dir / "events.jsonl"
             if event_path.exists():
-                try:
-                    event_count = sum(1 for _ in event_path.open("r", encoding="utf-8"))
-                except Exception:
-                    event_count = 0
+                event_count = sum(
+                    1
+                    for _ in event_path.open("r", encoding="utf-8")
+                )
+        except Exception as exc:
+            warnings.append(
+                {
+                    "step": "count_events",
+                    "error": repr(exc),
+                }
+            )
 
-            api_files = len(list(self.api_dir.iterdir())) if self.api_dir.exists() else 0
-            page_files = len(list(self.page_dir.iterdir())) if self.page_dir.exists() else 0
+        api_files = 0
+        try:
+            api_files = len(list(self.api_dir.iterdir()))
+        except Exception as exc:
+            warnings.append(
+                {
+                    "step": "count_api_files",
+                    "error": repr(exc),
+                }
+            )
 
+        page_files = 0
+        try:
+            page_files = len(list(self.page_dir.iterdir()))
+        except Exception as exc:
+            warnings.append(
+                {
+                    "step": "count_page_files",
+                    "error": repr(exc),
+                }
+            )
+
+        summary = {
+            "schema_version": 1,
+            "finished_at": finished_at.isoformat(),
+            "duration_seconds": duration_seconds,
+            "event_log": "events.jsonl",
+            "api_directory": "api",
+            "page_directory": "pages",
+            "event_count": event_count,
+            "api_file_count": api_files,
+            "page_file_count": page_files,
+            "finalization_status": "completed_with_warnings" if warnings else "completed",
+        }
+        if warnings:
+            summary["finalization_warnings"] = warnings
+
+        # This write is intentionally the final operation and is independent
+        # of all earlier cleanup/counting steps. A failure in an earlier
+        # finalization step therefore cannot suppress the summary.
+        try:
             self._write_json(
                 self.run_dir / "final_summary.json",
-                {
-                    "schema_version": 1,
-                    "finished_at": finished_at.isoformat(),
-                    "duration_seconds": duration_seconds,
-                    "event_log": "events.jsonl",
-                    "api_directory": "api",
-                    "page_directory": "pages",
-                    "event_count": event_count,
-                    "api_file_count": api_files,
-                    "page_file_count": page_files,
-                },
+                summary,
             )
         except Exception as exc:
-            # Finalization must not change purchase outcome or hide the
-            # original pipeline error. Keep a finalization warning in the
-            # structured log whenever possible.
+            # There is no reliable way to guarantee a filesystem write if the
+            # runtime itself is terminating, but preserve the warning whenever
+            # the event log remains writable.
             try:
                 self._append_event(
                     {
                         "event": "forensics_finalization_warning",
                         "phase": "final",
                         "error": repr(exc),
+                        "step": "write_final_summary",
                     }
                 )
             except Exception:
