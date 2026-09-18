@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
 
 
@@ -59,3 +61,47 @@ def test_relevant_endpoint_phases_distinguish_pdp_cart_and_checkout():
     assert PromotionForensicsRecorder._phase_for_endpoint(
         "api_v4_checkout"
     ) == "checkout"
+
+
+def test_stop_writes_final_summary_for_normal_pipeline_exit(tmp_path):
+    recorder = _bare_recorder()
+    recorder.started_at = datetime.now(timezone.utc)
+    recorder.run_dir = tmp_path / "run"
+    recorder.api_dir = recorder.run_dir / "api"
+    recorder.page_dir = recorder.run_dir / "pages"
+    recorder.api_dir.mkdir(parents=True)
+    recorder.page_dir.mkdir(parents=True)
+    recorder._file_lock = __import__("threading").Lock()
+
+    recorder.stop()
+
+    summary_path = recorder.run_dir / "final_summary.json"
+    assert summary_path.exists()
+
+    summary = __import__("json").loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["schema_version"] == 1
+    assert summary["finalization_status"] == "completed"
+    assert summary["event_log"] == "events.jsonl"
+    assert "forensics_stopped" in recorder.run_dir.joinpath("events.jsonl").read_text(encoding="utf-8")
+
+
+def test_stop_still_writes_summary_when_cleanup_step_warns(tmp_path):
+    recorder = _bare_recorder()
+    recorder.started_at = datetime.now(timezone.utc)
+    recorder.run_dir = tmp_path / "run"
+    recorder.api_dir = recorder.run_dir / "api"
+    recorder.page_dir = recorder.run_dir / "pages"
+    recorder.api_dir.mkdir(parents=True)
+    recorder.page_dir.mkdir(parents=True)
+    recorder._file_lock = __import__("threading").Lock()
+    recorder._callback_registered = True
+    recorder._engine_ref = FakeEngine()
+    recorder._engine_ref.unregister_response_callback = lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("test cleanup warning"))
+
+    recorder.stop()
+
+    summary_path = recorder.run_dir / "final_summary.json"
+    assert summary_path.exists()
+    summary = __import__("json").loads(summary_path.read_text(encoding="utf-8"))
+    assert summary["finalization_status"] == "completed_with_warnings"
+    assert summary["finalization_warnings"][0]["step"] == "unregister_response_callback"
