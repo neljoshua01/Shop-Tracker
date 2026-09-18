@@ -296,6 +296,14 @@ class BrowserActions:
         )
 
         async def _click():
+            navigations = []
+
+            def _record_navigation(frame):
+                if frame == self.session.page.main_frame:
+                    navigations.append(frame.url)
+
+            self.session.page.on("framenavigated", _record_navigation)
+
             # The PDP purchase controls can be below the current viewport and
             # can be lazily materialized. Move to the purchase area before
             # deciding that the control does not exist.
@@ -346,6 +354,14 @@ class BrowserActions:
                 await control.scroll_into_view_if_needed()
                 await control.click(force=True, timeout=3000)
 
+                try:
+                    await page_wait_for_click_settle(self.session.page)
+                finally:
+                    self.session.page.remove_listener(
+                        "framenavigated",
+                        _record_navigation,
+                    )
+
                 return {
                     "found": True,
                     "clicked": True,
@@ -355,6 +371,7 @@ class BrowserActions:
                     "tag": await control.evaluate("el => el.tagName"),
                     "role": await control.get_attribute("role"),
                     "forced": True,
+                    "navigations": list(navigations),
                 }
 
             # Fallback: the visible CTA text may be inside a non-button
@@ -377,6 +394,14 @@ class BrowserActions:
                     await target.scroll_into_view_if_needed()
                     await target.click(force=True, timeout=3000)
 
+                    try:
+                        await page_wait_for_click_settle(self.session.page)
+                    finally:
+                        self.session.page.remove_listener(
+                            "framenavigated",
+                            _record_navigation,
+                        )
+
                     return {
                         "found": True,
                         "clicked": True,
@@ -384,7 +409,13 @@ class BrowserActions:
                         "index": index,
                         "text": await target.inner_text(),
                         "forced": True,
+                        "navigations": list(navigations),
                     }
+
+            self.session.page.remove_listener(
+                "framenavigated",
+                _record_navigation,
+            )
 
             return {
                 "found": False,
@@ -393,6 +424,7 @@ class BrowserActions:
                     "No visible Buy Now control or exact rendered CTA text "
                     "was found."
                 ),
+                "navigations": list(navigations),
             }
 
         return self._submit(
@@ -452,3 +484,8 @@ class BrowserActions:
             ),
             timeout=10,
         )
+
+
+async def page_wait_for_click_settle(page):
+    """Allow immediate redirect chains to emit their navigation events."""
+    await page.wait_for_timeout(750)
