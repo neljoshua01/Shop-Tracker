@@ -18,7 +18,7 @@ class CheckoutExecutor:
         except Exception:
             return False
 
-    def execute(self, session):
+    def execute(self, session, forensics=None):
         print("[CheckoutExecutor] ========== STARTING CHECKOUT ==========")
         browser_session = session.browser_session
         if browser_session is None:
@@ -28,184 +28,7 @@ class CheckoutExecutor:
         page = browser_session.page
         actions = BrowserActions(browser_session)
 
-        print(f"[CheckoutExecutor] Current URL: {page.url}")
-
-        if "/cart" not in page.url:
-            print("[CheckoutExecutor] Returning existing session to cart.")
-            actions.goto("https://shopee.ph/cart")
-            if "/cart" not in page.url:
-                print("[CheckoutExecutor] Cart page was not reached.")
-                return False
-
-        print("[CheckoutExecutor] Cart page confirmed.")
-        print("[CheckoutExecutor] Waiting for cart UI...")
-        actions.wait_for_timeout(3000)
-
-        item_id = str(session.product.item_id)
-        model_id = str(session.variation.model_id)
-        print(f"[CheckoutExecutor] Target Item ID: {item_id}")
-        print(f"[CheckoutExecutor] Target Model ID: {model_id}")
-
-        checkbox_inputs = actions.find_all("input.stardust-checkbox__input")
-        checkbox_count = actions.count(checkbox_inputs)
-        print(f"[CheckoutExecutor] Cart checkboxes found: {checkbox_count}")
-        if checkbox_count == 0:
-            print("[CheckoutExecutor] No cart item checkboxes found.")
-            return False
-
-        target_checkbox = None
-        target_container = None
-
-        for index in range(checkbox_count):
-            checkbox = checkbox_inputs.nth(index)
-            current = checkbox
-            for level in range(1, 9):
-                current = actions.parent(current)
-                if current is None:
-                    break
-                identity_values = []
-                for attribute_name in (
-                    "data-item-id",
-                    "data-model-id",
-                    "data-product-id",
-                    "data-sku-id",
-                    "data-id",
-                ):
-                    value = actions.attribute(current, attribute_name)
-                    if value:
-                        identity_values.append(str(value))
-                identity_text = " ".join(identity_values)
-                container_text = actions.text(current) or ""
-                item_match = item_id in identity_text or item_id in container_text
-                model_match = model_id in identity_text or model_id in container_text
-                if item_match:
-                    print(f"[CheckoutExecutor] Target item identity found at parent level {level}.")
-                    if model_match:
-                        print("[CheckoutExecutor] Target item + model identity matched.")
-                    else:
-                        print("[CheckoutExecutor] Target item matched; model ID not exposed at this level.")
-                    target_checkbox = checkbox
-                    target_container = current
-                    break
-            if target_checkbox is not None:
-                break
-
-        if target_checkbox is None:
-            print("[CheckoutExecutor] Stable cart identity not found.")
-            print("[CheckoutExecutor] Trying exact variation fallback...")
-
-            product_locator = actions.find_all(f"text={session.product.product_name}")
-            product_count = actions.count(product_locator)
-            print(f"[CheckoutExecutor] Product-name matches: {product_count}")
-
-            candidates = []
-            requested_options = {
-                str(key).strip().lower(): str(value).strip().lower()
-                for key, value in session.request.options.items()
-            }
-
-            for product_index in range(product_count):
-                current = product_locator.nth(product_index)
-                for level in range(1, 9):
-                    current = actions.parent(current)
-                    if current is None:
-                        break
-
-                    checkbox_locator = actions.find_all(
-                        "input.stardust-checkbox__input",
-                        parent=current,
-                    )
-                    if actions.count(checkbox_locator) == 0:
-                        continue
-
-                    candidate_text = (actions.text(current) or "").strip().lower()
-                    matched_options = [
-                        value
-                        for value in requested_options.values()
-                        if value and value in candidate_text
-                    ]
-
-                    candidates.append(
-                        {
-                            "checkbox": actions.first(checkbox_locator),
-                            "container": current,
-                            "matched_options": matched_options,
-                            "option_count": len(requested_options),
-                        }
-                    )
-                    break
-
-            exact_variation_candidates = [
-                candidate
-                for candidate in candidates
-                if candidate["option_count"] > 0
-                and len(candidate["matched_options"]) == candidate["option_count"]
-            ]
-
-            print(
-                "[CheckoutExecutor] Exact variation candidates: "
-                f"{len(exact_variation_candidates)}"
-            )
-
-            if len(exact_variation_candidates) == 1:
-                candidate = exact_variation_candidates[0]
-                target_checkbox = candidate["checkbox"]
-                target_container = candidate["container"]
-                print("[CheckoutExecutor] Target cart item resolved using exact variation fallback.")
-            elif len(exact_variation_candidates) > 1:
-                print("[CheckoutExecutor] Cart identity is ambiguous; multiple exact variation matches found.")
-                return False
-            else:
-                print("[CheckoutExecutor] Exact cart identity could not be verified.")
-                print("[CheckoutExecutor] Checkout aborted safely; no cart item was selected.")
-                return False
-
-        if target_checkbox is None:
-            print("[CheckoutExecutor] Target product could not be resolved inside the cart.")
-            return False
-
-        print("[CheckoutExecutor] Target cart item resolved.")
-        aria_checked = actions.attribute(target_checkbox, "aria-checked")
-        print(f"[CheckoutExecutor] aria-checked before: {aria_checked}")
-
-        if aria_checked == "true":
-            print("[CheckoutExecutor] Target item is already selected.")
-        else:
-            checkbox_parent = actions.parent(target_checkbox)
-            checkbox_ui = actions.find_all(".stardust-checkbox__box", parent=checkbox_parent)
-            if actions.count(checkbox_ui) == 0:
-                print("[CheckoutExecutor] Visible checkbox UI not found.")
-                return False
-            actions.click(actions.first(checkbox_ui))
-            print("[CheckoutExecutor] Target checkbox clicked.")
-            actions.wait_for_timeout(500)
-
-        aria_checked = actions.attribute(target_checkbox, "aria-checked")
-        print(f"[CheckoutExecutor] aria-checked after: {aria_checked}")
-        if aria_checked != "true":
-            print("[CheckoutExecutor] Target item was NOT selected.")
-            return False
-        print("[CheckoutExecutor] Target item selected successfully.")
-
-        checkout_buttons = actions.find_all("button:has-text('Check Out')")
-        checkout_count = actions.count(checkout_buttons)
-        print(f"[CheckoutExecutor] Check Out buttons found: {checkout_count}")
-        if checkout_count == 0:
-            print("[CheckoutExecutor] Check Out button not found.")
-            return False
-
-        print("[CheckoutExecutor] Check Out button found.")
-        actions.click(actions.first(checkout_buttons))
-        print("[CheckoutExecutor] Check Out clicked.")
-        actions.wait_for_timeout(3000)
-        print(f"[CheckoutExecutor] Current URL after checkout: {page.url}")
-
-        if "/checkout" not in page.url:
-            print("[CheckoutExecutor] Checkout page was not reached.")
-            return False
-        print("[CheckoutExecutor] Checkout page reached.")
-
-        requested_payment = session.request.payment_method.value
+        print(f"[CheckoutExecutor] Current URL: {page.url}")\n\n        # Phase 1: the executor receives an already initialized checkout.\n        # It never returns to /cart or searches cart DOM state.\n        if "/checkout" not in page.url:\n            print("[CheckoutExecutor] Expected a direct checkout page.")\n            return False\n\n        print("[CheckoutExecutor] Direct checkout page confirmed.")\n        if forensics is not None:\n            forensics.record_event("checkout_page_reached", "checkout",\n                {"url": page.url, "cart_flow_enabled": False})\n\n        checkout_verifier = CheckoutVerifier()\n        initial_summary = AsyncRuntime.instance().submit(\n            checkout_verifier.collect_order_summary(page)\n        ).result(timeout=15)\n        if forensics is not None:\n            forensics.record_event("checkout_price_observed", "checkout", {\n                "observation": "initial",\n                "total": initial_summary.get("total"),\n                "subtotal": initial_summary.get("subtotal"),\n                "item_discount": initial_summary.get("item_discount"),\n                "voucher_discount": initial_summary.get("voucher_discount"),\n            })\n\n        decision = getattr(session, "execution_decision", None)\n        if decision is None:\n            print("[CheckoutExecutor] Execution decision is missing.")\n            return False\n        if decision.item_id != session.product.item_id:\n            print("[CheckoutExecutor] Execution decision item_id mismatch.")\n            return False\n        if decision.model_id != session.variation.model_id:\n            print("[CheckoutExecutor] Execution decision model_id mismatch.")\n            return False\n        if decision.quantity != session.request.quantity:\n            print("[CheckoutExecutor] Execution decision quantity mismatch.")\n            return False\n\n        print(\n            "[CheckoutExecutor] "\n            f"Execution identity verified: item={decision.item_id}, "\n            f"model={decision.model_id}, quantity={decision.quantity}"\n        )\n        requested_payment = session.request.payment_method.value
         print(f"[CheckoutExecutor] Requested payment: {requested_payment}")
         checkout_verifier = CheckoutVerifier()
 
@@ -234,7 +57,7 @@ class CheckoutExecutor:
 
         actions.wait_for_timeout(1000)
 
-        summary = AsyncRuntime.instance().submit(
+        intermediate_summary = AsyncRuntime.instance().submit(\n            checkout_verifier.collect_order_summary(page)\n        ).result(timeout=15)\n        if forensics is not None:\n            forensics.record_event("checkout_price_observed", "checkout", {\n                "observation": "post_payment_setup",\n                "total": intermediate_summary.get("total"),\n                "subtotal": intermediate_summary.get("subtotal"),\n                "item_discount": intermediate_summary.get("item_discount"),\n                "voucher_discount": intermediate_summary.get("voucher_discount"),\n            })\n            if (\n                initial_summary.get("total") is not None\n                and intermediate_summary.get("total") is not None\n                and initial_summary.get("total") != intermediate_summary.get("total")\n            ):\n                forensics.record_event("checkout_price_changed", "checkout", {\n                    "from_total": initial_summary.get("total"),\n                    "to_total": intermediate_summary.get("total"),\n                })\n        summary = AsyncRuntime.instance().submit(
             checkout_verifier.collect_order_summary(page)
         ).result(timeout=15)
 
