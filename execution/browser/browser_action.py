@@ -195,6 +195,71 @@ class BrowserActions:
             timeout=10,
         )
 
+    def click_visible_button_by_labels(
+        self,
+        labels: list[str],
+        timeout: int = 10000,
+    ):
+        """
+        Find a visible, enabled <button> by rendered text and perform a real
+        Playwright click.
+
+        Discovery happens in page context only to identify the correct button.
+        The final interaction is Playwright's locator.click(), not
+        Element.click(), so framework-level pointer/click handling remains
+        active.
+        """
+
+        normalized_labels = tuple(
+            str(label).strip().lower()
+            for label in labels
+            if str(label).strip()
+        )
+
+        async def _click():
+            buttons = self.session.page.locator("button")
+            count = await buttons.count()
+
+            for index in range(count):
+                button = buttons.nth(index)
+
+                if not await button.is_visible():
+                    continue
+
+                if not await button.is_enabled():
+                    continue
+
+                text = (await button.inner_text()).strip()
+                normalized_text = " ".join(text.lower().split())
+
+                if not any(
+                    label == normalized_text
+                    or label in normalized_text
+                    for label in normalized_labels
+                ):
+                    continue
+
+                await button.scroll_into_view_if_needed()
+                await button.click()
+
+                return {
+                    "found": True,
+                    "clicked": True,
+                    "index": index,
+                    "text": text,
+                }
+
+            return {
+                "found": False,
+                "clicked": False,
+                "reason": "No visible enabled button matched the requested labels.",
+            }
+
+        return self._submit(
+            _click(),
+            timeout=(timeout / 1000) + 5,
+        )
+
     def force_click(
         self,
         locator,
