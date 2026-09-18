@@ -58,6 +58,26 @@ class DirectCheckoutInitializer:
         )
         print(
             "[DirectCheckoutInitializer] "
+            "========== PDP BUY NOW DOM DIAGNOSTIC =========="
+        )
+
+        diagnostic = actions.capture_pdp_purchase_controls(
+            labels=list(self.BUY_NOW_LABELS) + ["add to cart"],
+            timeout=10000,
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Purchase-control DOM snapshot: {diagnostic}"
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
+            "================================================"
+        )
+
+        print(
+            "[DirectCheckoutInitializer] "
             "Clicking visible Buy Now control with Playwright."
         )
 
