@@ -201,36 +201,44 @@ class BrowserActions:
         timeout: int = 10000,
     ):
         """
-        Find a visible, enabled <button> by rendered text and perform a real
+        Find a visible purchase control by rendered text and perform a real
         Playwright click.
 
-        Discovery happens in page context only to identify the correct button.
-        The final interaction is Playwright's locator.click(), not
-        Element.click(), so framework-level pointer/click handling remains
-        active.
+        Shopee can render the PDP CTA as either a <button> or an element with
+        role="button". Discovery therefore covers both forms. The final
+        interaction remains Playwright locator.click(force=True), which lets
+        Playwright perform the browser-level click even when a transient
+        overlay overlaps the control.
+
+        The method deliberately does not remove page elements or dispatch
+        Element.click() from page JavaScript.
         """
 
         normalized_labels = tuple(
-            str(label).strip().lower()
+            " ".join(str(label).strip().lower().split())
             for label in labels
             if str(label).strip()
         )
 
         async def _click():
-            buttons = self.session.page.locator("button")
-            count = await buttons.count()
+            controls = self.session.page.locator(
+                "button, [role='button']"
+            )
+            count = await controls.count()
+
+            candidates = []
 
             for index in range(count):
-                button = buttons.nth(index)
+                control = controls.nth(index)
 
-                if not await button.is_visible():
+                if not await control.is_visible():
                     continue
 
-                if not await button.is_enabled():
-                    continue
-
-                text = (await button.inner_text()).strip()
+                text = (await control.inner_text()).strip()
                 normalized_text = " ".join(text.lower().split())
+
+                if not normalized_text:
+                    continue
 
                 if not any(
                     label == normalized_text
@@ -239,20 +247,37 @@ class BrowserActions:
                 ):
                     continue
 
-                await button.scroll_into_view_if_needed()
-                await button.click()
+                disabled = await control.get_attribute("disabled")
+                aria_disabled = await control.get_attribute("aria-disabled")
 
+                if disabled is not None or aria_disabled == "true":
+                    continue
+
+                candidates.append((index, control, text))
+
+            if not candidates:
                 return {
-                    "found": True,
-                    "clicked": True,
-                    "index": index,
-                    "text": text,
+                    "found": False,
+                    "clicked": False,
+                    "reason": (
+                        "No visible enabled button/role=button matched "
+                        "the requested labels."
+                    ),
                 }
 
+            index, control, text = candidates[-1]
+
+            await control.scroll_into_view_if_needed()
+            await control.click(force=True, timeout=3000)
+
             return {
-                "found": False,
-                "clicked": False,
-                "reason": "No visible enabled button matched the requested labels.",
+                "found": True,
+                "clicked": True,
+                "index": index,
+                "text": text,
+                "tag": await control.evaluate("el => el.tagName"),
+                "role": await control.get_attribute("role"),
+                "forced": True,
             }
 
         return self._submit(
