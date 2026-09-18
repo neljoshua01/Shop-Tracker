@@ -83,6 +83,8 @@ class PurchasePipeline:
         )
 
         monitor_thread = None
+        self.execution_decision = None
+        session.execution_decision = None
         forensics = PromotionForensicsRecorder.start(session)
 
         # Register the forensic callback before opening/preparing the browser
