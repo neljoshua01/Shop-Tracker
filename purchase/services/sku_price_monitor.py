@@ -40,6 +40,8 @@ class SkuPriceMonitor:
         session.monitored_item_id = None
         session.monitored_model_id = None
         session.monitored_sku_identity_verified = False
+        session.ime_state = None
+        session.execution_decision = None
         self.updated.clear()
         self.triggered.clear()
         self.stop_event.clear()
@@ -173,6 +175,10 @@ class SkuPriceMonitor:
 
         if not isinstance(data, dict):
             print("[SkuPriceMonitor] get_pc response is not a JSON object.")
+            return
+
+        if self.session is None:
+            print("[SkuPriceMonitor] No active purchase session.")
             return
 
         browser_session = self.session.browser_session
