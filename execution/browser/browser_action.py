@@ -201,17 +201,18 @@ class BrowserActions:
         timeout: int = 10000,
     ):
         """
-        Find a visible purchase control by rendered text and perform a real
+        Locate a PDP purchase CTA using the rendered page and perform a real
         Playwright click.
 
-        Shopee can render the PDP CTA as either a <button> or an element with
-        role="button". Discovery therefore covers both forms. The final
-        interaction remains Playwright locator.click(force=True), which lets
-        Playwright perform the browser-level click even when a transient
-        overlay overlaps the control.
+        Shopee may render the CTA as a <button>, [role=button], or as text
+        inside another clickable container. Discovery therefore uses two
+        Playwright strategies:
 
-        The method deliberately does not remove page elements or dispatch
-        Element.click() from page JavaScript.
+        1. enumerate interactive controls;
+        2. fall back to exact rendered text.
+
+        The final interaction is always locator.click(force=True). No
+        page-context Element.click() or DOM removal is used.
         """
 
         normalized_labels = tuple(
@@ -221,8 +222,16 @@ class BrowserActions:
         )
 
         async def _click():
+            # The PDP purchase controls can be below the current viewport and
+            # can be lazily materialized. Move to the purchase area before
+            # deciding that the control does not exist.
+            await self.session.page.evaluate(
+                "() => window.scrollTo(0, document.body.scrollHeight)"
+            )
+            await self.session.page.wait_for_timeout(500)
+
             controls = self.session.page.locator(
-                "button, [role='button']"
+                "button, [role='button'], a"
             )
             count = await controls.count()
 
@@ -255,29 +264,61 @@ class BrowserActions:
 
                 candidates.append((index, control, text))
 
-            if not candidates:
+            if candidates:
+                # Prefer the last matching rendered control. Sticky purchase
+                # controls are commonly appended after the main PDP controls.
+                index, control, text = candidates[-1]
+
+                await control.scroll_into_view_if_needed()
+                await control.click(force=True, timeout=3000)
+
                 return {
-                    "found": False,
-                    "clicked": False,
-                    "reason": (
-                        "No visible enabled button/role=button matched "
-                        "the requested labels."
-                    ),
+                    "found": True,
+                    "clicked": True,
+                    "strategy": "interactive_control",
+                    "index": index,
+                    "text": text,
+                    "tag": await control.evaluate("el => el.tagName"),
+                    "role": await control.get_attribute("role"),
+                    "forced": True,
                 }
 
-            index, control, text = candidates[-1]
+            # Fallback: the visible CTA text may be inside a non-button
+            # clickable container. Exact text discovery is still a native
+            # Playwright locator action.
+            for label in normalized_labels:
+                text_locator = self.session.page.get_by_text(
+                    label,
+                    exact=True,
+                )
 
-            await control.scroll_into_view_if_needed()
-            await control.click(force=True, timeout=3000)
+                text_count = await text_locator.count()
+
+                for index in range(text_count):
+                    target = text_locator.nth(index)
+
+                    if not await target.is_visible():
+                        continue
+
+                    await target.scroll_into_view_if_needed()
+                    await target.click(force=True, timeout=3000)
+
+                    return {
+                        "found": True,
+                        "clicked": True,
+                        "strategy": "exact_rendered_text",
+                        "index": index,
+                        "text": await target.inner_text(),
+                        "forced": True,
+                    }
 
             return {
-                "found": True,
-                "clicked": True,
-                "index": index,
-                "text": text,
-                "tag": await control.evaluate("el => el.tagName"),
-                "role": await control.get_attribute("role"),
-                "forced": True,
+                "found": False,
+                "clicked": False,
+                "reason": (
+                    "No visible Buy Now control or exact rendered CTA text "
+                    "was found."
+                ),
             }
 
         return self._submit(
