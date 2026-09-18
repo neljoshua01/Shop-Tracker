@@ -118,6 +118,32 @@ class BrowserActions:
             timeout=(timeout / 1000) + 5,
         )
 
+    def evaluate(
+        self,
+        expression: str,
+        arg=None,
+        timeout: int = 10000,
+    ):
+        """Evaluate JavaScript in the active page through the runtime."""
+        return self._submit(
+            self.session.page.evaluate(expression, arg),
+            timeout=(timeout / 1000) + 5,
+        )
+
+    def wait_for_url(
+        self,
+        url: str,
+        timeout: int = 10000,
+    ):
+        """Wait for the active page to reach a URL pattern."""
+        return self._submit(
+            self.session.page.wait_for_url(
+                url,
+                timeout=timeout,
+            ),
+            timeout=(timeout / 1000) + 5,
+        )
+
     def find_all(
         self,
         selector: str,
