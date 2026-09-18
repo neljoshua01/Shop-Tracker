@@ -19,6 +19,8 @@ import threading
 
 from purchase.models.purchase_session import PurchaseSession
 from purchase.models.purchase_status import PurchaseStatus
+from purchase.models.ime_state import IMEState
+from purchase.models.execution_decision import ExecutionDecision
 from purchase.execution.cart_preparer import CartPreparer
 from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.services.sku_price_monitor import SkuPriceMonitor
@@ -32,6 +34,7 @@ class PurchasePipeline:
         self.cart_preparer = CartPreparer()
         self.sku_monitor = SkuPriceMonitor()
         self.checkout_executor = CheckoutExecutor()
+        self.execution_decision: ExecutionDecision | None = None
 
         self._cancelled = threading.Event()
 
@@ -70,6 +73,7 @@ class PurchasePipeline:
         self,
         session: PurchaseSession,
         on_trigger=None,
+        ime_state: IMEState | None = None,
     ):
 
         print()
@@ -208,6 +212,32 @@ class PurchasePipeline:
                 "========== PURCHASE TRIGGER RECEIVED =========="
             )
 
+            current_ime_state = ime_state or session.ime_state
+            latest_state = self.sku_monitor.latest_state
+
+            if current_ime_state is not IMEState.EXECUTION_READY:
+                print(
+                    "[PurchasePipeline] "
+                    f"IME state is {current_ime_state}; execution is not ready."
+                )
+                return False
+
+            if latest_state is None:
+                print(
+                    "[PurchasePipeline] "
+                    "No latest SKU state is available for execution decision."
+                )
+                return False
+
+            self.execution_decision = ExecutionDecision(
+                item_id=latest_state.item_id,
+                model_id=latest_state.model_id,
+                promotion_id=latest_state.promotion_id,
+                target_price=session.request.target_price,
+                execution_state=current_ime_state,
+            )
+            session.execution_decision = self.execution_decision
+
             forensics.record_event(
                 "purchase_trigger_received",
                 "trigger",
@@ -215,6 +245,14 @@ class PurchasePipeline:
                     "item_id": session.monitored_item_id,
                     "model_id": session.monitored_model_id,
                     "sku_identity_verified": session.monitored_sku_identity_verified,
+                    "ime_state": current_ime_state.value,
+                    "execution_decision": {
+                        "item_id": self.execution_decision.item_id,
+                        "model_id": self.execution_decision.model_id,
+                        "promotion_id": self.execution_decision.promotion_id,
+                        "target_price": self.execution_decision.target_price,
+                        "execution_state": self.execution_decision.execution_state.value,
+                    },
                 },
             )
 
