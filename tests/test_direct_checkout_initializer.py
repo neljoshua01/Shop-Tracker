@@ -91,7 +91,7 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     session.browser_session = SimpleNamespace(page=FakePage())
 
     assert initializer.initialize(session, decision) is True
-    assert captured["labels"] == ["buy now", "bilihin na"]
+    assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
     assert captured["wait_for_url"][0] == "**/checkout**"
 
 
