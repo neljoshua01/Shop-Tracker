@@ -242,15 +242,16 @@ class PurchasePipeline:
             print("[PurchasePipeline] Auto Checkout is ON.")
             print(
                 "[PurchasePipeline] "
-                "Starting direct checkout without cart..."
+                "Starting native Buy Now checkout handoff..."
             )
             forensics.record_event(
                 "checkout_execution_started",
                 "checkout",
                 {
-                    "checkout_route": "pdp_native_buy_now",
+                    "checkout_route": "pdp_native_buy_now_cart_handoff",
                     "cart_flow_enabled": False,
                     "buy_now_click_enabled": True,
+                    "buy_now_cart_handoff_enabled": True,
                 },
             )
 
@@ -263,7 +264,7 @@ class PurchasePipeline:
                     "item_id": self.execution_decision.item_id,
                     "model_id": self.execution_decision.model_id,
                     "promotion_id": self.execution_decision.promotion_id,
-                    "checkout_route": "pdp_native_buy_now",
+                    "checkout_route": "pdp_native_buy_now_cart_handoff",
                 },
             )
 
@@ -282,7 +283,7 @@ class PurchasePipeline:
                     "checkout",
                     {
                         "cart_flow_fallback": False,
-                        "checkout_route": "pdp_native_buy_now",
+                        "checkout_route": "pdp_native_buy_now_cart_handoff",
                     },
                 )
                 session.status = PurchaseStatus.FAILED
@@ -293,6 +294,7 @@ class PurchasePipeline:
                 "checkout",
                 {
                     "cart_flow_enabled": False,
+                    "buy_now_cart_handoff_enabled": True,
                     "url": session.browser_session.page.url,
                 },
             )
@@ -318,7 +320,8 @@ class PurchasePipeline:
                     "item_id": session.product.item_id,
                     "model_id": session.variation.model_id,
                     "cart_flow_enabled": False,
-                    "checkout_route": "pdp_native_buy_now",
+                    "checkout_route": "pdp_native_buy_now_cart_handoff",
+                    "buy_now_cart_handoff_enabled": True,
                 },
             )
 
