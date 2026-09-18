@@ -79,9 +79,10 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
             captured["diagnostic_timeout"] = timeout
             return [{"tag": "BUTTON", "text": "Buy Now", "visible": True}]
 
-        def click_visible_button_by_labels(self, labels, timeout=10000):
+        def click_visible_button_by_labels(self, labels, timeout=10000, **kwargs):
             captured["labels"] = labels
             captured["timeout"] = timeout
+            captured["click_kwargs"] = kwargs
             return {"found": True, "clicked": True, "text": "Buy Now"}
 
         def wait_for_url(self, url, timeout=10000):
@@ -108,7 +109,7 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     assert captured["diagnostic_labels"] == ["buy now", "bilihin na", "buy with voucher", "add to cart"]
     assert captured["diagnostic_timeout"] == 10000
     assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
-    assert captured["wait_for_url"][0] == "**/checkout**"
+    assert captured["click_kwargs"] == {}
 
 
 
@@ -141,12 +142,15 @@ def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
                         "https://shopee.ph/cart?itemKeys=100.200.&shopId=300"
                     ],
                 }
+            captured["checkout_kwargs"] = kwargs
             self.page.url = "https://shopee.ph/checkout"
             return {
                 "found": True,
                 "clicked": True,
                 "text": "Check Out",
                 "navigations": ["https://shopee.ph/checkout"],
+                "url_wait_satisfied": True,
+                "url_wait_error": None,
             }
 
         def wait_for_url(self, url, timeout=10000):
@@ -170,7 +174,11 @@ def test_initialize_continues_buy_now_cart_handoff_to_checkout(monkeypatch):
     assert captured["variation_session"] is session
     assert captured["clicks"][0] == ["buy now", "bilihin na", "buy with voucher"]
     assert captured["clicks"][1] == ["check out", "checkout", "proceed to checkout"]
-    assert captured["waits"][-1][0] == "**/checkout**"
+    assert captured["checkout_kwargs"] == {
+        "wait_for_url": "**/checkout**",
+        "navigation_timeout": 15000,
+    }
+    assert "waits" not in captured
 
 
 def test_initialize_rejects_buy_now_cart_identity_mismatch(monkeypatch):
