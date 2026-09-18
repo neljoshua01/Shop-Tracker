@@ -1,8 +1,11 @@
 """
 Initializes Shopee checkout directly from the selected PDP variation.
 
-This intentionally uses the normal browser-visible Buy Now flow. It does not
-construct undocumented checkout URLs or call private checkout APIs.
+The active Phase 1 path uses the normal browser-visible Buy Now flow. It does
+not construct or use undocumented checkout URLs during normal execution.
+
+An isolated direct-URL experiment is retained as a separate method for
+controlled testing only. It is not wired into PurchasePipeline.
 
 The initializer is responsible only for carrying the already-selected SKU
 into checkout. It never authorizes or clicks Place Order.
@@ -32,10 +35,6 @@ class DirectCheckoutInitializer:
     def initialize(self, session, decision):
         """Carry the exact execution decision into Shopee checkout."""
         self._validate_decision(session, decision)
-
-        # The variation was already selected during product-context preparation.
-        # Re-selecting it here adds latency and can race Shopee PDP updates.
-        # Phase 1 carries the exact selected context forward to Buy Now.
         self._open_product(session)
 
         actions = BrowserActions(session.browser_session)
@@ -57,17 +56,48 @@ class DirectCheckoutInitializer:
             )
             return False
 
+        buy_now_button = actions.first(buy_now_buttons)
+
         print(
             "[DirectCheckoutInitializer] "
-            "Starting direct checkout through Shopee Buy Now."
+            "Scrolling Buy Now into view..."
         )
-        actions.click(actions.first(buy_now_buttons))
+        actions.scroll_into_view(buy_now_button)
+
+        print(
+            "[DirectCheckoutInitializer] "
+            "Attempting force click on Shopee Buy Now."
+        )
+        actions.force_click(buy_now_button)
         actions.wait_for_timeout(3000)
 
         current_url = session.browser_session.page.url
         print(
             "[DirectCheckoutInitializer] "
-            f"URL after Buy Now: {current_url}"
+            f"URL after Buy Now force click: {current_url}"
+        )
+
+        if "/checkout" in current_url:
+            print(
+                "[DirectCheckoutInitializer] "
+                "Direct checkout page reached."
+            )
+            return True
+
+        # Some React-driven controls can receive a native DOM click even when
+        # Playwright's pointer click does not produce the expected transition.
+        # This remains a UI click on the same visible Buy Now control.
+        print(
+            "[DirectCheckoutInitializer] "
+            "Buy Now did not transition to checkout; attempting native DOM click."
+        )
+        actions.dom_click(buy_now_button)
+        actions.wait_for_timeout(3000)
+
+        current_url = session.browser_session.page.url
+        print(
+            "[DirectCheckoutInitializer] "
+            f"URL after Buy Now DOM click: {current_url}"
         )
 
         if "/checkout" not in current_url:
@@ -82,6 +112,49 @@ class DirectCheckoutInitializer:
             "Direct checkout page reached."
         )
         return True
+
+    def build_direct_checkout_url(self, session, decision):
+        """
+        Build the experimental direct-checkout URL from verified execution data.
+
+        This method is intentionally not used by initialize() or the normal
+        PurchasePipeline. Shopee may change or reject this route at any time.
+        """
+        self._validate_decision(session, decision)
+
+        item_id = decision.item_id
+        model_id = decision.model_id
+        quantity = decision.quantity
+
+        return (
+            "https://shopee.ph/checkout"
+            f"?buy_now=true&item_id={item_id}"
+            f"&model_id={model_id}&quantity={quantity}"
+        )
+
+    def initialize_via_direct_url(self, session, decision):
+        """
+        Experimental direct-URL checkout path for isolated validation.
+
+        This deliberately remains separate from normal execution and still
+        stops at the checkout page; it never clicks Place Order.
+        """
+        url = self.build_direct_checkout_url(session, decision)
+        actions = BrowserActions(session.browser_session)
+
+        print(
+            "[DirectCheckoutInitializer] "
+            f"Testing experimental direct checkout URL: {url}"
+        )
+        actions.goto(url, wait_until="domcontentloaded")
+
+        current_url = session.browser_session.page.url
+        print(
+            "[DirectCheckoutInitializer] "
+            f"URL after experimental direct navigation: {current_url}"
+        )
+
+        return "/checkout" in current_url
 
     def _validate_decision(self, session, decision):
         if decision is None:
