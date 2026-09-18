@@ -33,8 +33,10 @@ class DirectCheckoutInitializer:
         """Carry the exact execution decision into Shopee checkout."""
         self._validate_decision(session, decision)
 
+        # The variation was already selected during product-context preparation.
+        # Re-selecting it here adds latency and can race Shopee PDP updates.
+        # Phase 1 carries the exact selected context forward to Buy Now.
         self._open_product(session)
-        self.variation_selector.select(session)
 
         actions = BrowserActions(session.browser_session)
 
