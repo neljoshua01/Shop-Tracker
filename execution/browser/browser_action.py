@@ -2,6 +2,8 @@
 High-level browser operations used by the execution layer.
 """
 
+import asyncio
+
 from execution.browser.browser_session import BrowserSession
 from core.runtime.async_runtime import AsyncRuntime
 
@@ -273,10 +275,16 @@ class BrowserActions:
         self,
         labels: list[str],
         timeout: int = 10000,
+        wait_for_url: str | None = None,
+        navigation_timeout: int = 10000,
     ):
         """
         Locate a PDP purchase CTA using the rendered page and perform a real
         Playwright click.
+
+        When wait_for_url is supplied, the URL waiter is armed before the
+        click. This prevents a fast navigation from completing before a
+        later wait_for_url call starts.
 
         Shopee may render the CTA as a <button>, [role=button], or as text
         inside another clickable container. Discovery therefore uses two
@@ -303,6 +311,16 @@ class BrowserActions:
                     navigations.append(frame.url)
 
             self.session.page.on("framenavigated", _record_navigation)
+            navigation_task = None
+            navigation_error = None
+
+            if wait_for_url is not None:
+                navigation_task = asyncio.create_task(
+                    self.session.page.wait_for_url(
+                        wait_for_url,
+                        timeout=navigation_timeout,
+                    )
+                )
 
             # The PDP purchase controls can be below the current viewport and
             # can be lazily materialized. Move to the purchase area before
@@ -356,7 +374,14 @@ class BrowserActions:
 
                 try:
                     await page_wait_for_click_settle(self.session.page)
+                    if navigation_task is not None:
+                        try:
+                            await navigation_task
+                        except Exception as exc:
+                            navigation_error = repr(exc)
                 finally:
+                    if navigation_task is not None and not navigation_task.done():
+                        navigation_task.cancel()
                     self.session.page.remove_listener(
                         "framenavigated",
                         _record_navigation,
@@ -372,6 +397,8 @@ class BrowserActions:
                     "role": await control.get_attribute("role"),
                     "forced": True,
                     "navigations": list(navigations),
+                    "url_wait_satisfied": navigation_task is None or navigation_error is None,
+                    "url_wait_error": navigation_error,
                 }
 
             # Fallback: the visible CTA text may be inside a non-button
@@ -410,8 +437,12 @@ class BrowserActions:
                         "text": await target.inner_text(),
                         "forced": True,
                         "navigations": list(navigations),
+                        "url_wait_satisfied": navigation_task is None or navigation_error is None,
+                        "url_wait_error": navigation_error,
                     }
 
+            if navigation_task is not None and not navigation_task.done():
+                navigation_task.cancel()
             self.session.page.remove_listener(
                 "framenavigated",
                 _record_navigation,
