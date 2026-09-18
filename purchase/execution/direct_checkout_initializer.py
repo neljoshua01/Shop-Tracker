@@ -1,10 +1,11 @@
-"""Initializes Shopee checkout from the already-selected PDP variation.
+"""Initialize checkout from the already-selected PDP variation.
 
-The production path keeps the active PDP/browser session and dispatches the
-visible Buy Now control through the page's native DOM. This lets Shopee's own
-frontend initialize checkout state before redirecting to /checkout.
+The production path keeps the active PDP/browser session and invokes the
+visible Buy Now control with a real Playwright locator click. This preserves
+Shopee's own frontend event handling and lets the site initialize its checkout
+state from the selected PDP SKU.
 
-The cart DOM is never used. The initializer never clicks Place Order.
+The initializer never clicks Place Order.
 
 The direct URL method remains available only as an isolated experiment and is
 not used by the production initializer.
@@ -17,59 +18,7 @@ from purchase.execution.variation_selector import VariationSelector
 
 class DirectCheckoutInitializer:
 
-    BUY_NOW_DISPATCH_SCRIPT = """
-    (labels) => {
-        const wanted = labels.map(label => label.toLowerCase());
-
-        const isVisible = (element) => {
-            const rect = element.getBoundingClientRect();
-            const style = window.getComputedStyle(element);
-            return (
-                rect.width > 0 &&
-                rect.height > 0 &&
-                style.visibility !== "hidden" &&
-                style.display !== "none"
-            );
-        };
-
-        const buttons = Array.from(document.querySelectorAll("button"));
-        const button = buttons.find((candidate) => {
-            const text = (candidate.innerText || candidate.textContent || "")
-                .replace(/\s+/g, " ")
-                .trim()
-                .toLowerCase();
-
-            return (
-                wanted.some((label) => text === label || text.includes(label)) &&
-                !candidate.disabled &&
-                isVisible(candidate)
-            );
-        });
-
-        if (!button) {
-            return {
-                found: false,
-                clicked: false,
-                reason: "Buy Now button not found or not interactable",
-            };
-        }
-
-        button.scrollIntoView({
-            block: "center",
-            inline: "center",
-        });
-
-        button.click();
-
-        return {
-            found: true,
-            clicked: true,
-            text: (button.innerText || button.textContent || "")
-                .replace(/\s+/g, " ")
-                .trim(),
-        };
-    }
-    """
+    BUY_NOW_LABELS = ("buy now", "bilihin na")
 
     def __init__(self):
         self.browser = BrowserConnector()
@@ -89,7 +38,9 @@ class DirectCheckoutInitializer:
         """
         Carry the exact execution decision into checkout using the active PDP.
 
-        No cart navigation and no direct /checkout URL navigation are used.
+        No direct /checkout URL navigation is used. The Buy Now control is
+        clicked through Playwright so Shopee receives the normal browser
+        interaction rather than a page-context Element.click() dispatch.
         """
         self._validate_decision(session, decision)
         self._open_product(session)
@@ -107,23 +58,23 @@ class DirectCheckoutInitializer:
         )
         print(
             "[DirectCheckoutInitializer] "
-            "Dispatching native Buy Now DOM event on the selected PDP."
+            "Clicking visible Buy Now control with Playwright."
         )
 
-        result = actions.evaluate(
-            self.BUY_NOW_DISPATCH_SCRIPT,
-            ["buy now", "bilihin na"],
+        result = actions.click_visible_button_by_labels(
+            list(self.BUY_NOW_LABELS),
+            timeout=10000,
         )
 
         print(
             "[DirectCheckoutInitializer] "
-            f"Buy Now DOM dispatch result: {result}"
+            f"Buy Now Playwright click result: {result}"
         )
 
         if not result or not result.get("clicked"):
             print(
                 "[DirectCheckoutInitializer] "
-                "Buy Now DOM dispatch failed."
+                "Buy Now Playwright click failed."
             )
             return False
 
@@ -137,14 +88,14 @@ class DirectCheckoutInitializer:
             )
             print(
                 "[DirectCheckoutInitializer] "
-                f"Current URL after DOM dispatch: {current_url}"
+                f"Current URL after Playwright click: {current_url}"
             )
             return False
 
         current_url = session.browser_session.page.url
         print(
             "[DirectCheckoutInitializer] "
-            f"URL after native Buy Now DOM dispatch: {current_url}"
+            f"URL after Playwright Buy Now click: {current_url}"
         )
 
         if "/checkout" not in current_url:
