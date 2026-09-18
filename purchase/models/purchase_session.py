@@ -11,6 +11,9 @@ from purchase.models.purchase_status import PurchaseStatus
 from execution.browser.browser_session import BrowserSession
 from typing import Optional
 
+from purchase.models.ime_state import IMEState
+from purchase.models.execution_decision import ExecutionDecision
+
 
 @dataclass(slots=True)
 class PurchaseSession:
@@ -50,6 +53,12 @@ class PurchaseSession:
     monitored_item_id: Optional[int] = None
     monitored_model_id: Optional[int] = None
     monitored_sku_identity_verified: bool = False
+
+    # Formal Intelligent Monitoring Engine state for the latest observed SKU.
+    ime_state: Optional[IMEState] = None
+
+    # Decision captured when the purchase trigger becomes actionable.
+    execution_decision: Optional[ExecutionDecision] = None
 
     # Step 1: authoritative order identity established after Place Order.
     # These fields remain unset until Shopee's My Purchase order-list
