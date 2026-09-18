@@ -255,7 +255,25 @@ class SkuPriceMonitor:
             self.latest_state = state
             self.updated.set()
 
+            self.session.ime_state = self.ime_state_mapper.map(
+                self.session,
+                state,
+            )
+
             should_trigger = self.evaluator.evaluate(self.session, state)
+
+            if should_trigger and cookie_integrity:
+                self.session.ime_state = self.ime_state_mapper.map(
+                    self.session,
+                    state,
+                    trigger_reached=True,
+                )
+            elif should_trigger:
+                print(
+                    "[SkuPriceMonitor] Trigger condition reached, but "
+                    "IME session validity is not established."
+                )
+                should_trigger = False
 
             recorder = PromotionForensicsRecorder.get(self.session)
             if recorder is not None:
