@@ -42,6 +42,11 @@ class IMEStateMapper:
         return ExecutionDecision(
             item_id=state.item_id,
             model_id=state.model_id,
+            variation_options=tuple(sorted(
+                (str(key), str(value))
+                for key, value in session.request.options.items()
+            )),
+            quantity=session.request.quantity,
             promotion_id=state.promotion_id,
             target_price=session.request.target_price,
             execution_state=IMEState.EXECUTION_READY,
