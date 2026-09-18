@@ -1,6 +1,4 @@
-"""
-High-level browser operations used by the execution layer.
-"""
+"""High-level browser operations used by the execution layer."""
 
 import asyncio
 
@@ -14,7 +12,6 @@ class BrowserActions:
         self,
         session: BrowserSession,
     ):
-
         self.session = session
         self.runtime = AsyncRuntime.instance()
 
@@ -23,7 +20,6 @@ class BrowserActions:
         selector: str,
         timeout: int = 10000,
     ):
-
         return self._submit(
             self.session.page.wait_for_selector(
                 selector,
@@ -37,16 +33,13 @@ class BrowserActions:
         coro,
         timeout: float,
     ):
-
         future = self.runtime.submit(coro)
-
         return future.result(timeout=timeout)
 
     def wait_for_timeout(
         self,
         milliseconds: int,
     ):
-
         return self._submit(
             self.session.page.wait_for_timeout(
                 milliseconds,
@@ -59,7 +52,6 @@ class BrowserActions:
         wait_until: str = "domcontentloaded",
         timeout: int = 30000,
     ):
-
         return self._submit(
             self.session.page.reload(
                 wait_until=wait_until,
@@ -76,19 +68,7 @@ class BrowserActions:
         params: dict | None = None,
         timeout: int = 30000,
     ):
-        """
-        Performs an HTTP request through the existing
-        Playwright browser context.
-
-        The request uses the same browser context as the
-        current session, preserving the browser's cookies
-        and authentication state.
-
-        The visible page is not navigated.
-        """
-
         async def _request():
-
             response = await self.session.context.request.fetch(
                 url,
                 method=method,
@@ -96,7 +76,6 @@ class BrowserActions:
                 params=params,
                 timeout=timeout,
             )
-
             return response
 
         return self._submit(
@@ -110,7 +89,6 @@ class BrowserActions:
         wait_until: str = "domcontentloaded",
         timeout: int = 30000,
     ):
-
         return self._submit(
             self.session.page.goto(
                 url,
@@ -151,17 +129,14 @@ class BrowserActions:
         selector: str,
         parent=None,
     ):
-
         if parent is None:
             return self.session.page.locator(selector)
-
         return parent.locator(selector)
 
     def count(
         self,
         locator,
     ) -> int:
-
         return self._submit(
             locator.count(),
             timeout=10,
@@ -171,7 +146,6 @@ class BrowserActions:
         self,
         locator,
     ) -> str:
-
         return self._submit(
             locator.inner_text(),
             timeout=10,
@@ -191,7 +165,6 @@ class BrowserActions:
         self,
         locator,
     ):
-
         return self._submit(
             locator.click(),
             timeout=10,
@@ -209,7 +182,6 @@ class BrowserActions:
         This is diagnostic-only. It does not click, remove, or mutate any
         page element.
         """
-
         normalized_labels = tuple(
             " ".join(str(label).strip().lower().split())
             for label in labels
@@ -296,7 +268,6 @@ class BrowserActions:
         The final interaction is always locator.click(force=True). No
         page-context Element.click() or DOM removal is used.
         """
-
         normalized_labels = tuple(
             " ".join(str(label).strip().lower().split())
             for label in labels
@@ -322,9 +293,6 @@ class BrowserActions:
                     )
                 )
 
-            # The PDP purchase controls can be below the current viewport and
-            # can be lazily materialized. Move to the purchase area before
-            # deciding that the control does not exist.
             await self.session.page.evaluate(
                 "() => window.scrollTo(0, document.body.scrollHeight)"
             )
@@ -365,8 +333,6 @@ class BrowserActions:
                 candidates.append((index, control, text))
 
             if candidates:
-                # Prefer the last matching rendered control. Sticky purchase
-                # controls are commonly appended after the main PDP controls.
                 index, control, text = candidates[-1]
 
                 await control.scroll_into_view_if_needed()
@@ -401,9 +367,6 @@ class BrowserActions:
                     "url_wait_error": navigation_error,
                 }
 
-            # Fallback: the visible CTA text may be inside a non-button
-            # clickable container. Exact text discovery is still a native
-            # Playwright locator action.
             for label in normalized_labels:
                 text_locator = self.session.page.get_by_text(
                     label,
@@ -473,11 +436,24 @@ class BrowserActions:
     def force_click(
         self,
         locator,
+        timeout: int = 5000,
+        no_wait_after: bool = True,
     ):
-        """Click a known interactive control despite transient overlays."""
+        """
+        Click a known interactive control without waiting for a navigation.
+
+        PDP variation controls can trigger Shopee's internal state update
+        machinery and transient rerenders. They are not navigation actions,
+        so waiting for Playwright's post-click navigation lifecycle can turn
+        a successful variation click into a timeout.
+        """
         return self._submit(
-            locator.click(force=True),
-            timeout=10,
+            locator.click(
+                force=True,
+                timeout=timeout,
+                no_wait_after=no_wait_after,
+            ),
+            timeout=(timeout / 1000) + 5,
         )
 
     def scroll_into_view(
@@ -515,7 +491,6 @@ class BrowserActions:
     def scroll_to_bottom(
         self,
     ):
-
         return self._submit(
             self.session.page.evaluate(
                 "() => window.scrollTo(0, document.body.scrollHeight)"
