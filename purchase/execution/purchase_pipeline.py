@@ -7,7 +7,7 @@ Phase 1 deliberately removes the cart as an execution dependency:
         -> selected PDP variation/quantity
         -> SKU monitoring
         -> IME execution decision
-        -> direct Shopee checkout URL
+        -> native PDP Buy Now DOM dispatch
         -> Checkout verification
 
 Auto Checkout OFF stops at the trigger and leaves the browser session on the
@@ -248,9 +248,9 @@ class PurchasePipeline:
                 "checkout_execution_started",
                 "checkout",
                 {
-                    "checkout_route": "direct_checkout_url",
+                    "checkout_route": "pdp_native_buy_now",
                     "cart_flow_enabled": False,
-                    "buy_now_click_enabled": False,
+                    "buy_now_click_enabled": True,
                 },
             )
 
@@ -263,7 +263,7 @@ class PurchasePipeline:
                     "item_id": self.execution_decision.item_id,
                     "model_id": self.execution_decision.model_id,
                     "promotion_id": self.execution_decision.promotion_id,
-                    "checkout_route": "direct_checkout_url",
+                    "checkout_route": "pdp_native_buy_now",
                 },
             )
 
@@ -282,7 +282,7 @@ class PurchasePipeline:
                     "checkout",
                     {
                         "cart_flow_fallback": False,
-                        "checkout_route": "direct_checkout_url",
+                        "checkout_route": "pdp_native_buy_now",
                     },
                 )
                 session.status = PurchaseStatus.FAILED
@@ -318,7 +318,7 @@ class PurchasePipeline:
                     "item_id": session.product.item_id,
                     "model_id": session.variation.model_id,
                     "cart_flow_enabled": False,
-                    "checkout_route": "direct_checkout_url",
+                    "checkout_route": "pdp_native_buy_now",
                 },
             )
 
