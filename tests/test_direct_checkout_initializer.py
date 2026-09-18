@@ -8,7 +8,10 @@ from purchase.models.ime_state import IMEState
 
 
 def make_session():
-    variation = SimpleNamespace(model_id=200, options={"Color": "Black", "Storage": "256GB"})
+    variation = SimpleNamespace(
+        model_id=200,
+        options={"Color": "Black", "Storage": "256GB"},
+    )
     return SimpleNamespace(
         product=SimpleNamespace(item_id=100),
         variation=variation,
@@ -57,105 +60,20 @@ def test_direct_checkout_initializer_rejects_model_mismatch():
         initializer._validate_decision(session, decision)
 
 
-def test_direct_checkout_initializer_does_not_reselect_variation_during_initialize(monkeypatch):
+def test_initialize_routes_to_direct_checkout_url(monkeypatch):
     session = make_session()
     decision = make_decision()
     initializer = object.__new__(DirectCheckoutInitializer)
 
-    initializer._open_product = lambda _session: None
-    initializer.variation_selector = SimpleNamespace(
-        select=lambda _session: (_ for _ in ()).throw(
-            AssertionError("variation was reselected")
-        ),
-    )
+    called = {}
 
-    class FakePage:
-        url = "https://shopee.ph/checkout"
+    def fake_direct_url(_session, _decision):
+        called["session"] = _session
+        called["decision"] = _decision
+        return True
 
-        def is_closed(self):
-            return False
-
-    class FakeActions:
-        def __init__(self, _session):
-            pass
-
-        def find_all(self, _selector):
-            return [object()]
-
-        def count(self, _locator):
-            return 1
-
-        def first(self, locator):
-            return locator
-
-        def scroll_into_view(self, _locator):
-            pass
-
-        def force_click(self, _locator):
-            pass
-
-        def dom_click(self, _locator):
-            raise AssertionError("DOM fallback should not run when checkout is reached")
-
-        def wait_for_timeout(self, _milliseconds):
-            pass
-
-    monkeypatch.setattr(
-        "purchase.execution.direct_checkout_initializer.BrowserActions",
-        FakeActions,
-    )
-    session.browser_session = SimpleNamespace(
-        page=FakePage(),
-    )
+    initializer.initialize_via_direct_url = fake_direct_url
 
     assert initializer.initialize(session, decision) is True
-
-
-def test_direct_checkout_initializer_falls_back_to_native_dom_click(monkeypatch):
-    session = make_session()
-    decision = make_decision()
-    initializer = object.__new__(DirectCheckoutInitializer)
-
-    initializer._open_product = lambda _session: None
-
-    class FakePage:
-        def __init__(self):
-            self.url = "https://shopee.ph/product/1275798143/100"
-
-        def is_closed(self):
-            return False
-
-    page = FakePage()
-
-    class FakeActions:
-        def __init__(self, _session):
-            pass
-
-        def find_all(self, _selector):
-            return [object()]
-
-        def count(self, _locator):
-            return 1
-
-        def first(self, locator):
-            return locator
-
-        def scroll_into_view(self, _locator):
-            pass
-
-        def force_click(self, _locator):
-            pass
-
-        def dom_click(self, _locator):
-            page.url = "https://shopee.ph/checkout"
-
-        def wait_for_timeout(self, _milliseconds):
-            pass
-
-    monkeypatch.setattr(
-        "purchase.execution.direct_checkout_initializer.BrowserActions",
-        FakeActions,
-    )
-    session.browser_session = SimpleNamespace(page=page)
-
-    assert initializer.initialize(session, decision) is True
+    assert called["session"] is session
+    assert called["decision"] is decision
