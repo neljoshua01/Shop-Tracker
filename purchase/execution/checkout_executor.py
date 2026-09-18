@@ -28,10 +28,53 @@ class CheckoutExecutor:
         page = browser_session.page
         actions = BrowserActions(browser_session)
 
-        print(f"[CheckoutExecutor] Current URL: {page.url}")\n\n        # Phase 1: the executor receives an already initialized checkout.\n        # It never returns to /cart or searches cart DOM state.\n        if "/checkout" not in page.url:\n            print("[CheckoutExecutor] Expected a direct checkout page.")\n            return False\n\n        print("[CheckoutExecutor] Direct checkout page confirmed.")\n        if forensics is not None:\n            forensics.record_event("checkout_page_reached", "checkout",\n                {"url": page.url, "cart_flow_enabled": False})\n\n        checkout_verifier = CheckoutVerifier()\n        initial_summary = AsyncRuntime.instance().submit(\n            checkout_verifier.collect_order_summary(page)\n        ).result(timeout=15)\n        if forensics is not None:\n            forensics.record_event("checkout_price_observed", "checkout", {\n                "observation": "initial",\n                "total": initial_summary.get("total"),\n                "subtotal": initial_summary.get("subtotal"),\n                "item_discount": initial_summary.get("item_discount"),\n                "voucher_discount": initial_summary.get("voucher_discount"),\n            })\n\n        decision = getattr(session, "execution_decision", None)\n        if decision is None:\n            print("[CheckoutExecutor] Execution decision is missing.")\n            return False\n        if decision.item_id != session.product.item_id:\n            print("[CheckoutExecutor] Execution decision item_id mismatch.")\n            return False\n        if decision.model_id != session.variation.model_id:\n            print("[CheckoutExecutor] Execution decision model_id mismatch.")\n            return False\n        if decision.quantity != session.request.quantity:\n            print("[CheckoutExecutor] Execution decision quantity mismatch.")\n            return False\n\n        print(\n            "[CheckoutExecutor] "\n            f"Execution identity verified: item={decision.item_id}, "\n            f"model={decision.model_id}, quantity={decision.quantity}"\n        )\n        requested_payment = session.request.payment_method.value
-        print(f"[CheckoutExecutor] Requested payment: {requested_payment}")
-        checkout_verifier = CheckoutVerifier()
+        print(f"[CheckoutExecutor] Current URL: {page.url}")
 
+        # Phase 1: the executor receives an already initialized checkout.
+        # It never returns to /cart or searches cart DOM state.
+        if "/checkout" not in page.url:
+            print("[CheckoutExecutor] Expected a direct checkout page.")
+            return False
+
+        print("[CheckoutExecutor] Direct checkout page confirmed.")
+        if forensics is not None:
+            forensics.record_event("checkout_page_reached", "checkout",
+                {"url": page.url, "cart_flow_enabled": False})
+
+        checkout_verifier = CheckoutVerifier()
+        initial_summary = AsyncRuntime.instance().submit(
+            checkout_verifier.collect_order_summary(page)
+        ).result(timeout=15)
+        if forensics is not None:
+            forensics.record_event("checkout_price_observed", "checkout", {
+                "observation": "initial",
+                "total": initial_summary.get("total"),
+                "subtotal": initial_summary.get("subtotal"),
+                "item_discount": initial_summary.get("item_discount"),
+                "voucher_discount": initial_summary.get("voucher_discount"),
+            })
+
+        decision = getattr(session, "execution_decision", None)
+        if decision is None:
+            print("[CheckoutExecutor] Execution decision is missing.")
+            return False
+        if decision.item_id != session.product.item_id:
+            print("[CheckoutExecutor] Execution decision item_id mismatch.")
+            return False
+        if decision.model_id != session.variation.model_id:
+            print("[CheckoutExecutor] Execution decision model_id mismatch.")
+            return False
+        if decision.quantity != session.request.quantity:
+            print("[CheckoutExecutor] Execution decision quantity mismatch.")
+            return False
+
+        print(
+            "[CheckoutExecutor] "
+            f"Execution identity verified: item={decision.item_id}, "
+            f"model={decision.model_id}, quantity={decision.quantity}"
+        )
+        requested_payment = session.request.payment_method.value
+        print(f"[CheckoutExecutor] Requested payment: {requested_payment}")
         payment_selected = AsyncRuntime.instance().submit(
             checkout_verifier.select_payment(page, requested_payment)
         ).result(timeout=15)
@@ -57,7 +100,27 @@ class CheckoutExecutor:
 
         actions.wait_for_timeout(1000)
 
-        intermediate_summary = AsyncRuntime.instance().submit(\n            checkout_verifier.collect_order_summary(page)\n        ).result(timeout=15)\n        if forensics is not None:\n            forensics.record_event("checkout_price_observed", "checkout", {\n                "observation": "post_payment_setup",\n                "total": intermediate_summary.get("total"),\n                "subtotal": intermediate_summary.get("subtotal"),\n                "item_discount": intermediate_summary.get("item_discount"),\n                "voucher_discount": intermediate_summary.get("voucher_discount"),\n            })\n            if (\n                initial_summary.get("total") is not None\n                and intermediate_summary.get("total") is not None\n                and initial_summary.get("total") != intermediate_summary.get("total")\n            ):\n                forensics.record_event("checkout_price_changed", "checkout", {\n                    "from_total": initial_summary.get("total"),\n                    "to_total": intermediate_summary.get("total"),\n                })\n        summary = AsyncRuntime.instance().submit(
+        intermediate_summary = AsyncRuntime.instance().submit(
+            checkout_verifier.collect_order_summary(page)
+        ).result(timeout=15)
+        if forensics is not None:
+            forensics.record_event("checkout_price_observed", "checkout", {
+                "observation": "post_payment_setup",
+                "total": intermediate_summary.get("total"),
+                "subtotal": intermediate_summary.get("subtotal"),
+                "item_discount": intermediate_summary.get("item_discount"),
+                "voucher_discount": intermediate_summary.get("voucher_discount"),
+            })
+            if (
+                initial_summary.get("total") is not None
+                and intermediate_summary.get("total") is not None
+                and initial_summary.get("total") != intermediate_summary.get("total")
+            ):
+                forensics.record_event("checkout_price_changed", "checkout", {
+                    "from_total": initial_summary.get("total"),
+                    "to_total": intermediate_summary.get("total"),
+                })
+        summary = AsyncRuntime.instance().submit(
             checkout_verifier.collect_order_summary(page)
         ).result(timeout=15)
 
