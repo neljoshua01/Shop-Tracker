@@ -195,6 +195,80 @@ class BrowserActions:
             timeout=10,
         )
 
+    def capture_pdp_purchase_controls(
+        self,
+        labels: list[str],
+        timeout: int = 10000,
+    ):
+        """
+        Capture the rendered PDP purchase-control DOM immediately before
+        purchase interaction.
+
+        This is diagnostic-only. It does not click, remove, or mutate any
+        page element.
+        """
+
+        normalized_labels = tuple(
+            " ".join(str(label).strip().lower().split())
+            for label in labels
+            if str(label).strip()
+        )
+
+        async def _capture():
+            elements = await self.session.page.locator(
+                "button, [role='button'], a"
+            ).all()
+
+            snapshot = []
+
+            for element in elements:
+                text = (await element.inner_text()).strip()
+
+                if not text:
+                    continue
+
+                normalized_text = " ".join(text.lower().split())
+
+                if not any(
+                    label in normalized_text
+                    for label in normalized_labels
+                ):
+                    continue
+
+                rect = await element.evaluate(
+                    """el => {
+                        const r = el.getBoundingClientRect();
+                        return {
+                            x: r.x,
+                            y: r.y,
+                            width: r.width,
+                            height: r.height
+                        };
+                    }"""
+                )
+
+                snapshot.append({
+                    "tag": await element.evaluate("el => el.tagName"),
+                    "text": text[:80],
+                    "cls": (
+                        await element.get_attribute("class")
+                    ) or "",
+                    "disabled": await element.get_attribute("disabled"),
+                    "aria_disabled": await element.get_attribute(
+                        "aria-disabled"
+                    ),
+                    "visible": await element.is_visible(),
+                    "enabled": await element.is_enabled(),
+                    "rect": rect,
+                })
+
+            return snapshot
+
+        return self._submit(
+            _capture(),
+            timeout=(timeout / 1000) + 5,
+        )
+
     def click_visible_button_by_labels(
         self,
         labels: list[str],
