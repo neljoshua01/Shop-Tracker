@@ -297,6 +297,8 @@ class SkuPriceMonitor:
                         "promotion_seconds_until_end": state.promotion_seconds_until_end,
                         "promotion_is_lpp": state.promotion_is_lpp,
                         "has_stock": state.has_stock,
+                        "cookie_integrity": state.cookie_integrity,
+                        "ime_state": self.session.ime_state.value,
                         "trigger_evaluation": should_trigger,
                     },
                 )
@@ -322,6 +324,8 @@ class SkuPriceMonitor:
             print(f"[SkuPriceMonitor] Promotion seconds until start: {state.promotion_seconds_until_start}")
             print(f"[SkuPriceMonitor] Promotion seconds until end: {state.promotion_seconds_until_end}")
             print(f"[SkuPriceMonitor] Promotion is LPP: {state.promotion_is_lpp}")
+            print(f"[SkuPriceMonitor] Cookie integrity: {state.cookie_integrity}")
+            print(f"[SkuPriceMonitor] IME state: {self.session.ime_state.value}")
             print("[SkuPriceMonitor] ==============================")
 
         except Exception as e:
