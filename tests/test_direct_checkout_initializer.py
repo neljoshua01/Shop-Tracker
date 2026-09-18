@@ -60,20 +60,76 @@ def test_direct_checkout_initializer_rejects_model_mismatch():
         initializer._validate_decision(session, decision)
 
 
-def test_initialize_routes_to_direct_checkout_url(monkeypatch):
+def test_initialize_dispatches_native_buy_now_dom(monkeypatch):
     session = make_session()
     decision = make_decision()
     initializer = object.__new__(DirectCheckoutInitializer)
 
-    called = {}
+    captured = {}
 
-    def fake_direct_url(_session, _decision):
-        called["session"] = _session
-        called["decision"] = _decision
-        return True
+    class FakePage:
+        url = "https://shopee.ph/checkout"
 
-    initializer.initialize_via_direct_url = fake_direct_url
+    class FakeActions:
+        def __init__(self, _session):
+            pass
+
+        def evaluate(self, expression, arg=None, timeout=10000):
+            captured["expression"] = expression
+            captured["arg"] = arg
+            return {"found": True, "clicked": True, "text": "Buy Now"}
+
+        def wait_for_url(self, url, timeout=10000):
+            captured["wait_for_url"] = (url, timeout)
+
+    monkeypatch.setattr(
+        "purchase.execution.direct_checkout_initializer.BrowserActions",
+        FakeActions,
+    )
+
+    initializer._open_product = lambda _session: None
+    session.browser_session = SimpleNamespace(page=FakePage())
 
     assert initializer.initialize(session, decision) is True
-    assert called["session"] is session
-    assert called["decision"] is decision
+    assert captured["arg"] == ["buy now", "bilihin na"]
+    assert "**/checkout**" in captured["wait_for_url"][0]
+
+
+def test_initialize_fails_when_native_buy_now_dom_dispatch_fails(monkeypatch):
+    session = make_session()
+    decision = make_decision()
+    initializer = object.__new__(DirectCheckoutInitializer)
+
+    class FakePage:
+        url = "https://shopee.ph/product/1275798143/100"
+
+    class FakeActions:
+        def __init__(self, _session):
+            pass
+
+        def evaluate(self, expression, arg=None, timeout=10000):
+            return {"found": False, "clicked": False}
+
+    monkeypatch.setattr(
+        "purchase.execution.direct_checkout_initializer.BrowserActions",
+        FakeActions,
+    )
+
+    initializer._open_product = lambda _session: None
+    session.browser_session = SimpleNamespace(page=FakePage())
+
+    assert initializer.initialize(session, decision) is False
+
+
+def test_build_direct_checkout_url_remains_experimental_only():
+    initializer = object.__new__(DirectCheckoutInitializer)
+
+    url = initializer.build_direct_checkout_url(
+        make_session(),
+        make_decision(),
+    )
+
+    assert url == (
+        "https://shopee.ph/checkout"
+        "?buy_now=true&item_id=100&model_id=200&quantity=2"
+    )
