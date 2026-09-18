@@ -56,6 +56,7 @@ def test_direct_checkout_initializer_rejects_model_mismatch():
     with pytest.raises(ValueError, match="model_id"):
         initializer._validate_decision(session, decision)
 
+
 def test_direct_checkout_initializer_does_not_reselect_variation_during_initialize(monkeypatch):
     session = make_session()
     decision = make_decision()
@@ -67,6 +68,12 @@ def test_direct_checkout_initializer_does_not_reselect_variation_during_initiali
             AssertionError("variation was reselected")
         ),
     )
+
+    class FakePage:
+        url = "https://shopee.ph/checkout"
+
+        def is_closed(self):
+            return False
 
     class FakeActions:
         def __init__(self, _session):
@@ -81,8 +88,14 @@ def test_direct_checkout_initializer_does_not_reselect_variation_during_initiali
         def first(self, locator):
             return locator
 
-        def click(self, _locator):
+        def scroll_into_view(self, _locator):
             pass
+
+        def force_click(self, _locator):
+            pass
+
+        def dom_click(self, _locator):
+            raise AssertionError("DOM fallback should not run when checkout is reached")
 
         def wait_for_timeout(self, _milliseconds):
             pass
@@ -92,7 +105,57 @@ def test_direct_checkout_initializer_does_not_reselect_variation_during_initiali
         FakeActions,
     )
     session.browser_session = SimpleNamespace(
-        page=SimpleNamespace(url="https://shopee.ph/checkout"),
+        page=FakePage(),
     )
+
+    assert initializer.initialize(session, decision) is True
+
+
+def test_direct_checkout_initializer_falls_back_to_native_dom_click(monkeypatch):
+    session = make_session()
+    decision = make_decision()
+    initializer = object.__new__(DirectCheckoutInitializer)
+
+    initializer._open_product = lambda _session: None
+
+    class FakePage:
+        def __init__(self):
+            self.url = "https://shopee.ph/product/1275798143/100"
+
+        def is_closed(self):
+            return False
+
+    page = FakePage()
+
+    class FakeActions:
+        def __init__(self, _session):
+            pass
+
+        def find_all(self, _selector):
+            return [object()]
+
+        def count(self, _locator):
+            return 1
+
+        def first(self, locator):
+            return locator
+
+        def scroll_into_view(self, _locator):
+            pass
+
+        def force_click(self, _locator):
+            pass
+
+        def dom_click(self, _locator):
+            page.url = "https://shopee.ph/checkout"
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+    monkeypatch.setattr(
+        "purchase.execution.direct_checkout_initializer.BrowserActions",
+        FakeActions,
+    )
+    session.browser_session = SimpleNamespace(page=page)
 
     assert initializer.initialize(session, decision) is True
