@@ -95,9 +95,19 @@ def test_initialize_clicks_visible_buy_now_with_playwright(monkeypatch):
     initializer._open_product = lambda _session: None
     session.browser_session = SimpleNamespace(page=FakePage())
 
+    selection_calls = []
+
+    class FakeVariationSelector:
+        def select(self, selected_session):
+            selection_calls.append(selected_session)
+
+    initializer.variation_selector = FakeVariationSelector()
+
     assert initializer.initialize(session, decision) is True
+    assert selection_calls == [session]
     assert captured["diagnostic_labels"] == ["buy now", "bilihin na", "buy with voucher", "add to cart"]
-    assert captured["diagnostic_timeout"] == 10000\n    assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
+    assert captured["diagnostic_timeout"] == 10000
+    assert captured["labels"] == ["buy now", "bilihin na", "buy with voucher"]
     assert captured["wait_for_url"][0] == "**/checkout**"
 
 
