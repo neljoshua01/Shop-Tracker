@@ -6,6 +6,7 @@ import time
 
 from purchase.models.sku_price_state import SkuPriceState
 from purchase.services.promotion_intelligence import PromotionIntelligence
+from purchase.services.promotion_stock_intelligence import PromotionStockIntelligence
 
 
 class SkuPriceParser:
@@ -131,6 +132,12 @@ class SkuPriceParser:
                 seconds_until_end=seconds_until_end,
             )
 
+            promotion_stock = PromotionStockIntelligence.analyze(
+                model,
+                promotion_detected=promotion.detected,
+                event_status=promotion_event_status,
+            )
+
             return SkuPriceState(
 
                 item_id=model["item_id"],
@@ -187,6 +194,16 @@ class SkuPriceParser:
                 promotion_is_lpp=(
                     promotion_is_lpp
                 ),
+
+                promotion_inventory_state=promotion_stock.state,
+                current_promotion_reserved_stock=(
+                    promotion_stock.current_promotion_reserved_stock
+                ),
+                current_promotion_has_reserve_stock=(
+                    promotion_stock.current_promotion_has_reserve_stock
+                ),
+                promotion_allocated_stock=promotion_stock.allocated_stock,
+                promotion_stock_evidence=promotion_stock.evidence,
 
                 has_stock=model.get("has_stock", False),
             )
