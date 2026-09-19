@@ -304,6 +304,15 @@ class SkuPriceMonitor:
                         "promotion_seconds_until_start": state.promotion_seconds_until_start,
                         "promotion_seconds_until_end": state.promotion_seconds_until_end,
                         "promotion_is_lpp": state.promotion_is_lpp,
+                        "promotion_inventory_state": state.promotion_inventory_state,
+                        "current_promotion_reserved_stock": (
+                            state.current_promotion_reserved_stock
+                        ),
+                        "current_promotion_has_reserve_stock": (
+                            state.current_promotion_has_reserve_stock
+                        ),
+                        "promotion_allocated_stock": state.promotion_allocated_stock,
+                        "promotion_stock_evidence": state.promotion_stock_evidence,
                         "has_stock": state.has_stock,
                         "trigger_evaluation": should_trigger,
                     },
@@ -330,6 +339,11 @@ class SkuPriceMonitor:
             print(f"[SkuPriceMonitor] Promotion seconds until start: {state.promotion_seconds_until_start}")
             print(f"[SkuPriceMonitor] Promotion seconds until end: {state.promotion_seconds_until_end}")
             print(f"[SkuPriceMonitor] Promotion is LPP: {state.promotion_is_lpp}")
+            print(f"[SkuPriceMonitor] Promotion inventory state: {state.promotion_inventory_state}")
+            print(f"[SkuPriceMonitor] Promotion reserved stock: {state.current_promotion_reserved_stock}")
+            print(f"[SkuPriceMonitor] Promotion reserve signal: {state.current_promotion_has_reserve_stock}")
+            print(f"[SkuPriceMonitor] Promotion allocated stock: {state.promotion_allocated_stock}")
+            print(f"[SkuPriceMonitor] Promotion stock evidence: {state.promotion_stock_evidence}")
             print("[SkuPriceMonitor] ==============================")
 
         except Exception as e:
