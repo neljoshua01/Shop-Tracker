@@ -128,6 +128,7 @@ class PromotionForensicsRecorder:
             self,
             self.on_browser_response,
             session=browser_session,
+            all_sessions=True,
         )
         self._callback_registered = True
         self._append_event(
@@ -330,6 +331,7 @@ class PromotionForensicsRecorder:
                 self._engine_ref.unregister_response_callback(
                     self,
                     session=self.browser_session,
+                    all_sessions=True,
                 )
             except Exception as exc:
                 warnings.append(
