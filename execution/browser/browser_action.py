@@ -2,6 +2,8 @@
 High-level browser operations used by the execution layer.
 """
 
+import asyncio
+
 from execution.browser.browser_session import BrowserSession
 from core.runtime.async_runtime import AsyncRuntime
 
