@@ -568,6 +568,14 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
                 lambda message=error_message: self._load_failed(message)
             )
 
+    def _load_failed(self, message):
+        self.load_button.configure(state="normal")
+        self.status_label.configure(
+            text="✕ Product Load Failed",
+            text_color=colors.DANGER,
+        )
+        self._set_error(message)
+
     def _product_loaded(self, product):
         self.product = product
         self.load_button.configure(state="normal")
