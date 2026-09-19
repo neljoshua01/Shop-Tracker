@@ -32,7 +32,14 @@ class CheckoutExecutor:
 
         if "/cart" not in page.url:
             print("[CheckoutExecutor] Returning existing session to cart.")
-            actions.goto("https://shopee.ph/cart")
+            # E7 fast navigation: wait for the navigation commit, then
+            # use the existing cart UI readiness check below as the state
+            # boundary. This avoids waiting for the full DOMContentLoaded
+            # lifecycle before we inspect the cart.
+            actions.goto(
+                "https://shopee.ph/cart",
+                wait_until="commit",
+            )
             if "/cart" not in page.url:
                 print("[CheckoutExecutor] Cart page was not reached.")
                 return False
@@ -73,9 +80,23 @@ class CheckoutExecutor:
 
         checkbox_inputs = actions.find_all("input.stardust-checkbox__input")
         identity_candidates = cart_inspection.get("identity_candidates", [])
+        exact_identity_candidates = cart_inspection.get(
+            "exact_identity_candidates",
+            [],
+        )
         variation_candidates = cart_inspection.get("variation_candidates", [])
 
         target_checkbox_index = None
+
+        # E7 fast path: use the unique exact item+model identity produced by
+        # the browser-side inspection before considering the broader fallback.
+        if len(exact_identity_candidates) == 1:
+            target_checkbox_index = exact_identity_candidates[0].get(
+                "checkbox_index"
+            )
+            print(
+                "[CheckoutExecutor] Exact item + model identity fast path matched."
+            )
 
         # Preserve the existing identity rule: an item-id match is sufficient
         # when Shopee does not expose the model-id at the same container level.
