@@ -312,6 +312,24 @@ class BrowserActions:
                 });
             });
 
+            const exactIdentityCandidates = candidates.filter(
+                (candidate) =>
+                    candidate.item_match &&
+                    candidate.model_match
+            );
+
+            // E7 fast path: when exactly one checkbox exposes both the frozen
+            // item and model identity, no variation-text scan is necessary.
+            if (exactIdentityCandidates.length === 1) {
+                return {
+                    checkbox_count: checkboxes.length,
+                    identity_candidates: candidates,
+                    exact_identity_candidates: exactIdentityCandidates,
+                    variation_candidates: [],
+                    resolution_path: "exact_identity_fast_path",
+                };
+            }
+
             const productName = normalize(payload.product_name).toLowerCase();
             const requestedValues = Object.values(payload.requested_options)
                 .map((value) => normalize(value).toLowerCase())
@@ -373,7 +391,9 @@ class BrowserActions:
             return {
                 checkbox_count: checkboxes.length,
                 identity_candidates: candidates,
+                exact_identity_candidates: exactIdentityCandidates,
                 variation_candidates: variationCandidates,
+                resolution_path: "identity_and_variation_scan",
             };
         }
         """
