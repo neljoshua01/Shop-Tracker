@@ -26,6 +26,10 @@ class BrowserEngine:
         # register before opening their own session.
         self.response_callbacks = {}
 
+        # Run-scoped observers that must receive responses from every
+        # BrowserSession opened while the observer is registered.
+        self.global_response_callbacks = {}
+
         # BrowserSession id -> {callback owner -> callback}.
         # BrowserSession is mutable and deliberately not hashable,
         # so its object identity is the internal registry key.
