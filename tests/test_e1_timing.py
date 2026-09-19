@@ -21,7 +21,8 @@ def test_e1_recorder_tracks_all_execution_points():
     recorder = E1TimingRecorder()
     recorder.start()
 
-    for point in ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11"):
+    recorder.record_get_pc_network(FakeRequest(), callback_received_ns=1_026_000_000)
+    for point in ("T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11"):
         recorder.mark(point)
 
     metrics = recorder.metrics()
