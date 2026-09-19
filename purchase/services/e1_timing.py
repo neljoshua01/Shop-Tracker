@@ -37,6 +37,9 @@ class E1TimingRecorder:
 
     def record(self, name: str, *, monotonic: float | None = None, **metadata):
         """Record a process-monotonic event exactly once."""
+        if name in self.events:
+            return
+
         now_monotonic = time.perf_counter() if monotonic is None else monotonic
         self.events[name] = {
             "name": name,
