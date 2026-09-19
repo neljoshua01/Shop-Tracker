@@ -23,20 +23,22 @@ class E1TimingRecorder:
 
     def reset(self):
         self.started_at = None
+        self.started_at_wallclock = None
         self.points: dict[str, int] = {}
         self.network: dict[str, object] = {}
         self.completed = False
 
     def start(self):
         self.reset()
-        self.started_at = time.time_ns()
+        self.started_at = time.perf_counter_ns()
+        self.started_at_wallclock = datetime.now(timezone.utc).isoformat()
         self.points["T0"] = self.started_at
         return self.started_at
 
     def mark(self, point: str) -> int:
         if point not in self.POINTS:
             raise ValueError(f"Unknown E1 timing point: {point}")
-        timestamp = time.time_ns()
+        timestamp = time.perf_counter_ns()
         self.points[point] = timestamp
         return timestamp
 
@@ -58,9 +60,11 @@ class E1TimingRecorder:
         # Do not compare them directly with Python epoch timestamps.
         if isinstance(start_ms, (int, float)) and start_ms >= 0:
             self.network["request_start_ms"] = float(start_ms)
+            self.points["T1"] = int(start_ms * 1_000_000)
 
         if isinstance(response_end_ms, (int, float)) and response_end_ms >= 0:
             self.network["response_end_ms"] = float(response_end_ms)
+            self.points["T2"] = int(response_end_ms * 1_000_000)
 
         if isinstance(response_start_ms, (int, float)) and response_start_ms >= 0:
             self.network["response_start_ms"] = float(response_start_ms)
@@ -116,13 +120,7 @@ class E1TimingRecorder:
         }
         return {
             "schema_version": 1,
-            "started_at": (
-                datetime.fromtimestamp(
-                    self.started_at / 1_000_000_000, timezone.utc
-                ).isoformat()
-                if self.started_at
-                else None
-            ),
+            "started_at": self.started_at_wallclock,
             "points": dict(self.points),
             "timestamps_utc": timestamps,
             "network": dict(self.network),
