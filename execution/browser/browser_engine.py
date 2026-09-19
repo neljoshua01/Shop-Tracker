@@ -150,35 +150,66 @@ class BrowserEngine:
                 f"Response: {response.status} {response.url}"
             )
 
+            # Shopee's get_pc response body is needed by the monitoring
+            # pipeline. Capture it from the response event immediately,
+            # before a fast PDP reload can invalidate the CDP resource.
+            asyncio.create_task(
+                self._capture_and_dispatch_response(
+                    response,
+                    callbacks,
+                )
+            )
+            return
+
         for callback in callbacks:
+            self._schedule_callback(callback, response)
 
+    async def _capture_and_dispatch_response(
+        self,
+        response,
+        callbacks,
+    ):
+        body = None
+
+        try:
+            # Start body retrieval immediately from the response event.
+            # Playwright emits "response" when headers arrive; the body
+            # continues downloading independently and response.body()
+            # waits for the body to become available.
+            body = await response.body()
+        except Exception as e:
+            print(
+                "[BrowserEngine] "
+                f"get_pc response body capture failed: {e}"
+            )
+
+        for callback in callbacks:
+            self._schedule_callback(callback, response, body)
+
+    def _schedule_callback(
+        self,
+        callback,
+        response,
+        body=None,
+    ):
+        try:
             try:
-
+                signature = inspect.signature(callback)
+                signature.bind(response, body)
+                result = callback(response, body)
+            except (TypeError, ValueError):
+                # Preserve the existing one-argument callback contract for
+                # callbacks that do not opt into the captured body.
                 result = callback(response)
 
-                if inspect.isawaitable(result):
-                    #
-                    # IMPORTANT:
-                    #
-                    # Playwright response objects are tied to the
-                    # Playwright event loop.  The response event itself
-                    # already runs on AsyncRuntime's Playwright loop, so
-                    # schedule the callback directly on that loop instead
-                    # of routing it through run_coroutine_threadsafe().
-                    #
-                    # The previous cross-thread submission could delay
-                    # response.json() long enough for a fast 1s PDP reload
-                    # to invalidate the CDP response body, producing:
-                    #   Network.getResponseBody: No resource with given identifier found
-                    #
-                    asyncio.create_task(self._await_callback(result))
+            if inspect.isawaitable(result):
+                asyncio.create_task(self._await_callback(result))
 
-            except Exception as e:
-
-                print(
-                    "[BrowserEngine] "
-                    f"Response callback error: {e}"
-                )
+        except Exception as e:
+            print(
+                "[BrowserEngine] "
+                f"Response callback error: {e}"
+            )
 
     async def _await_callback(
         self,
