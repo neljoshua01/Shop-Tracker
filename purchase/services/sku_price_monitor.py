@@ -153,6 +153,9 @@ class SkuPriceMonitor:
                                     status: response.status,
                                     url: response.url,
                                     elapsed_ms: performance.now() - started,
+                                    performance_time_origin_ms: performance.timeOrigin,
+                                    request_started_ms: started,
+                                    response_completed_ms: performance.now(),
                                     body,
                                 };
                             } catch (error) {
@@ -193,6 +196,8 @@ class SkuPriceMonitor:
                                 ),
                                 metadata={"source_detail": "direct_fetch"},
                             )
+                        if timing is not None:
+                            timing.record("T4")
                         try:
                             data = json.loads(result.get("body") or "")
                         except Exception as exc:
