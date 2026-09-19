@@ -165,6 +165,8 @@ class CheckoutExecutor:
             return False
 
         print("[CheckoutExecutor] Target cart item resolved.")
+        if hasattr(session, "e1_timing"):
+            session.e1_timing.mark("T9")
         aria_checked = actions.attribute(target_checkbox, "aria-checked")
         print(f"[CheckoutExecutor] aria-checked before: {aria_checked}")
 
@@ -195,6 +197,8 @@ class CheckoutExecutor:
             return False
 
         print("[CheckoutExecutor] Check Out button found.")
+        if hasattr(session, "e1_timing"):
+            session.e1_timing.mark("T10")
         actions.click(actions.first(checkout_buttons))
         print("[CheckoutExecutor] Check Out clicked.")
         actions.wait_for_timeout(3000)
@@ -203,6 +207,8 @@ class CheckoutExecutor:
         if "/checkout" not in page.url:
             print("[CheckoutExecutor] Checkout page was not reached.")
             return False
+        if hasattr(session, "e1_timing"):
+            session.e1_timing.mark("T11")
         print("[CheckoutExecutor] Checkout page reached.")
 
         requested_payment = session.request.payment_method.value
