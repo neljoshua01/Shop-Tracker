@@ -38,8 +38,15 @@ class CheckoutExecutor:
                 return False
 
         print("[CheckoutExecutor] Cart page confirmed.")
-        print("[CheckoutExecutor] Waiting for cart UI...")
-        actions.wait_for_timeout(3000)
+        print("[CheckoutExecutor] Waiting for cart UI readiness...")
+        try:
+            actions.wait_for_selector(
+                "input.stardust-checkbox__input",
+                timeout=10000,
+            )
+        except Exception as e:
+            print(f"[CheckoutExecutor] Cart UI readiness wait failed: {e}")
+            return False
 
         item_id = str(session.product.item_id)
         model_id = str(session.variation.model_id)
@@ -199,9 +206,16 @@ class CheckoutExecutor:
         print("[CheckoutExecutor] Check Out button found.")
         if hasattr(session, "e1_timing"):
             session.e1_timing.mark("T10")
-        actions.click(actions.first(checkout_buttons))
+        checkout_result = actions.click_and_wait_for_url(
+            actions.first(checkout_buttons),
+            "**/checkout**",
+            timeout=15000,
+        )
         print("[CheckoutExecutor] Check Out clicked.")
-        actions.wait_for_timeout(3000)
+        print(
+            "[CheckoutExecutor] Checkout navigation wait: "
+            f"{checkout_result}"
+        )
         print(f"[CheckoutExecutor] Current URL after checkout: {page.url}")
 
         if "/checkout" not in page.url:
