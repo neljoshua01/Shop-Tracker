@@ -170,16 +170,43 @@ class PromotionForensicsRecorder:
         url = response.url
         endpoint = self._endpoint(url)
         phase = self._phase_for_endpoint(endpoint)
+        request = response.request
         base = {
             "sequence": sequence,
             "timestamp": timestamp,
             "phase": phase,
             "endpoint": endpoint,
             "url": url,
-            "method": response.request.method,
+            "method": request.method,
             "status": response.status,
-            "resource_type": response.request.resource_type,
+            "resource_type": request.resource_type,
         }
+
+        # E5 captures the request-side transaction context as well as the
+        # response. This is required to determine whether promotion identity
+        # survives the PDP -> cart -> checkout transition. Request bodies are
+        # redacted before persistence because checkout/payment endpoints may
+        # contain sensitive values.
+        try:
+            request_body = request.post_data
+        except Exception:
+            request_body = None
+
+        if request_body:
+            request_payload, request_format = self._parse_request_body(request_body)
+            base["request_body_format"] = request_format
+            base["request_body_bytes"] = len(request_body.encode("utf-8", errors="replace"))
+            if request_payload is not None:
+                request_path = self.api_dir / f"{sequence:06d}_{phase}_{endpoint}_request.json"
+                self._write_json(request_path, request_payload)
+                base["request_body_file"] = str(request_path.relative_to(self.run_dir))
+                base["target_request_observations"] = self._extract_target_observations(
+                    request_payload
+                )
+            else:
+                request_path = self.api_dir / f"{sequence:06d}_{phase}_{endpoint}_request.txt"
+                self._write_text(request_path, request_body)
+                base["request_body_file"] = str(request_path.relative_to(self.run_dir))
 
         try:
             headers = response.headers
@@ -407,6 +434,34 @@ class PromotionForensicsRecorder:
                 )
             except Exception:
                 pass
+
+    @classmethod
+    def _parse_request_body(cls, body):
+        try:
+            parsed = json.loads(body)
+        except Exception:
+            return None, "text"
+        return cls._redact_sensitive(parsed), "json"
+
+    @classmethod
+    def _redact_sensitive(cls, node):
+        sensitive = {
+            "password", "passwd", "pwd", "cvv", "cvc", "security_code",
+            "card_number", "cardnumber", "card_no", "account_number",
+            "authorization", "access_token", "refresh_token", "secret",
+        }
+        if isinstance(node, dict):
+            return {
+                str(key): (
+                    "<redacted>"
+                    if str(key).lower().replace("-", "_") in sensitive
+                    else cls._redact_sensitive(value)
+                )
+                for key, value in node.items()
+            }
+        if isinstance(node, list):
+            return [cls._redact_sensitive(value) for value in node]
+        return node
 
     def _default_engine(self):
         from execution.browser.browser_connector import BrowserConnector
