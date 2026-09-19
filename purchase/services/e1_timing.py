@@ -52,16 +52,18 @@ class E1TimingRecorder:
 
         start_ms = timing.get("startTime")
         response_end_ms = timing.get("responseEnd")
+        response_start_ms = timing.get("responseStart")
 
+        # Playwright resource timings use a browser-relative time origin.
+        # Do not compare them directly with Python epoch timestamps.
         if isinstance(start_ms, (int, float)) and start_ms >= 0:
-            self.points["T1"] = int(start_ms * 1_000_000)
+            self.network["request_start_ms"] = float(start_ms)
 
         if isinstance(response_end_ms, (int, float)) and response_end_ms >= 0:
-            self.points["T2"] = int(response_end_ms * 1_000_000)
+            self.network["response_end_ms"] = float(response_end_ms)
 
-        response_start_ms = timing.get("responseStart")
         if isinstance(response_start_ms, (int, float)) and response_start_ms >= 0:
-            self.network["response_start_ns"] = int(response_start_ms * 1_000_000)
+            self.network["response_start_ms"] = float(response_start_ms)
 
         self.network.update({
             "url": getattr(request, "url", None),
@@ -69,6 +71,10 @@ class E1TimingRecorder:
             "timing": timing,
             "callback_received_ns": callback_received_ns,
             "timing_source": "playwright_request_timing",
+            "clock_domains": {
+                "playwright_resource_timing": "browser_relative_ms",
+                "python_callback": "monotonic_ns",
+            },
         })
 
     def metrics(self) -> dict[str, float | None]:
@@ -80,16 +86,16 @@ class E1TimingRecorder:
             return round((b - a) / 1_000_000, 3)
 
         return {
-            "network_latency_ms": delta_ms("T1", "T2"),
-            "browser_observation_latency_ms": (
+            "network_latency_ms": (
                 round(
-                    (self.points["T3"] - self.network["response_start_ns"]) / 1_000_000,
+                    self.network["response_end_ms"] - self.network["request_start_ms"],
                     3,
                 )
-                if self.points.get("T3") is not None
-                and self.network.get("response_start_ns") is not None
+                if self.network.get("request_start_ms") is not None
+                and self.network.get("response_end_ms") is not None
                 else None
             ),
+            "browser_observation_latency_ms": None,
             "parsing_latency_ms": delta_ms("T4", "T5"),
             "trigger_processing_latency_ms": delta_ms("T5", "T7"),
             "evaluator_latency_ms": delta_ms("T6", "T7"),
