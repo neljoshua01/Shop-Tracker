@@ -264,11 +264,10 @@ class BrowserActions:
 
             checkboxes.forEach((checkbox, checkboxIndex) => {
                 let current = checkbox;
-                let best = {
-                    identityValues: [],
-                    text: "",
-                    level: 0,
-                };
+                let identityValues = [];
+                let identityText = "";
+                let combinedText = "";
+                let bestLevel = 0;
 
                 for (let level = 1; level <= 8 && current; level += 1) {
                     current = current.parentElement;
@@ -276,39 +275,46 @@ class BrowserActions:
                         break;
                     }
 
-                    const identityValues = identityAttributes
+                    const levelIdentityValues = identityAttributes
                         .map((name) => current.getAttribute(name))
                         .filter(Boolean)
                         .map(String);
 
                     const text = normalize(current.innerText || current.textContent || "");
-                    const identityText = identityValues.join(" ");
+
+                    // Shopee may expose item_id and model_id on different
+                    // nested cart ancestors. Preserve identity evidence
+                    // across the same checkbox's ancestor chain instead of
+                    // replacing it with the last matching ancestor.
+                    identityValues = identityValues.concat(levelIdentityValues);
+                    identityText = identityValues.join(" ");
+                    combinedText = normalize(
+                        [combinedText, text].filter(Boolean).join(" ")
+                    );
 
                     if (
-                        identityValues.length > 0 ||
+                        levelIdentityValues.length > 0 ||
                         text.includes(payload.item_id) ||
                         text.includes(payload.model_id)
                     ) {
-                        best = {
-                            identityValues,
-                            text,
-                            level,
-                        };
+                        bestLevel = level;
                     }
                 }
 
-                const identityText = best.identityValues.join(" ");
+                const itemMatch =
+                    identityText.includes(payload.item_id) ||
+                    combinedText.includes(payload.item_id);
+                const modelMatch =
+                    identityText.includes(payload.model_id) ||
+                    combinedText.includes(payload.model_id);
+
                 candidates.push({
                     checkbox_index: checkboxIndex,
-                    item_match:
-                        identityText.includes(payload.item_id) ||
-                        best.text.includes(payload.item_id),
-                    model_match:
-                        identityText.includes(payload.model_id) ||
-                        best.text.includes(payload.model_id),
-                    identity_values: best.identityValues,
-                    text: best.text,
-                    level: best.level,
+                    item_match: itemMatch,
+                    model_match: modelMatch,
+                    identity_values: [...new Set(identityValues)],
+                    text: combinedText,
+                    level: bestLevel,
                 });
             });
 
