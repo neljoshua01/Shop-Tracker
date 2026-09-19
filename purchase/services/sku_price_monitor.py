@@ -14,6 +14,7 @@ from purchase.parser.sku_price_parser import SkuPriceParser
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
 from purchase.services.ime_state_mapper import IMEStateMapper
+from purchase.services.e1_timing import E1TimingRecorder
 
 
 class SkuPriceMonitor:
@@ -85,6 +86,13 @@ class SkuPriceMonitor:
 
         self.poll_interval = poll_interval
         self.start(session)
+        session.e1_timing = E1TimingRecorder()
+        session.e1_timing.set_context(
+            item_id=session.product.item_id,
+            model_id=session.variation.model_id,
+            polling_interval=poll_interval,
+        )
+        session.e1_timing.record("T0")
         browser_session = session.browser_session
 
         if browser_session is None:
@@ -160,6 +168,28 @@ class SkuPriceMonitor:
                         timeout=15000,
                     )
                     if result.get("ok"):
+                        timing = session.e1_timing
+                        if timing is not None:
+                            timing.record_browser_timing(
+                                "T1",
+                                performance_time_origin_ms=float(
+                                    result.get("performance_time_origin_ms", 0)
+                                ),
+                                performance_ms=float(
+                                    result.get("request_started_ms", 0)
+                                ),
+                                metadata={"source_detail": "direct_fetch"},
+                            )
+                            timing.record_browser_timing(
+                                "T2",
+                                performance_time_origin_ms=float(
+                                    result.get("performance_time_origin_ms", 0)
+                                ),
+                                performance_ms=float(
+                                    result.get("response_completed_ms", 0)
+                                ),
+                                metadata={"source_detail": "direct_fetch"},
+                            )
                         try:
                             data = json.loads(result.get("body") or "")
                         except Exception as exc:
@@ -215,6 +245,44 @@ class SkuPriceMonitor:
 
         print("[SkuPriceMonitor] get_pc response callback received.")
 
+        if self.session is not None and self.session.e1_timing is not None:
+            self.session.e1_timing.record("T3")
+            browser_session = self.session.browser_session
+            if browser_session is not None and not browser_session.page.is_closed():
+                try:
+                    timing = BrowserActions(browser_session).evaluate(
+                        """
+                        (targetUrl) => {
+                            const entries = performance.getEntriesByType("resource")
+                                .filter(entry => entry.name === targetUrl);
+                            if (!entries.length) return null;
+                            const entry = entries[entries.length - 1];
+                            return {
+                                timeOrigin: performance.timeOrigin,
+                                startTime: entry.startTime,
+                                responseEnd: entry.responseEnd,
+                            };
+                        }
+                        """,
+                        response.url,
+                        timeout=5000,
+                    )
+                    if timing:
+                        self.session.e1_timing.record_browser_timing(
+                            "T1",
+                            performance_time_origin_ms=float(timing["timeOrigin"]),
+                            performance_ms=float(timing["startTime"]),
+                            metadata={"source_detail": "resource_timing"},
+                        )
+                        self.session.e1_timing.record_browser_timing(
+                            "T2",
+                            performance_time_origin_ms=float(timing["timeOrigin"]),
+                            performance_ms=float(timing["responseEnd"]),
+                            metadata={"source_detail": "resource_timing"},
+                        )
+                except Exception as exc:
+                    print(f"[SkuPriceMonitor] E1 resource timing warning: {exc}")
+
         try:
             data = await response.json()
         except Exception as e:
@@ -246,6 +314,9 @@ class SkuPriceMonitor:
 
     def _process_get_pc(self, data: dict, cookie_integrity: bool = False):
         print("[SkuPriceMonitor] get_pc response detected.")
+
+        if self.session is not None and self.session.e1_timing is not None:
+            self.session.e1_timing.record("T4")
 
         if self.session is None:
             print("[SkuPriceMonitor] No active purchase session.")
@@ -308,10 +379,16 @@ class SkuPriceMonitor:
             self.latest_state = state
             self.updated.set()
 
+            if self.session.e1_timing is not None:
+                self.session.e1_timing.record("T5")
+
             self.session.ime_state = self.ime_state_mapper.map(
                 self.session,
                 state,
             )
+
+            if self.session.e1_timing is not None:
+                self.session.e1_timing.record("T6")
 
             should_trigger = self.evaluator.evaluate(self.session, state)
 
@@ -357,6 +434,8 @@ class SkuPriceMonitor:
                 )
 
             if should_trigger:
+                if self.session.e1_timing is not None:
+                    self.session.e1_timing.record("T7")
                 print("[SkuPriceMonitor] PURCHASE TRIGGERED.")
                 self.triggered.set()
             else:
