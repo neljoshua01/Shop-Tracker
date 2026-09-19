@@ -126,6 +126,12 @@ class BrowserEngine:
         if owner_callback is not None:
             self._bind_session_callback(owner, session, owner_callback)
 
+        # Bind global observers that registered before this session existed.
+        # These observers intentionally span session ownership boundaries;
+        # they are used for run-scoped network forensics.
+        for callback_owner, callback in self.global_response_callbacks.items():
+            self._bind_session_callback(callback_owner, session, callback)
+
         print(
             f"[BrowserEngine] "
             f"Session opened ({owner})"
@@ -348,12 +354,16 @@ class BrowserEngine:
         owner,
         callback,
         session=None,
+        all_sessions=False,
     ):
 
         #
         # Preserve the existing owner-based registration API.
         #
         self.response_callbacks[owner] = callback
+
+        if all_sessions:
+            self.global_response_callbacks[owner] = callback
 
         #
         # If a BrowserSession is supplied, bind the callback
@@ -397,6 +407,7 @@ class BrowserEngine:
         self,
         owner,
         session=None,
+        all_sessions=False,
     ):
 
         #
@@ -418,6 +429,8 @@ class BrowserEngine:
             owner,
             None,
         )
+        if all_sessions:
+            self.global_response_callbacks.pop(owner, None)
 
         #
         # If the owner has a session and no explicit session
@@ -462,6 +475,7 @@ class BrowserEngine:
         # Clear callback registries.
         #
         self.response_callbacks.clear()
+        self.global_response_callbacks.clear()
         self.session_callbacks.clear()
         self._page_owners.clear()
 
