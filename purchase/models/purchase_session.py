@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from purchase.models.product_info import ProductInfo
 from purchase.models.purchase_request import PurchaseRequest
 from purchase.models.variation import Variation
+from purchase.services.e1_timing import E1TimingRecorder
 from purchase.models.purchase_status import PurchaseStatus
 from execution.browser.browser_session import BrowserSession
 from typing import Optional
@@ -44,6 +45,14 @@ class PurchaseSession:
     )
 
     browser_session: Optional[BrowserSession] = None
+
+    # E1 timing instrumentation for this purchase attempt.
+    # This is observational only and does not affect purchase decisions.
+    e1_timing: E1TimingRecorder = field(
+        default_factory=E1TimingRecorder,
+        repr=False,
+        compare=False,
+    )
 
     # Live get_pc identity established for the selected SKU before a
     # purchase trigger is allowed to carry the session forward.
