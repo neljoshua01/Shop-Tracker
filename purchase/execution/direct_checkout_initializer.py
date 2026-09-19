@@ -68,7 +68,7 @@ class DirectCheckoutInitializer:
         if (
             session.browser_session is None
             or session.browser_session.page.is_closed()
-            or "/product/" not in session.browser_session.page.url
+            or session.browser_session.page.url != session.request.reference.url
         ):
             print(
                 "[DirectCheckoutInitializer] "
