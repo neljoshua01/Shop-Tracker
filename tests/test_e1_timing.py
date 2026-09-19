@@ -38,7 +38,7 @@ def test_e1_records_playwright_get_pc_network_timing():
 
     recorder.record_get_pc_network(
         FakeRequest(),
-        callback_received_ns=1_026_000_000_000,
+        callback_received_ns=1_026_000_000,
     )
 
     assert recorder.points["T1"] == 1_000_000_000
@@ -57,7 +57,7 @@ def test_e1_network_timing_records_completed_request_timing():
         await asyncio.sleep(0)
         recorder.record_get_pc_network(
             response.request,
-            callback_received_ns=1_026_000_000_000,
+            callback_received_ns=1_026_000_000,
         )
 
     asyncio.run(finish_response())
