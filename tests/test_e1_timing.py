@@ -7,9 +7,10 @@ class FakeRequest:
     url = "https://shopee.ph/api/v4/pdp/get_pc"
     method = "GET"
     timing = {
-        "startTime": 1_000.0,
-        "responseStart": 1_012.0,
-        "responseEnd": 1_025.0,
+        "startTime": 1_700_000_000_000.0,
+        "requestStart": 2.0,
+        "responseStart": 14.0,
+        "responseEnd": 27.0,
     }
 
 
@@ -42,8 +43,8 @@ def test_e1_records_playwright_get_pc_network_timing():
         callback_received_ns=1_026_000_000,
     )
 
-    assert recorder.network["request_start_ms"] == 1000.0
-    assert recorder.network["response_end_ms"] == 1025.0
+    assert recorder.network["request_start_ms"] == 2.0
+    assert recorder.network["response_end_ms"] == 27.0
     assert recorder.network["url"].endswith("/api/v4/pdp/get_pc")
     assert recorder.metrics()["network_latency_ms"] == 25.0
     assert recorder.metrics()["browser_observation_latency_ms"] is None
