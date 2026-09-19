@@ -7,11 +7,11 @@ class FakeEngine:
     def __init__(self):
         self.calls = []
 
-    def register_response_callback(self, owner, callback, session=None):
-        self.calls.append((owner, callback, session))
+    def register_response_callback(self, owner, callback, session=None, all_sessions=False):
+        self.calls.append((owner, callback, session, all_sessions))
 
-    def unregister_response_callback(self, owner, session=None):
-        self.calls.append(("unregister", owner, session))
+    def unregister_response_callback(self, owner, session=None, all_sessions=False):
+        self.calls.append(("unregister", owner, session, all_sessions))
 
 
 def _bare_recorder():
@@ -37,6 +37,7 @@ def test_forensics_can_register_before_browser_session_exists():
     assert owner is recorder
     assert callback == recorder.on_browser_response
     assert session is None
+    assert engine.calls[0][3] is True
 
 
 def test_forensics_can_bind_existing_browser_session():
@@ -49,6 +50,7 @@ def test_forensics_can_bind_existing_browser_session():
     assert recorder._callback_registered is True
     assert recorder.browser_session is browser_session
     assert engine.calls[0][2] is browser_session
+    assert engine.calls[0][3] is True
 
 
 def test_relevant_endpoint_phases_distinguish_pdp_cart_and_checkout():
