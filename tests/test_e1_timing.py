@@ -45,6 +45,7 @@ def test_e1_records_playwright_get_pc_network_timing():
     assert recorder.points["T2"] == 1_025_000_000
     assert recorder.network["url"].endswith("/api/v4/pdp/get_pc")
     assert recorder.metrics()["network_latency_ms"] == 25.0
+    assert recorder.metrics()["browser_observation_latency_ms"] == 1.0
 
 
 def test_e1_network_timing_records_completed_request_timing():
