@@ -129,8 +129,7 @@ class BrowserEngine:
         # Bind global observers that registered before this session existed.
         # These observers intentionally span session ownership boundaries;
         # they are used for run-scoped network forensics.
-        for callback_owner, callback in self.global_response_callbacks.items():
-            self._bind_session_callback(callback_owner, session, callback)
+        self._bind_global_callbacks(session)
 
         print(
             f"[BrowserEngine] "
@@ -245,6 +244,11 @@ class BrowserEngine:
 
     def _bind_session_callback(self, owner, session, callback):
         self.session_callbacks.setdefault(id(session), {})[owner] = callback
+
+    def _bind_global_callbacks(self, session):
+        """Bind pre-registered global observers to a newly opened session."""
+        for callback_owner, callback in self.global_response_callbacks.items():
+            self._bind_session_callback(callback_owner, session, callback)
 
     async def get_session(
         self,
