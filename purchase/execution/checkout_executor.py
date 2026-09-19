@@ -173,7 +173,7 @@ class CheckoutExecutor:
                     target_checkbox,
                     "aria-checked",
                     "true",
-                    timeout=1500,
+                    timeout=500,
                 )
             except Exception as e:
                 print(
