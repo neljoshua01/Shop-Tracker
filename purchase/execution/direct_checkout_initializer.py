@@ -152,6 +152,8 @@ class DirectCheckoutInitializer:
         )
 
         if "/checkout" in current_url:
+            if session.e1_timing is not None:
+                session.e1_timing.record("T11")
             print(
                 "[DirectCheckoutInitializer] "
                 "Checkout page reached directly through Shopee's PDP Buy Now handler."
@@ -261,6 +263,9 @@ class DirectCheckoutInitializer:
             f"Cart page ready: {session.browser_session.page.url}"
         )
 
+        if session.e1_timing is not None:
+            session.e1_timing.record("T9")
+
         cart_diagnostic = actions.capture_pdp_purchase_controls(
             labels=list(self.CART_CHECKOUT_LABELS),
             timeout=10000,
@@ -287,6 +292,9 @@ class DirectCheckoutInitializer:
             "[DirectCheckoutInitializer] "
             f"Cart Check Out click result: {checkout_result}"
         )
+
+        if session.e1_timing is not None:
+            session.e1_timing.record("T10")
 
         if not checkout_result or not checkout_result.get("clicked"):
             print(
@@ -324,6 +332,9 @@ class DirectCheckoutInitializer:
                 "Checkout page was not reached after cart handoff."
             )
             return False
+
+        if session.e1_timing is not None:
+            session.e1_timing.record("T11")
 
         print(
             "[DirectCheckoutInitializer] "
