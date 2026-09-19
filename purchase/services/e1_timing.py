@@ -81,7 +81,8 @@ class E1TimingRecorder:
                 "request_start_response_end": "resource_timing_relative_ms",
                 "playwright_startTime": "epoch_ms",
                 "python_callback": "monotonic_ns",
-            },\n        })
+            },
+        })
 
     def metrics(self) -> dict[str, float | None]:
         def delta_ms(start: str, end: str):
