@@ -89,7 +89,8 @@ class CheckoutExecutor:
         target_checkbox_index = None
 
         # E7 fast path: use the unique exact item+model identity produced by
-        # the browser-side inspection before considering the broader fallback.
+        # the browser-side inspection. Do not let the broader item-only
+        # fallback overwrite a verified exact match.
         if len(exact_identity_candidates) == 1:
             target_checkbox_index = exact_identity_candidates[0].get(
                 "checkbox_index"
@@ -97,25 +98,25 @@ class CheckoutExecutor:
             print(
                 "[CheckoutExecutor] Exact item + model identity fast path matched."
             )
-
-        # Preserve the existing identity rule: an item-id match is sufficient
-        # when Shopee does not expose the model-id at the same container level.
-        for candidate in identity_candidates:
-            if candidate.get("item_match"):
-                target_checkbox_index = candidate.get("checkbox_index")
-                level = candidate.get("level")
-                print(
-                    "[CheckoutExecutor] Target item identity found at "
-                    f"parent level {level}."
-                )
-                if candidate.get("model_match"):
-                    print("[CheckoutExecutor] Target item + model identity matched.")
-                else:
+        else:
+            # Preserve the existing identity rule: an item-id match is sufficient
+            # when Shopee does not expose the model-id at the same container level.
+            for candidate in identity_candidates:
+                if candidate.get("item_match"):
+                    target_checkbox_index = candidate.get("checkbox_index")
+                    level = candidate.get("level")
                     print(
-                        "[CheckoutExecutor] Target item matched; "
-                        "model ID not exposed at this level."
+                        "[CheckoutExecutor] Target item identity found at "
+                        f"parent level {level}."
                     )
-                break
+                    if candidate.get("model_match"):
+                        print("[CheckoutExecutor] Target item + model identity matched.")
+                    else:
+                        print(
+                            "[CheckoutExecutor] Target item matched; "
+                            "model ID not exposed at this level."
+                        )
+                    break
 
         if target_checkbox_index is None:
             print("[CheckoutExecutor] Stable cart identity not found.")
