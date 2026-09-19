@@ -155,7 +155,7 @@ class SkuPriceMonitor:
             self.monitoring = False
             print("[SkuPriceMonitor] Monitoring stopped.")
 
-    async def on_browser_response(self, response):
+    async def on_browser_response(self, response, response_body=None):
         if self._stopped:
             return
 
@@ -168,18 +168,44 @@ class SkuPriceMonitor:
         if e1 is not None:
             e1.mark("T3")
             try:
-                await response.finished()
-                e1.record_get_pc_network(response.request, callback_received_ns)
+                if response_body is None:
+                    raise RuntimeError(
+                        "BrowserEngine did not provide a captured get_pc body."
+                    )
+
+                # The BrowserEngine captures the body at the response event
+                # before dispatching this callback. Avoid response.json(),
+                # which can issue a second CDP Network.getResponseBody call
+                # after a fast PDP reload has invalidated the resource.
+                e1.record_get_pc_network(
+                    response.request,
+                    callback_received_ns,
+                )
             except Exception as timing_error:
-                print(f"[SkuPriceMonitor] E1 network timing warning: {timing_error}")
+                print(
+                    f"[SkuPriceMonitor] E1 network timing warning: "
+                    f"{timing_error}"
+                )
 
         if e1 is not None:
             e1.mark("T4")
 
+        if response_body is None:
+            print(
+                "[SkuPriceMonitor] get_pc response body was not captured; "
+                "skipping this response."
+            )
+            return
+
         try:
-            data = await response.json()
+            import json
+
+            data = json.loads(response_body.decode("utf-8"))
         except Exception as e:
-            print(f"[SkuPriceMonitor] Failed to decode get_pc response: {e}")
+            print(
+                "[SkuPriceMonitor] Failed to decode captured get_pc "
+                f"response body: {e}"
+            )
             return
 
         if not isinstance(data, dict):
