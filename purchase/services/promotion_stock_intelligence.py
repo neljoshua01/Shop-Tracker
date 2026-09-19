@@ -107,7 +107,7 @@ class PromotionStockIntelligence:
             elif reserve_signal is False:
                 state = LIVE_NO_RESERVE
             else:
-                state = UNKNOWN
+                state = LIVE
         else:
             # A model-level promotion signal without a usable event state is
             # intentionally not promoted to LIVE. This prevents the stock
