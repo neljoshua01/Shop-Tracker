@@ -195,12 +195,22 @@ class BrowserEngine:
         try:
             try:
                 signature = inspect.signature(callback)
-                signature.bind(response, body)
-                result = callback(response, body)
+                accepts_body = True
+                try:
+                    signature.bind(response, body)
+                except TypeError:
+                    accepts_body = False
             except (TypeError, ValueError):
-                # Preserve the existing one-argument callback contract for
-                # callbacks that do not opt into the captured body.
-                result = callback(response)
+                accepts_body = False
+
+            # Decide the callback shape before invoking it so a TypeError
+            # raised inside the callback itself is never mistaken for a
+            # signature mismatch.
+            result = (
+                callback(response, body)
+                if accepts_body
+                else callback(response)
+            )
 
             if inspect.isawaitable(result):
                 asyncio.create_task(self._await_callback(result))
