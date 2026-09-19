@@ -1,5 +1,6 @@
 from purchase.services.promotion_stock_intelligence import (
     ENDED,
+    LIVE,
     LIVE_NO_RESERVE,
     LIVE_RESERVE_AVAILABLE,
     NO_PROMOTION,
@@ -58,6 +59,19 @@ def test_live_reserve_signal_is_classified_as_available():
     assert result.current_promotion_reserved_stock == 3
 
 
+def test_live_without_reserve_signal_remains_live_not_unknown():
+    result = PromotionStockIntelligence.analyze(
+        _model(
+            current_promotion_has_reserve_stock=None,
+            current_promotion_reserved_stock=None,
+        ),
+        promotion_detected=True,
+        event_status="LIVE",
+    )
+
+    assert result.state == LIVE
+
+
 def test_live_false_reserve_signal_is_not_inferred_as_reserve_available():
     result = PromotionStockIntelligence.analyze(
         _model(
@@ -85,7 +99,7 @@ def test_positive_allocated_stock_is_preserved_as_evidence():
         event_status="LIVE",
     )
 
-    assert result.state == UNKNOWN
+    assert result.state == LIVE
     assert result.allocated_stock == 7
     assert "promotion_allocated_stock" in result.evidence
 
