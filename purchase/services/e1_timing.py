@@ -52,7 +52,23 @@ class E1TimingRecorder:
         except Exception:
             timing = {}
 
-        # Playwright exposes startTime as an epoch-based request anchor.\n        # The detailed Resource Timing fields requestStart, responseStart,\n        # and responseEnd are offsets within that resource timing origin.\n        # Therefore startTime must not be subtracted from responseEnd.\n        request_start_ms = timing.get("requestStart")\n        response_end_ms = timing.get("responseEnd")\n        response_start_ms = timing.get("responseStart")\n\n        if isinstance(request_start_ms, (int, float)) and request_start_ms >= 0:\n            self.network["request_start_ms"] = float(request_start_ms)\n            self.points["T1"] = int(request_start_ms * 1_000_000)\n\n        if isinstance(response_end_ms, (int, float)) and response_end_ms >= 0:\n            self.network["response_end_ms"] = float(response_end_ms)\n            self.points["T2"] = int(response_end_ms * 1_000_000)\n\n        if isinstance(response_start_ms, (int, float)) and response_start_ms >= 0:
+        # Playwright exposes startTime as an epoch-based request anchor.
+        # The detailed Resource Timing fields requestStart, responseStart,
+        # and responseEnd are offsets within that resource timing origin.
+        # Therefore startTime must not be subtracted from responseEnd.
+        request_start_ms = timing.get("requestStart")
+        response_end_ms = timing.get("responseEnd")
+        response_start_ms = timing.get("responseStart")
+
+        if isinstance(request_start_ms, (int, float)) and request_start_ms >= 0:
+            self.network["request_start_ms"] = float(request_start_ms)
+            self.points["T1"] = int(request_start_ms * 1_000_000)
+
+        if isinstance(response_end_ms, (int, float)) and response_end_ms >= 0:
+            self.network["response_end_ms"] = float(response_end_ms)
+            self.points["T2"] = int(response_end_ms * 1_000_000)
+
+        if isinstance(response_start_ms, (int, float)) and response_start_ms >= 0:
             self.network["response_start_ms"] = float(response_start_ms)
 
         self.network.update({
@@ -61,7 +77,11 @@ class E1TimingRecorder:
             "timing": timing,
             "callback_received_ns": callback_received_ns,
             "timing_source": "playwright_request_timing",
-            "clock_domains": {\n                "request_start_response_end": "resource_timing_relative_ms",\n                "playwright_startTime": "epoch_ms",\n                "python_callback": "monotonic_ns",\n            },        })
+            "clock_domains": {
+                "request_start_response_end": "resource_timing_relative_ms",
+                "playwright_startTime": "epoch_ms",
+                "python_callback": "monotonic_ns",
+            },        })
 
     def metrics(self) -> dict[str, float | None]:
         def delta_ms(start: str, end: str):
