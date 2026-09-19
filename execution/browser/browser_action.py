@@ -264,57 +264,107 @@ class BrowserActions:
 
             checkboxes.forEach((checkbox, checkboxIndex) => {
                 let current = checkbox;
-                let identityValues = [];
-                let identityText = "";
-                let combinedText = "";
-                let bestLevel = 0;
+                let productContainer = null;
+                let containerLevel = 0;
 
-                for (let level = 1; level <= 8 && current; level += 1) {
+                // Resolve the nearest product-level container first. Shopee
+                // can place item/model identity on a sibling or descendant
+                // rather than on the checkbox ancestor itself.
+                for (let level = 1; level <= 12 && current; level += 1) {
                     current = current.parentElement;
                     if (!current) {
                         break;
                     }
 
-                    const levelIdentityValues = identityAttributes
-                        .map((name) => current.getAttribute(name))
-                        .filter(Boolean)
-                        .map(String);
-
-                    const text = normalize(current.innerText || current.textContent || "");
-
-                    // Shopee may expose item_id and model_id on different
-                    // nested cart ancestors. Preserve identity evidence
-                    // across the same checkbox's ancestor chain instead of
-                    // replacing it with the last matching ancestor.
-                    identityValues = identityValues.concat(levelIdentityValues);
-                    identityText = identityValues.join(" ");
-                    combinedText = normalize(
-                        [combinedText, text].filter(Boolean).join(" ")
-                    );
-
                     if (
-                        levelIdentityValues.length > 0 ||
-                        text.includes(payload.item_id) ||
-                        text.includes(payload.model_id)
+                        current.querySelectorAll(checkboxSelector).length === 1
                     ) {
-                        bestLevel = level;
+                        productContainer = current;
+                        containerLevel = level;
+                        break;
                     }
                 }
 
+                if (!productContainer) {
+                    current = checkbox;
+                    for (let level = 1; level <= 8 && current; level += 1) {
+                        current = current.parentElement;
+                        if (!current) {
+                            break;
+                        }
+                        productContainer = current;
+                        containerLevel = level;
+                    }
+                }
+
+                const identityValues = [];
+                const nodes = productContainer
+                    ? [productContainer, ...productContainer.querySelectorAll("*")]
+                    : [];
+
+                for (const node of nodes) {
+                    for (const name of identityAttributes) {
+                        const value = node.getAttribute(name);
+                        if (value) {
+                            identityValues.push(String(value));
+                        }
+                    }
+
+                    const href = node.getAttribute("href");
+                    if (href) {
+                        identityValues.push(String(href));
+                    }
+
+                    // Some cart variants store identifiers in arbitrary
+                    // data-* attributes.
+                    for (const attribute of Array.from(node.attributes || [])) {
+                        if (
+                            attribute.name.startsWith("data-") &&
+                            attribute.value
+                        ) {
+                            identityValues.push(String(attribute.value));
+                        }
+                    }
+                }
+
+                const uniqueIdentityValues = [...new Set(identityValues)];
+                const identityText = uniqueIdentityValues.join(" ");
+                const combinedText = productContainer
+                    ? normalize(
+                        productContainer.innerText ||
+                        productContainer.textContent ||
+                        ""
+                    )
+                    : "";
+
+                const idMatch = (value, target) => {
+                    const text = normalize(value);
+                    if (!text || !target) {
+                        return false;
+                    }
+                    if (text === target) {
+                        return true;
+                    }
+                    return text
+                        .split(/[^0-9]+/)
+                        .filter(Boolean)
+                        .includes(target);
+                };
+
                 const itemMatch =
-                    identityText.includes(payload.item_id) ||
-                    combinedText.includes(payload.item_id);
+                    idMatch(identityText, payload.item_id) ||
+                    idMatch(combinedText, payload.item_id);
                 const modelMatch =
-                    identityText.includes(payload.model_id) ||
-                    combinedText.includes(payload.model_id);
+                    idMatch(identityText, payload.model_id) ||
+                    idMatch(combinedText, payload.model_id);
 
                 candidates.push({
                     checkbox_index: checkboxIndex,
                     item_match: itemMatch,
                     model_match: modelMatch,
-                    identity_values: [...new Set(identityValues)],
+                    identity_values: uniqueIdentityValues,
                     text: combinedText,
-                    level: bestLevel,
+                    level: containerLevel,
                 });
             });
 
