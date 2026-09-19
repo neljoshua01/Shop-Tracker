@@ -1,4 +1,5 @@
 from execution.browser.browser_action import BrowserActions
+from diagnostics.variation_selection_forensics import VariationSelectionForensics
 
 
 class VariationSelector:
@@ -64,6 +65,27 @@ class VariationSelector:
             )
 
             if section is None:
+                VariationSelectionForensics.capture(
+                    browser,
+                    "section_not_found",
+                    "section",
+                    {
+                        "requested_title": title,
+                        "requested_value": value,
+                        "resolved_title": resolved_title,
+                        "section_count": len(sections),
+                        "section_titles": [
+                            item["title"] for item in sections
+                        ],
+                        "section_button_values": {
+                            item["title"]: [
+                                button["value"]
+                                for button in item["buttons"]
+                            ]
+                            for item in sections
+                        },
+                    },
+                )
 
                 raise RuntimeError(
                     f"Variation section not found: {title}"
@@ -87,6 +109,27 @@ class VariationSelector:
             )
 
             if button is None:
+                VariationSelectionForensics.capture(
+                    browser,
+                    "value_not_found",
+                    "button",
+                    {
+                        "requested_title": title,
+                        "resolved_title": resolved_title,
+                        "requested_value": value,
+                        "section_count": len(sections),
+                        "section_titles": [
+                            item["title"] for item in sections
+                        ],
+                        "searched_section": {
+                            "title": section["title"],
+                            "button_values": [
+                                item["value"]
+                                for item in section["buttons"]
+                            ],
+                        },
+                    },
+                )
 
                 raise RuntimeError(
                     f"Variation option not found: "
@@ -96,9 +139,35 @@ class VariationSelector:
             # Shopee can leave a transient promotional layer over PDP
             # controls. These locators are already scoped to the exact
             # requested variation button, so force is safe here.
-            browser.force_click(
-                button["locator"]
-            )
+            try:
+                browser.force_click(
+                    button["locator"]
+                )
+            except Exception as exc:
+                VariationSelectionForensics.capture(
+                    browser,
+                    "value_click_failed",
+                    "button",
+                    {
+                        "requested_title": title,
+                        "resolved_title": resolved_title,
+                        "requested_value": value,
+                        "selected_button_value": button["value"],
+                        "section_count": len(sections),
+                        "section_titles": [
+                            item["title"] for item in sections
+                        ],
+                        "searched_section": {
+                            "title": section["title"],
+                            "button_values": [
+                                item["value"]
+                                for item in section["buttons"]
+                            ],
+                        },
+                        "exception": repr(exc),
+                    },
+                )
+                raise
 
             browser.wait_for_timeout(300)
 
@@ -274,17 +343,6 @@ class VariationSelector:
 
             if decrease_count == 0:
                 raise RuntimeError(
-                    "PDP Decrease quantity control not found."
-                )
-
-            decrease_button = browser.first(
-                decrease
-            )
-
-            for _ in range(
-                current_quantity - requested_quantity
-            ):
-                print(
                     "[VariationSelector] "
                     "Decreasing quantity..."
                 )
