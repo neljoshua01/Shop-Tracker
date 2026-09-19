@@ -52,4 +52,11 @@ class SkuPriceState:
 
     promotion_is_lpp: Optional[bool] = None
 
+    # Promotion-stock intelligence (observational only).
+    promotion_inventory_state: str = "UNKNOWN"
+    current_promotion_reserved_stock: Optional[int] = None
+    current_promotion_has_reserve_stock: Optional[bool] = None
+    promotion_allocated_stock: Optional[int] = None
+    promotion_stock_evidence: tuple[str, ...] = ()
+
     has_stock: bool = False
