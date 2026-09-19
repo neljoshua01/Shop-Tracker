@@ -53,101 +53,68 @@ class CheckoutExecutor:
         print(f"[CheckoutExecutor] Target Item ID: {item_id}")
         print(f"[CheckoutExecutor] Target Model ID: {model_id}")
 
-        checkbox_inputs = actions.find_all("input.stardust-checkbox__input")
-        checkbox_count = actions.count(checkbox_inputs)
+        requested_options = {
+            str(key).strip().lower(): str(value).strip().lower()
+            for key, value in session.request.options.items()
+        }
+
+        cart_inspection = actions.inspect_cart_candidates(
+            item_id=item_id,
+            model_id=model_id,
+            product_name=session.product.product_name,
+            requested_options=requested_options,
+        )
+
+        checkbox_count = int(cart_inspection.get("checkbox_count", 0))
         print(f"[CheckoutExecutor] Cart checkboxes found: {checkbox_count}")
         if checkbox_count == 0:
             print("[CheckoutExecutor] No cart item checkboxes found.")
             return False
 
-        target_checkbox = None
-        target_container = None
+        checkbox_inputs = actions.find_all("input.stardust-checkbox__input")
+        identity_candidates = cart_inspection.get("identity_candidates", [])
+        variation_candidates = cart_inspection.get("variation_candidates", [])
 
-        for index in range(checkbox_count):
-            checkbox = checkbox_inputs.nth(index)
-            current = checkbox
-            for level in range(1, 9):
-                current = actions.parent(current)
-                if current is None:
-                    break
-                identity_values = []
-                for attribute_name in (
-                    "data-item-id",
-                    "data-model-id",
-                    "data-product-id",
-                    "data-sku-id",
-                    "data-id",
-                ):
-                    value = actions.attribute(current, attribute_name)
-                    if value:
-                        identity_values.append(str(value))
-                identity_text = " ".join(identity_values)
-                container_text = actions.text(current) or ""
-                item_match = item_id in identity_text or item_id in container_text
-                model_match = model_id in identity_text or model_id in container_text
-                if item_match:
-                    print(f"[CheckoutExecutor] Target item identity found at parent level {level}.")
-                    if model_match:
-                        print("[CheckoutExecutor] Target item + model identity matched.")
-                    else:
-                        print("[CheckoutExecutor] Target item matched; model ID not exposed at this level.")
-                    target_checkbox = checkbox
-                    target_container = current
-                    break
-            if target_checkbox is not None:
+        target_checkbox_index = None
+
+        # Preserve the existing identity rule: an item-id match is sufficient
+        # when Shopee does not expose the model-id at the same container level.
+        for candidate in identity_candidates:
+            if candidate.get("item_match"):
+                target_checkbox_index = candidate.get("checkbox_index")
+                level = candidate.get("level")
+                print(
+                    "[CheckoutExecutor] Target item identity found at "
+                    f"parent level {level}."
+                )
+                if candidate.get("model_match"):
+                    print("[CheckoutExecutor] Target item + model identity matched.")
+                else:
+                    print(
+                        "[CheckoutExecutor] Target item matched; "
+                        "model ID not exposed at this level."
+                    )
                 break
 
-        if target_checkbox is None:
+        if target_checkbox_index is None:
             print("[CheckoutExecutor] Stable cart identity not found.")
             print("[CheckoutExecutor] Trying exact variation fallback...")
 
-            product_locator = actions.find_all(f"text={session.product.product_name}")
-            product_count = actions.count(product_locator)
-            print(f"[CheckoutExecutor] Product-name matches: {product_count}")
-
-            candidates = []
-            requested_options = {
-                str(key).strip().lower(): str(value).strip().lower()
-                for key, value in session.request.options.items()
-            }
-
-            for product_index in range(product_count):
-                current = product_locator.nth(product_index)
-                for level in range(1, 9):
-                    current = actions.parent(current)
-                    if current is None:
-                        break
-
-                    checkbox_locator = actions.find_all(
-                        "input.stardust-checkbox__input",
-                        parent=current,
-                    )
-                    if actions.count(checkbox_locator) == 0:
-                        continue
-
-                    candidate_text = (actions.text(current) or "").strip().lower()
-                    matched_options = [
-                        value
-                        for value in requested_options.values()
-                        if value and value in candidate_text
-                    ]
-
-                    candidates.append(
-                        {
-                            "checkbox": actions.first(checkbox_locator),
-                            "container": current,
-                            "matched_options": matched_options,
-                            "option_count": len(requested_options),
-                        }
-                    )
-                    break
-
             exact_variation_candidates = [
                 candidate
-                for candidate in candidates
-                if candidate["option_count"] > 0
-                and len(candidate["matched_options"]) == candidate["option_count"]
+                for candidate in variation_candidates
+                if candidate.get("option_count", 0) > 0
+                and len(candidate.get("matched_options", []))
+                == candidate.get("option_count")
             ]
+
+            # Deduplicate repeated DOM matches that point to the same checkbox.
+            unique_candidates = {}
+            for candidate in exact_variation_candidates:
+                index = candidate.get("checkbox_index")
+                if index is not None:
+                    unique_candidates[index] = candidate
+            exact_variation_candidates = list(unique_candidates.values())
 
             print(
                 "[CheckoutExecutor] Exact variation candidates: "
@@ -156,17 +123,31 @@ class CheckoutExecutor:
 
             if len(exact_variation_candidates) == 1:
                 candidate = exact_variation_candidates[0]
-                target_checkbox = candidate["checkbox"]
-                target_container = candidate["container"]
-                print("[CheckoutExecutor] Target cart item resolved using exact variation fallback.")
+                target_checkbox_index = candidate["checkbox_index"]
+                print(
+                    "[CheckoutExecutor] Target cart item resolved using "
+                    "exact variation fallback."
+                )
             elif len(exact_variation_candidates) > 1:
-                print("[CheckoutExecutor] Cart identity is ambiguous; multiple exact variation matches found.")
+                print(
+                    "[CheckoutExecutor] Cart identity is ambiguous; "
+                    "multiple exact variation matches found."
+                )
                 return False
             else:
                 print("[CheckoutExecutor] Exact cart identity could not be verified.")
-                print("[CheckoutExecutor] Checkout aborted safely; no cart item was selected.")
+                print(
+                    "[CheckoutExecutor] Checkout aborted safely; "
+                    "no cart item was selected."
+                )
                 return False
 
+        if target_checkbox_index is None:
+            print("[CheckoutExecutor] Target product could not be resolved inside the cart.")
+            return False
+
+        target_checkbox = checkbox_inputs.nth(int(target_checkbox_index))
+        print("[CheckoutExecutor] Target cart item resolved.")
         if target_checkbox is None:
             print("[CheckoutExecutor] Target product could not be resolved inside the cart.")
             return False
