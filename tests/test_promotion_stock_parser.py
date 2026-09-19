@@ -47,7 +47,7 @@ def _payload(**model_overrides):
 def test_parser_exposes_live_no_reserve_state():
     state = SkuPriceParser().parse(
         _payload(),
-        model_id=26342037051 if False else 139454633406,
+        model_id=139454633406,
     )
 
     assert state is not None
