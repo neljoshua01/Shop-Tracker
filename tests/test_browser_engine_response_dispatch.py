@@ -83,3 +83,4 @@ def test_global_response_observer_binds_to_new_session():
 
     callbacks = engine.session_callbacks[id(session)]
     assert callbacks[owner] == callback
+\n\ndef test_global_response_callback_registry_is_initialized():\n    engine = BrowserEngine()\n\n    assert engine.global_response_callbacks == {}\n
