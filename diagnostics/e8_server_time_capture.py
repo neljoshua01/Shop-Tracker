@@ -80,6 +80,7 @@ class ShopeeTimeSynchronizer:
         self.offset_seconds = None
         self.uncertainty_ms = None
         self.last_sync_monotonic = None
+        self.last_sync_wall = None
         self.last_measurement = None
 
     def update_from_response(
@@ -114,6 +115,7 @@ class ShopeeTimeSynchronizer:
         self.offset_seconds = offset_seconds
         self.uncertainty_ms = uncertainty_ms
         self.last_sync_monotonic = response_received_monotonic
+        self.last_sync_wall = response_received_wall
         self.last_measurement = {
             "server_date_timestamp": server_date_timestamp,
             "request_sent_wall": request_sent_wall,
@@ -133,16 +135,19 @@ class ShopeeTimeSynchronizer:
             return None
 
         now_monotonic = time.perf_counter()
+        elapsed_since_sync = max(
+            0.0,
+            now_monotonic - self.last_sync_monotonic,
+        )
         estimated_time = (
-            time.time()
+            self.last_sync_wall
+            + elapsed_since_sync
             + self.offset_seconds
         )
         return {
             "timestamp": estimated_time,
             "uncertainty_ms": self.uncertainty_ms,
-            "age_ms": (
-                max(0.0, now_monotonic - self.last_sync_monotonic) * 1000.0
-            ),
+            "age_ms": elapsed_since_sync * 1000.0,
         }
 
 
