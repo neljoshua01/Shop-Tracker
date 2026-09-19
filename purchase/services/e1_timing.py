@@ -59,13 +59,17 @@ class E1TimingRecorder:
         if isinstance(response_end_ms, (int, float)) and response_end_ms >= 0:
             self.points["T2"] = int(response_end_ms * 1_000_000)
 
-        self.network = {
+        response_start_ms = timing.get("responseStart")
+        if isinstance(response_start_ms, (int, float)) and response_start_ms >= 0:
+            self.network["response_start_ns"] = int(response_start_ms * 1_000_000)
+
+        self.network.update({
             "url": getattr(request, "url", None),
             "method": getattr(request, "method", None),
             "timing": timing,
             "callback_received_ns": callback_received_ns,
             "timing_source": "playwright_request_timing",
-        }
+        })
 
     def metrics(self) -> dict[str, float | None]:
         def delta_ms(start: str, end: str):
@@ -77,7 +81,15 @@ class E1TimingRecorder:
 
         return {
             "network_latency_ms": delta_ms("T1", "T2"),
-            "browser_observation_latency_ms": delta_ms("T2", "T3"),
+            "browser_observation_latency_ms": (
+                round(
+                    (self.points["T3"] - self.network["response_start_ns"]) / 1_000_000,
+                    3,
+                )
+                if self.points.get("T3") is not None
+                and self.network.get("response_start_ns") is not None
+                else None
+            ),
             "parsing_latency_ms": delta_ms("T4", "T5"),
             "trigger_processing_latency_ms": delta_ms("T5", "T7"),
             "evaluator_latency_ms": delta_ms("T6", "T7"),
