@@ -299,6 +299,9 @@ class PurchasePipeline:
 
             forensics.record_event("checkout_execution_started", "cart")
 
+            if hasattr(session, "e1_timing"):
+                session.e1_timing.mark("T8")
+
             session.status = PurchaseStatus.CHECKING_OUT
 
             checkout_success = (
@@ -424,6 +427,19 @@ class PurchasePipeline:
             # Finalize forensic capture on every normal pipeline exit.
             # The recorder isolates cleanup failures so they cannot suppress
             # final_summary.json.
+            try:
+                e1_path = forensics.run_dir / "e1_timing.json"
+                e1_result = session.e1_timing.finalize(e1_path)
+                print(
+                    "[PurchasePipeline] E1 timing metrics: "
+                    f"{e1_result['metrics_ms']}"
+                )
+            except Exception as e:
+                print(
+                    "[PurchasePipeline] "
+                    f"E1 timing finalization warning: {e}"
+                )
+
             PromotionForensicsRecorder.stop(session)
 
             print(
