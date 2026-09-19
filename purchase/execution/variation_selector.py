@@ -343,6 +343,17 @@ class VariationSelector:
 
             if decrease_count == 0:
                 raise RuntimeError(
+                    "PDP Decrease quantity control not found."
+                )
+
+            decrease_button = browser.first(
+                decrease
+            )
+
+            for _ in range(
+                current_quantity - requested_quantity
+            ):
+                print(
                     "[VariationSelector] "
                     "Decreasing quantity..."
                 )
