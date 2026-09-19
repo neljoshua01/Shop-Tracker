@@ -169,6 +169,44 @@ class BrowserActions:
             timeout=10,
         )
 
+    def wait_for_attribute(
+        self,
+        locator,
+        name: str,
+        expected: str,
+        timeout: int = 1500,
+        poll_interval: float = 0.025,
+    ):
+        """Wait for a DOM attribute to reach an expected state.
+
+        This is a state-based alternative to sleeping for a fixed duration
+        after an interaction. It returns as soon as the browser reflects the
+        requested state and times out safely if the state never appears.
+        """
+
+        async def _wait():
+            loop = asyncio.get_running_loop()
+            deadline = loop.time() + (timeout / 1000)
+
+            while True:
+                value = await locator.get_attribute(name)
+                if value == expected:
+                    return value
+
+                remaining = deadline - loop.time()
+                if remaining <= 0:
+                    raise TimeoutError(
+                        f"Timed out waiting for attribute {name!r}="
+                        f"{expected!r}; last value was {value!r}."
+                    )
+
+                await asyncio.sleep(min(poll_interval, remaining))
+
+        return self._submit(
+            _wait(),
+            timeout=(timeout / 1000) + 2,
+        )
+
     def force_click(
         self,
         locator,
