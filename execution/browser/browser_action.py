@@ -298,17 +298,14 @@ class BrowserActions:
                 }
 
                 const identityText = best.identityValues.join(" ");
-                const itemMatch =
-                    identityText.includes(payload.item_id) ||
-                    best.text.includes(payload.item_id);
-                const modelMatch =
-                    identityText.includes(payload.model_id) ||
-                    best.text.includes(payload.model_id);
-
                 candidates.push({
                     checkbox_index: checkboxIndex,
-                    item_match: itemMatch,
-                    model_match: modelMatch,
+                    item_match:
+                        identityText.includes(payload.item_id) ||
+                        best.text.includes(payload.item_id),
+                    model_match:
+                        identityText.includes(payload.model_id) ||
+                        best.text.includes(payload.model_id),
                     identity_values: best.identityValues,
                     text: best.text,
                     level: best.level,
@@ -316,63 +313,51 @@ class BrowserActions:
             });
 
             const productName = normalize(payload.product_name).toLowerCase();
+            const requestedValues = Object.values(payload.requested_options)
+                .map((value) => normalize(value).toLowerCase())
+                .filter(Boolean);
             const variationCandidates = [];
 
-            if (productName) {
-                const elements = Array.from(document.querySelectorAll("*"))
-                    .filter((element) => {
-                        const text = normalize(
-                            element.innerText || element.textContent || ""
-                        ).toLowerCase();
-                        return text.includes(productName);
-                    });
+            // Inspect each checkbox independently. This prevents a large
+            // page-level ancestor (recommendations/sidebar/cart root) from
+            // making every checkbox look like the requested product.
+            checkboxes.forEach((checkbox, checkboxIndex) => {
+                let current = checkbox;
 
-                elements.forEach((element) => {
-                    let current = element;
-
-                    for (let level = 1; level <= 8 && current; level += 1) {
-                        current = current.parentElement;
-                        if (!current) {
-                            break;
-                        }
-
-                        const checkboxesInContainer = Array.from(
-                            current.querySelectorAll(checkboxSelector)
-                        );
-
-                        if (checkboxesInContainer.length === 0) {
-                            continue;
-                        }
-
-                        const candidateText = normalize(
-                            current.innerText || current.textContent || ""
-                        ).toLowerCase();
-
-                        const matchedOptions = Object.values(
-                            payload.requested_options
-                        ).filter(
-                            (value) => value && candidateText.includes(value)
-                        );
-
-                        checkboxesInContainer.forEach((checkbox) => {
-                            const checkboxIndex = checkboxes.indexOf(checkbox);
-                            if (checkboxIndex >= 0) {
-                                variationCandidates.push({
-                                    checkbox_index: checkboxIndex,
-                                    matched_options: matchedOptions,
-                                    option_count: Object.keys(
-                                        payload.requested_options
-                                    ).length,
-                                    text: candidateText,
-                                    level,
-                                });
-                            }
-                        });
-
+                for (let level = 1; level <= 8 && current; level += 1) {
+                    current = current.parentElement;
+                    if (!current) {
                         break;
                     }
-                });
-            }
+
+                    const candidateText = normalize(
+                        current.innerText || current.textContent || ""
+                    ).toLowerCase();
+
+                    const productMatch =
+                        !productName || candidateText.includes(productName);
+
+                    if (!productMatch) {
+                        continue;
+                    }
+
+                    const matchedOptions = requestedValues.filter(
+                        (value) => candidateText.includes(value)
+                    );
+
+                    variationCandidates.push({
+                        checkbox_index: checkboxIndex,
+                        matched_options: matchedOptions,
+                        option_count: requestedValues.length,
+                        text: candidateText,
+                        level,
+                    });
+
+                    // The first matching ancestor is the most local cart
+                    // container for this checkbox.
+                    break;
+                }
+            });
 
             return {
                 checkbox_count: checkboxes.length,
@@ -381,7 +366,6 @@ class BrowserActions:
             };
         }
         """
-
         return self._submit(
             self.session.page.evaluate(script, payload),
             timeout=10,
