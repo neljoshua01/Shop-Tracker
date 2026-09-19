@@ -255,10 +255,10 @@ class SkuPriceMonitor:
 
         if self.session is not None and self.session.e1_timing is not None:
             self.session.e1_timing.record("T3")
-            self.session.e1_timing.record("T4")
 
             try:
-                timing = response.timing
+                await response.finished()
+                timing = response.request.timing
                 if timing and timing.get("startTime", -1) >= 0:
                     start_time = float(timing["startTime"])
                     response_end = float(timing.get("responseEnd", -1))
@@ -267,16 +267,18 @@ class SkuPriceMonitor:
                             "T1",
                             performance_time_origin_ms=0,
                             performance_ms=start_time,
-                            metadata={"source_detail": "playwright_response_timing"},
+                            metadata={"source_detail": "playwright_request_timing"},
                         )
                         self.session.e1_timing.record_browser_timing(
                             "T2",
                             performance_time_origin_ms=0,
                             performance_ms=start_time + response_end,
-                            metadata={"source_detail": "playwright_response_timing"},
+                            metadata={"source_detail": "playwright_request_timing"},
                         )
             except Exception as exc:
                 print(f"[SkuPriceMonitor] E1 response timing warning: {exc}")
+
+            self.session.e1_timing.record("T4")
 
         try:
             data = await response.json()
