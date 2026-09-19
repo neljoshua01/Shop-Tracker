@@ -3,6 +3,7 @@ Monitors Shopee get_pc responses for the selected SKU.
 """
 
 from threading import Event
+import time
 
 from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
@@ -42,6 +43,7 @@ class SkuPriceMonitor:
         self.stop_event.clear()
         self.monitoring = True
         self._stopped = False
+        session.e1_timing.start()
         browser_session = session.browser_session
 
         if browser_session is not None and browser_session.page.is_closed():
@@ -161,6 +163,18 @@ class SkuPriceMonitor:
             return
 
         print("[SkuPriceMonitor] get_pc response callback received.")
+        e1 = self.session.e1_timing if self.session is not None else None
+        callback_received_ns = time.time_ns()
+        if e1 is not None:
+            e1.mark("T3")
+            try:
+                await response.finished()
+                e1.record_get_pc_network(response.request, callback_received_ns)
+            except Exception as timing_error:
+                print(f"[SkuPriceMonitor] E1 network timing warning: {timing_error}")
+
+        if e1 is not None:
+            e1.mark("T4")
 
         try:
             data = await response.json()
@@ -186,6 +200,9 @@ class SkuPriceMonitor:
                 data,
                 model_id=self.session.variation.model_id,
             )
+
+            if state is not None and e1 is not None:
+                e1.mark("T5")
 
             if state is None:
                 print("[SkuPriceMonitor] Selected SKU not found in response.")
@@ -233,7 +250,11 @@ class SkuPriceMonitor:
             self.latest_state = state
             self.updated.set()
 
+            if e1 is not None:
+                e1.mark("T6")
             should_trigger = self.evaluator.evaluate(self.session, state)
+            if e1 is not None and should_trigger:
+                e1.mark("T7")
 
             recorder = PromotionForensicsRecorder.get(self.session)
             if recorder is not None:
