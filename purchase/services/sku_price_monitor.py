@@ -4,7 +4,6 @@ Monitors Shopee get_pc responses for the selected SKU.
 
 from threading import Event
 import time
-import time
 
 from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
@@ -191,6 +190,7 @@ class SkuPriceMonitor:
 
     def _process_get_pc(self, data: dict):
         print("[SkuPriceMonitor] get_pc response detected.")
+        e1 = self.session.e1_timing if self.session is not None else None
 
         if self.session is None:
             print("[SkuPriceMonitor] No active purchase session.")
@@ -253,11 +253,7 @@ class SkuPriceMonitor:
 
             if e1 is not None:
                 e1.mark("T6")
-            if e1 is not None:
-                e1.mark("T6")
             should_trigger = self.evaluator.evaluate(self.session, state)
-            if e1 is not None and should_trigger:
-                e1.mark("T7")
             if e1 is not None and should_trigger:
                 e1.mark("T7")
 
