@@ -4,6 +4,7 @@ import inspect
 from core.runtime.async_runtime import AsyncRuntime
 from playwright.async_api import async_playwright
 from execution.browser.browser_session import BrowserSession
+from diagnostics.e8_server_time_capture import E8ServerTimeCapture
 
 
 class BrowserEngine:
@@ -15,6 +16,12 @@ class BrowserEngine:
         self.playwright = None
         self.browser = None
         self.runtime = AsyncRuntime.instance()
+
+        # Read-only E8 forensic observer. It records get_pc response
+        # headers, timing, and timestamp-like JSON fields only. It does
+        # not participate in monitoring, evaluation, trigger, checkout,
+        # or safety decisions.
+        self.e8_capture = E8ServerTimeCapture()
 
         #
         # Owner -> BrowserSession
@@ -190,6 +197,16 @@ class BrowserEngine:
             print(
                 "[BrowserEngine] "
                 f"get_pc response body capture failed: {e}"
+            )
+
+        # E8 is strictly observational. Capture the same response/body
+        # already being observed here; do not alter callback dispatch.
+        try:
+            await self.e8_capture.capture(response, body)
+        except Exception as e:
+            print(
+                "[BrowserEngine] "
+                f"E8 forensic capture error: {e}"
             )
 
         for callback in callbacks:
