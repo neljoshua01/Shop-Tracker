@@ -440,21 +440,32 @@ class BrowserActions:
         no_wait_after: bool = True,
     ):
         """
-        Click a known interactive control without waiting for a navigation.
+        Click a known interactive control with a bounded Playwright attempt.
 
-        PDP variation controls can trigger Shopee's internal state update
-        machinery and transient rerenders. They are not navigation actions,
-        so waiting for Playwright's post-click navigation lifecycle can turn
-        a successful variation click into a timeout.
+        Shopee PDP option buttons can run framework handlers that leave
+        Playwright's click lifecycle pending even though the browser-side
+        handler has already fired. Prefer the real Playwright click, but do
+        not let that ambiguity block the purchase pipeline indefinitely.
         """
-        return self._submit(
-            locator.click(
-                force=True,
-                timeout=timeout,
-                no_wait_after=no_wait_after,
-            ),
-            timeout=(timeout / 1000) + 5,
-        )
+        try:
+            return self._submit(
+                locator.click(
+                    force=True,
+                    timeout=timeout,
+                    no_wait_after=no_wait_after,
+                ),
+                timeout=(timeout / 1000) + 1,
+            )
+        except Exception as playright_click_error:
+            print(
+                "[BrowserActions] Playwright click did not settle; "
+                "using bounded DOM click fallback: "
+                f"{playright_click_error}"
+            )
+            return self._submit(
+                locator.evaluate("el => el.click()"),
+                timeout=3,
+            )
 
     def scroll_into_view(
         self,
