@@ -48,6 +48,9 @@ class PurchaseSession:
     ime_state: Optional[IMEState] = None
     execution_decision: Optional[ExecutionDecision] = None
 
+    # E1 controlled-experiment timing recorder; measurement-only state.
+    e1_timing: object | None = None
+
     monitored_order_id: Optional[int] = None
     monitored_checkout_id: Optional[int] = None
     monitored_order_identity_verified: bool = False
