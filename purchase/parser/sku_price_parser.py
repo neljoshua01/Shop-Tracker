@@ -7,7 +7,6 @@ import time
 from purchase.models.sku_price_state import SkuPriceState
 from purchase.services.promotion_intelligence import PromotionIntelligence
 from purchase.services.promotion_stock_intelligence import PromotionStockIntelligence
-from purchase.services.promotion_stock_intelligence import PromotionStockIntelligence
 
 
 class SkuPriceParser:
