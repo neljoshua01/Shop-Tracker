@@ -220,6 +220,173 @@ class BrowserActions:
     ):
         return locator.locator("..")
 
+
+    def inspect_cart_candidates(
+        self,
+        item_id: str,
+        model_id: str,
+        product_name: str,
+        requested_options: dict[str, str],
+    ):
+        """Inspect cart identity in one browser-side DOM pass.
+
+        Returned checkbox_index values refer to the current
+        input.stardust-checkbox__input order, allowing the caller to
+        resolve the Playwright locator without repeated DOM calls.
+        """
+
+        payload = {
+            "item_id": str(item_id),
+            "model_id": str(model_id),
+            "product_name": str(product_name),
+            "requested_options": {
+                str(key).strip().lower(): str(value).strip().lower()
+                for key, value in requested_options.items()
+            },
+        }
+
+        script = """
+        (payload) => {
+            const checkboxSelector = "input.stardust-checkbox__input";
+            const checkboxes = Array.from(document.querySelectorAll(checkboxSelector));
+            const identityAttributes = [
+                "data-item-id",
+                "data-model-id",
+                "data-product-id",
+                "data-sku-id",
+                "data-id",
+            ];
+
+            const normalize = (value) =>
+                String(value || "").replace(/\\s+/g, " ").trim();
+
+            const candidates = [];
+
+            checkboxes.forEach((checkbox, checkboxIndex) => {
+                let current = checkbox;
+                let best = {
+                    identityValues: [],
+                    text: "",
+                    level: 0,
+                };
+
+                for (let level = 1; level <= 8 && current; level += 1) {
+                    current = current.parentElement;
+                    if (!current) {
+                        break;
+                    }
+
+                    const identityValues = identityAttributes
+                        .map((name) => current.getAttribute(name))
+                        .filter(Boolean)
+                        .map(String);
+
+                    const text = normalize(current.innerText || current.textContent || "");
+                    const identityText = identityValues.join(" ");
+
+                    if (
+                        identityValues.length > 0 ||
+                        text.includes(payload.item_id) ||
+                        text.includes(payload.model_id)
+                    ) {
+                        best = {
+                            identityValues,
+                            text,
+                            level,
+                        };
+                    }
+                }
+
+                const identityText = best.identityValues.join(" ");
+                const itemMatch =
+                    identityText.includes(payload.item_id) ||
+                    best.text.includes(payload.item_id);
+                const modelMatch =
+                    identityText.includes(payload.model_id) ||
+                    best.text.includes(payload.model_id);
+
+                candidates.push({
+                    checkbox_index: checkboxIndex,
+                    item_match: itemMatch,
+                    model_match: modelMatch,
+                    identity_values: best.identityValues,
+                    text: best.text,
+                    level: best.level,
+                });
+            });
+
+            const productName = normalize(payload.product_name).toLowerCase();
+            const variationCandidates = [];
+
+            if (productName) {
+                const elements = Array.from(document.querySelectorAll("*"))
+                    .filter((element) => {
+                        const text = normalize(
+                            element.innerText || element.textContent || ""
+                        ).toLowerCase();
+                        return text.includes(productName);
+                    });
+
+                elements.forEach((element) => {
+                    let current = element;
+
+                    for (let level = 1; level <= 8 && current; level += 1) {
+                        current = current.parentElement;
+                        if (!current) {
+                            break;
+                        }
+
+                        const checkboxesInContainer = Array.from(
+                            current.querySelectorAll(checkboxSelector)
+                        );
+
+                        if (checkboxesInContainer.length === 0) {
+                            continue;
+                        }
+
+                        const candidateText = normalize(
+                            current.innerText || current.textContent || ""
+                        ).toLowerCase();
+
+                        const matchedOptions = Object.values(
+                            payload.requested_options
+                        ).filter(
+                            (value) => value && candidateText.includes(value)
+                        );
+
+                        checkboxesInContainer.forEach((checkbox) => {
+                            const checkboxIndex = checkboxes.indexOf(checkbox);
+                            if (checkboxIndex >= 0) {
+                                variationCandidates.push({
+                                    checkbox_index: checkboxIndex,
+                                    matched_options: matchedOptions,
+                                    option_count: Object.keys(
+                                        payload.requested_options
+                                    ).length,
+                                    text: candidateText,
+                                    level,
+                                });
+                            }
+                        });
+
+                        break;
+                    }
+                });
+            }
+
+            return {
+                checkbox_count: checkboxes.length,
+                identity_candidates: candidates,
+                variation_candidates: variationCandidates,
+            };
+        }
+        """
+
+        return self._submit(
+            self.session.page.evaluate(script, payload),
+            timeout=10,
+        )
+
     def scroll_to_bottom(
         self,
     ):
