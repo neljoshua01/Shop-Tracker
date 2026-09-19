@@ -159,6 +159,9 @@ class SkuPriceMonitor:
                                 return {
                                     ok: false, status: 0, url,
                                     elapsed_ms: performance.now() - started,
+                                    performance_time_origin_ms: performance.timeOrigin,
+                                    request_started_ms: started,
+                                    response_completed_ms: performance.now(),
                                     body: "", error: String(error),
                                 };
                             }
@@ -247,41 +250,28 @@ class SkuPriceMonitor:
 
         if self.session is not None and self.session.e1_timing is not None:
             self.session.e1_timing.record("T3")
-            browser_session = self.session.browser_session
-            if browser_session is not None and not browser_session.page.is_closed():
-                try:
-                    timing = BrowserActions(browser_session).evaluate(
-                        """
-                        (targetUrl) => {
-                            const entries = performance.getEntriesByType("resource")
-                                .filter(entry => entry.name === targetUrl);
-                            if (!entries.length) return null;
-                            const entry = entries[entries.length - 1];
-                            return {
-                                timeOrigin: performance.timeOrigin,
-                                startTime: entry.startTime,
-                                responseEnd: entry.responseEnd,
-                            };
-                        }
-                        """,
-                        response.url,
-                        timeout=5000,
-                    )
-                    if timing:
+            self.session.e1_timing.record("T4")
+
+            try:
+                timing = response.timing
+                if timing and timing.get("startTime", -1) >= 0:
+                    start_time = float(timing["startTime"])
+                    response_end = float(timing.get("responseEnd", -1))
+                    if response_end >= 0:
                         self.session.e1_timing.record_browser_timing(
                             "T1",
-                            performance_time_origin_ms=float(timing["timeOrigin"]),
-                            performance_ms=float(timing["startTime"]),
-                            metadata={"source_detail": "resource_timing"},
+                            performance_time_origin_ms=0,
+                            performance_ms=start_time,
+                            metadata={"source_detail": "playwright_response_timing"},
                         )
                         self.session.e1_timing.record_browser_timing(
                             "T2",
-                            performance_time_origin_ms=float(timing["timeOrigin"]),
-                            performance_ms=float(timing["responseEnd"]),
-                            metadata={"source_detail": "resource_timing"},
+                            performance_time_origin_ms=0,
+                            performance_ms=start_time + response_end,
+                            metadata={"source_detail": "playwright_response_timing"},
                         )
-                except Exception as exc:
-                    print(f"[SkuPriceMonitor] E1 resource timing warning: {exc}")
+            except Exception as exc:
+                print(f"[SkuPriceMonitor] E1 response timing warning: {exc}")
 
         try:
             data = await response.json()
@@ -315,8 +305,6 @@ class SkuPriceMonitor:
     def _process_get_pc(self, data: dict, cookie_integrity: bool = False):
         print("[SkuPriceMonitor] get_pc response detected.")
 
-        if self.session is not None and self.session.e1_timing is not None:
-            self.session.e1_timing.record("T4")
 
         if self.session is None:
             print("[SkuPriceMonitor] No active purchase session.")
