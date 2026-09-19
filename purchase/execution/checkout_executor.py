@@ -168,7 +168,18 @@ class CheckoutExecutor:
                 return False
             actions.click(actions.first(checkbox_ui))
             print("[CheckoutExecutor] Target checkbox clicked.")
-            actions.wait_for_timeout(500)
+            try:
+                actions.wait_for_attribute(
+                    target_checkbox,
+                    "aria-checked",
+                    "true",
+                    timeout=1500,
+                )
+            except Exception as e:
+                print(
+                    "[CheckoutExecutor] Target checkbox state did not settle "
+                    f"within the fast-path timeout: {e}"
+                )
 
         aria_checked = actions.attribute(target_checkbox, "aria-checked")
         print(f"[CheckoutExecutor] aria-checked after: {aria_checked}")
