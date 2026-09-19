@@ -179,6 +179,35 @@ class BrowserActions:
             timeout=10,
         )
 
+    def click_and_wait_for_url(
+        self,
+        locator,
+        url_pattern: str,
+        timeout: int = 10000,
+    ):
+        """Click a control while waiting for a matching navigation."""
+
+        async def _click_and_wait():
+            waiter = self.session.page.wait_for_url(
+                url_pattern,
+                timeout=timeout,
+            )
+            try:
+                await locator.click()
+                await waiter
+                return True
+            except Exception:
+                try:
+                    await waiter
+                except Exception:
+                    pass
+                return False
+
+        return self._submit(
+            _click_and_wait(),
+            timeout=(timeout / 1000) + 5,
+        )
+
     def first(
         self,
         locator,
