@@ -66,3 +66,20 @@ def test_get_pc_body_capture_preserves_one_argument_callback_contract():
     asyncio.run(run())
 
     assert received == [response]
+
+
+class FakeSession:
+    pass
+
+
+def test_global_response_observer_binds_to_new_session():
+    engine = BrowserEngine()
+    session = FakeSession()
+    owner = object()
+    callback = lambda response: None
+
+    engine.global_response_callbacks[owner] = callback
+    engine._bind_global_callbacks(session)
+
+    callbacks = engine.session_callbacks[id(session)]
+    assert callbacks[owner] == callback
