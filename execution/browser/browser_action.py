@@ -436,7 +436,7 @@ class BrowserActions:
     def force_click(
         self,
         locator,
-        timeout: int = 5000,
+        timeout: int = 1500,
         no_wait_after: bool = True,
     ):
         """
@@ -456,7 +456,7 @@ class BrowserActions:
                 ),
                 timeout=(timeout / 1000) + 1,
             )
-        except Exception as playright_click_error:
+        except Exception as playwright_click_error:
             print(
                 "[BrowserActions] Playwright click did not settle; "
                 "using bounded DOM click fallback: "
