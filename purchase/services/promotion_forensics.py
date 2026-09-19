@@ -53,7 +53,7 @@ class PromotionForensicsRecorder:
         self._write_json(
             self.run_dir / "run_manifest.json",
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "started_at": self.started_at.isoformat(),
                 "item_id": item_id,
                 "model_id": model_id,
@@ -170,16 +170,35 @@ class PromotionForensicsRecorder:
         url = response.url
         endpoint = self._endpoint(url)
         phase = self._phase_for_endpoint(endpoint)
+        request = response.request
         base = {
             "sequence": sequence,
             "timestamp": timestamp,
             "phase": phase,
             "endpoint": endpoint,
             "url": url,
-            "method": response.request.method,
+            "method": request.method,
             "status": response.status,
-            "resource_type": response.request.resource_type,
+            "resource_type": request.resource_type,
         }
+
+        # Reverse-engineering capture: record the request shape and only
+        # transaction-relevant identifiers/price/promotion fields. Never write
+        # cookies, authorization headers, or the complete request body.
+        try:
+            request_post_data = request.post_data
+        except Exception:
+            request_post_data = None
+
+        base["request_body_bytes"] = (
+            len(request_post_data.encode("utf-8"))
+            if isinstance(request_post_data, str)
+            else None
+        )
+        base["request_payload_keys"] = self._payload_keys(request_post_data)
+        base["request_observations"] = self._extract_request_observations(
+            request_post_data
+        )
 
         try:
             headers = response.headers
@@ -464,6 +483,110 @@ class PromotionForensicsRecorder:
         with self._file_lock:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text, encoding="utf-8")
+
+    @staticmethod
+    def _payload_keys(raw_body):
+        """Return only the JSON key paths present in a request payload."""
+        if not raw_body:
+            return []
+        try:
+            parsed = json.loads(raw_body)
+        except Exception:
+            return []
+
+        keys = []
+
+        def walk(node, path="root"):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    child = f"{path}.{key}"
+                    keys.append(child)
+                    walk(value, child)
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, f"{path}[{index}]")
+
+        walk(parsed)
+        return keys[:500]
+
+    def _extract_request_observations(self, raw_body, path="root", out=None):
+        """Extract non-secret transaction fields from a request payload."""
+        if out is None:
+            out = []
+        if not raw_body:
+            return out
+
+        try:
+            parsed = json.loads(raw_body)
+        except Exception:
+            return out
+
+        allowed_exact = {
+            "item_id",
+            "model_id",
+            "promotion_id",
+            "quantity",
+            "shop_id",
+            "cart_item_id",
+            "checkout_id",
+            "order_checkout_id",
+            "channel_id",
+            "promotion_type",
+            "promotion_types",
+            "item_key",
+            "item_keys",
+        }
+        allowed_fragments = (
+            "price",
+            "promotion",
+            "discount",
+            "voucher",
+            "stock",
+        )
+        secret_fragments = (
+            "cookie",
+            "token",
+            "authorization",
+            "signature",
+            "password",
+            "pin",
+            "otp",
+            "address",
+            "phone",
+            "email",
+        )
+
+        def walk(node, node_path="root"):
+            if isinstance(node, dict):
+                for key, value in node.items():
+                    normalized = str(key).lower()
+                    child = f"{node_path}.{key}"
+                    if any(secret in normalized for secret in secret_fragments):
+                        continue
+                    if (
+                        normalized in allowed_exact
+                        or any(fragment in normalized for fragment in allowed_fragments)
+                    ):
+                        if isinstance(value, (str, int, float, bool)) or value is None:
+                            out.append({
+                                "path": child,
+                                "key": normalized,
+                                "value": value,
+                            })
+                        elif isinstance(value, (list, dict)):
+                            out.append({
+                                "path": child,
+                                "key": normalized,
+                                "value_type": type(value).__name__,
+                                "value_size": len(value),
+                            })
+                    walk(value, child)
+            elif isinstance(node, list):
+                for index, value in enumerate(node):
+                    walk(value, f"{node_path}[{index}]")
+
+        walk(parsed, path)
+        return out[:500]
 
     def _extract_target_observations(self, node, path="root", out=None):
         if out is None:
