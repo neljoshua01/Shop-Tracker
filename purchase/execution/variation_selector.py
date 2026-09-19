@@ -1,4 +1,6 @@
 from execution.browser.browser_action import BrowserActions
+import time
+
 from diagnostics.variation_selection_forensics import VariationSelectionForensics
 
 
@@ -139,6 +141,8 @@ class VariationSelector:
             # Shopee can leave a transient promotional layer over PDP
             # controls. These locators are already scoped to the exact
             # requested variation button, so force is safe here.
+            click_started_monotonic_ns = time.monotonic_ns()
+
             try:
                 browser.force_click(
                     button["locator"]
@@ -170,6 +174,15 @@ class VariationSelector:
                 raise
 
             browser.wait_for_timeout(300)
+
+            VariationSelectionForensics.capture_post_click(
+                browser,
+                requested_title=title,
+                resolved_title=resolved_title,
+                requested_value=value,
+                selected_button_value=button["value"],
+                click_started_monotonic_ns=click_started_monotonic_ns,
+            )
 
             print(
                 "[VariationSelector] Selected: "
