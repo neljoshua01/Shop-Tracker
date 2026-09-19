@@ -330,6 +330,17 @@ class BrowserActions:
                         break;
                     }
 
+                    const checkboxesInContainer = current.querySelectorAll(
+                        checkboxSelector
+                    );
+
+                    // A product-level container should resolve to one cart
+                    // checkbox. Page/cart-level containers containing many
+                    // checkboxes are not valid variation candidates.
+                    if (checkboxesInContainer.length !== 1) {
+                        continue;
+                    }
+
                     const candidateText = normalize(
                         current.innerText || current.textContent || ""
                     ).toLowerCase();
