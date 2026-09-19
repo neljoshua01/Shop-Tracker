@@ -258,6 +258,9 @@ class PurchasePipeline:
 
             session.status = PurchaseStatus.CHECKING_OUT
 
+            if session.e1_timing is not None:
+                session.e1_timing.record("T8")
+
             direct_checkout_started = forensics.record_event(
                 "direct_checkout_initialization_started",
                 "checkout",
@@ -376,6 +379,18 @@ class PurchasePipeline:
                 )
 
             PromotionForensicsRecorder.stop(session)
+
+            if session.e1_timing is not None:
+                session.e1_timing.set_context(
+                    status=getattr(session.status, "value", str(session.status)),
+                )
+                try:
+                    session.e1_timing.finalize()
+                except Exception as e:
+                    print(
+                        "[PurchasePipeline] "
+                        f"E1 timing artifact warning: {e}"
+                    )
 
             print(
                 "[PurchasePipeline] "
