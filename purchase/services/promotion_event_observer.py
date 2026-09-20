@@ -39,6 +39,8 @@ class PromotionEventObserver:
         self.ended_seen_at = None
         self.last_state = None
         self.state_history = []
+        self.stop_requested = False
+        self.termination_reason = None
         self._lock = threading.Lock()
 
     def start(self):
@@ -59,6 +61,8 @@ class PromotionEventObserver:
         return self.finished_event.is_set()
 
     def stop(self):
+        self.stop_requested = True
+        self.termination_reason = "manual_stop"
         self.stop_event.set()
         if self.thread is not None and self.thread.is_alive():
             self.thread.join(timeout=15)
@@ -163,6 +167,7 @@ class PromotionEventObserver:
                 now = time.monotonic()
 
                 if now >= deadline:
+                    self.termination_reason = "max_duration"
                     self.recorder.record_event(
                         "promotion_observer_max_duration",
                         "post_trigger_observation",
@@ -187,12 +192,14 @@ class PromotionEventObserver:
                             ended_seen_at + self.POST_EVENT_BUFFER_SECONDS
                         )
                     if time.monotonic() >= post_event_deadline:
+                        self.termination_reason = "promotion_ended_plus_buffer"
                         break
 
                 self.state_event.wait(timeout=self.POLL_INTERVAL_SECONDS)
                 self.state_event.clear()
 
         except Exception as exc:
+            self.termination_reason = "observer_exception"
             self.recorder.record_event(
                 "promotion_observer_failed",
                 "post_trigger_observation",
@@ -224,6 +231,13 @@ class PromotionEventObserver:
                 history = list(self.state_history)
                 last_state = self.last_state
 
+            if self.termination_reason is None:
+                self.termination_reason = (
+                    "manual_stop"
+                    if self.stop_requested
+                    else "observer_completed"
+                )
+
             summary = {
                 "schema_version": 1,
                 "source": "independent_forensic_observer",
@@ -231,6 +245,8 @@ class PromotionEventObserver:
                 "finished_at": self.finished_at.isoformat(),
                 "live_seen": self.live_seen_at is not None,
                 "ended_seen": self.ended_seen_at is not None,
+                "stop_requested": self.stop_requested,
+                "termination_reason": self.termination_reason,
                 "observation_count": len(history),
                 "last_state": last_state,
                 "state_history": history,
