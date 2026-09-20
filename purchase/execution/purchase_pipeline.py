@@ -509,7 +509,7 @@ class PurchasePipeline:
             # stopped before any promotion event. Every completed pipeline
             # path must still produce final_summary.json.
             try:
-                PromotionForensicsRecorder.stop(session)
+                PromotionForensicsRecorder.stop_session(session)
             except Exception as e:
                 print(
                     "[PurchasePipeline] "
