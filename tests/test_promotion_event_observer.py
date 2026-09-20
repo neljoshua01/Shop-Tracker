@@ -84,3 +84,52 @@ def test_observer_records_matching_sku_state(tmp_path):
     assert observer.last_state["promotion_price"] == 990000000
     assert observer.last_state["promotion_event_status"] == "LIVE"
     assert recorder.events[-1][0] == "promotion_observer_state"
+
+
+def test_observer_records_no_event_state_as_an_observation(tmp_path):
+    observer, recorder = make_observer(tmp_path)
+
+    payload = {
+        "data": {
+            "item": {
+                "models": [
+                    {
+                        "item_id": 123,
+                        "model_id": 456,
+                        "name": "Test SKU",
+                        "price": 8349000000,
+                        "price_before_discount": 8699000000,
+                        "promotion_id": 999,
+                        "price_stocks": [
+                            {"promotion_type": 301},
+                            {"promotion_type": 0},
+                        ],
+                        "has_stock": True,
+                    }
+                ]
+            }
+        }
+    }
+
+    response = SimpleNamespace(
+        url="https://shopee.ph/api/v4/pdp/get_pc",
+    )
+
+    import asyncio
+
+    asyncio.run(
+        observer.on_browser_response(
+            response,
+            json.dumps(payload).encode("utf-8"),
+        )
+    )
+
+    assert observer.last_state is not None
+    assert observer.last_state["model_id"] == 456
+    assert observer.last_state["promotion_detected"] is True
+    assert observer.last_state["promotion_event_status"] == "NO_EVENT"
+    assert observer.last_state["promotion_price"] is None
+    assert observer.last_state["promotion_seconds_until_start"] is None
+    assert observer.last_state["promotion_seconds_until_end"] is None
+    assert len(observer.state_history) == 1
+    assert recorder.events[-1][0] == "promotion_observer_state"
