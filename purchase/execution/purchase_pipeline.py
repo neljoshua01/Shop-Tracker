@@ -35,6 +35,8 @@ class PurchasePipeline:
         self.checkout_executor = CheckoutExecutor()
 
         self._cancelled = threading.Event()
+        self._forensics = None
+        self._forensic_observer_stop_requested = False
 
     # =====================================================
     # STOP
@@ -52,6 +54,22 @@ class PurchasePipeline:
         """
 
         self._cancelled.set()
+
+        # Manual monitoring stop must also stop the independent promotional
+        # observer so its final observation summary is persisted before the
+        # normal forensic recorder is finalized. Trigger-driven cancellation
+        # does not use this method, so a successful trigger can still keep
+        # observing the promotion lifecycle through LIVE -> ENDED.
+        if self._forensics is not None:
+            try:
+                if self._forensics.session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET:
+                    self._forensic_observer_stop_requested = True
+                    self._forensics.stop_promotion_observation()
+            except Exception as e:
+                print(
+                    "[PurchasePipeline] "
+                    f"Forensic observer stop warning: {e}"
+                )
 
         try:
             self.sku_monitor.stop()
@@ -81,6 +99,7 @@ class PurchasePipeline:
 
         monitor_thread = None
         forensics = PromotionForensicsRecorder.start(session)
+        self._forensics = forensics
 
         # Register the forensic callback before opening/preparing the browser
         # session. BrowserEngine will bind the owner callback to the newly
@@ -446,8 +465,9 @@ class PurchasePipeline:
                     "[PurchasePipeline] "
                     "Waiting for independent promotion forensic observation to finish..."
                 )
+                observation_timeout = 20 if self._forensic_observer_stop_requested else 135
                 completed = forensics.wait_for_promotion_observation(
-                    timeout=135
+                    timeout=observation_timeout
                 )
                 print(
                     "[PurchasePipeline] "
@@ -456,6 +476,8 @@ class PurchasePipeline:
                 )
 
             PromotionForensicsRecorder.stop(session)
+            self._forensics = None
+            self._forensic_observer_stop_requested = False
 
             print(
                 "[PurchasePipeline] "
