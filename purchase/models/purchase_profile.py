@@ -10,6 +10,7 @@ from purchase.models.trigger_condition import TriggerCondition
 from purchase.models.variation import Variation
 from purchase.models.payment_method import PaymentMethod
 
+
 @dataclass(slots=True)
 class PurchaseProfile:
     """
