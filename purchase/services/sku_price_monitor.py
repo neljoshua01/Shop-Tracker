@@ -8,6 +8,7 @@ import time
 from execution.browser.browser_connector import BrowserConnector
 from execution.browser.browser_action import BrowserActions
 from purchase.models.purchase_session import PurchaseSession
+from purchase.models.trigger_condition import TriggerCondition
 from purchase.models.sku_price_state import SkuPriceState
 from purchase.parser.sku_price_parser import SkuPriceParser
 from purchase.execution.purchase_trigger_evaluator import PurchaseTriggerEvaluator
@@ -24,6 +25,7 @@ class SkuPriceMonitor:
         self.latest_state: SkuPriceState | None = None
         self.updated = Event()
         self.triggered = Event()
+        self.event_ended = Event()
         self.stop_event = Event()
         self.evaluator = PurchaseTriggerEvaluator()
         self.monitoring = False
@@ -40,6 +42,7 @@ class SkuPriceMonitor:
         session.monitored_sku_identity_verified = False
         self.updated.clear()
         self.triggered.clear()
+        self.event_ended.clear()
         self.stop_event.clear()
         self.monitoring = True
         self._stopped = False
@@ -112,6 +115,10 @@ class SkuPriceMonitor:
                     print("[SkuPriceMonitor] Purchase trigger received.")
                     break
 
+                if self.event_ended.is_set():
+                    print("[SkuPriceMonitor] Promotional event ended without a transactional-price trigger.")
+                    break
+
                 if browser_session.page.is_closed():
                     print("[SkuPriceMonitor] Monitoring page was closed.")
                     break
@@ -129,7 +136,7 @@ class SkuPriceMonitor:
                         break
                     print(f"[SkuPriceMonitor] PDP refresh failed: {e}")
 
-                if self.triggered.is_set() or not self.monitoring:
+                if self.triggered.is_set() or self.event_ended.is_set() or not self.monitoring:
                     break
 
                 print()
@@ -277,11 +284,26 @@ class SkuPriceMonitor:
             self.latest_state = state
             self.updated.set()
 
+            recorder = PromotionForensicsRecorder.get(self.session)
+            if (
+                recorder is not None
+                and self.session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET
+                and state.deep_discount
+                and isinstance(state.promotion_reminder_event, dict)
+            ):
+                recorder.start_promotion_observation()
+
             if e1 is not None:
                 e1.mark("T6")
             should_trigger = self.evaluator.evaluate(self.session, state)
             if e1 is not None and should_trigger:
                 e1.mark("T7")
+
+            if (
+                self.session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET
+                and state.promotion_event_status == "ENDED"
+            ):
+                self.event_ended.set()
 
             recorder = PromotionForensicsRecorder.get(self.session)
             if recorder is not None:
