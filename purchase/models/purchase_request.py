@@ -4,6 +4,7 @@ from purchase.models.product_reference import ProductReference
 from purchase.models.trigger_condition import TriggerCondition
 from purchase.models.payment_method import PaymentMethod
 
+
 @dataclass(slots=True)
 class PurchaseRequest:
     """
