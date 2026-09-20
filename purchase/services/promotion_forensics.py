@@ -367,6 +367,18 @@ class PromotionForensicsRecorder:
 
     def stop(self):
         """Finalize capture without allowing one cleanup step to block the summary."""
+        if self._event_observer is not None:
+            try:
+                self._event_observer.stop()
+            except Exception as exc:
+                self._append_event(
+                    {
+                        "event": "promotion_observer_cleanup_warning",
+                        "phase": "final",
+                        "error": repr(exc),
+                    }
+                )
+
         finished_at = datetime.now(timezone.utc)
         duration_seconds = round(
             (finished_at - self.started_at).total_seconds(),
