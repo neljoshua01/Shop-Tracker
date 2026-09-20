@@ -209,9 +209,11 @@ class PromotionForensicsRecorder:
 
     def write_observation_summary(self, summary):
         """Persist the post-LIVE observation beside the normal forensic files."""
-        self._write_json(
-            self.run_dir / "observation_summary.json",
-            summary,
+        path = self.run_dir / "observation_summary.json"
+        self._write_json(path, summary)
+        print(
+            "[PromotionForensics] Observation summary saved: "
+            f"{path}"
         )
 
     async def on_browser_response(self, response):
@@ -486,9 +488,11 @@ class PromotionForensicsRecorder:
         # of all earlier cleanup/counting steps. A failure in an earlier
         # finalization step therefore cannot suppress the summary.
         try:
-            self._write_json(
-                self.run_dir / "final_summary.json",
-                summary,
+            final_path = self.run_dir / "final_summary.json"
+            self._write_json(final_path, summary)
+            print(
+                "[PromotionForensics] Final forensic summary saved: "
+                f"{final_path}"
             )
         except Exception as exc:
             # There is no reliable way to guarantee a filesystem write if the
