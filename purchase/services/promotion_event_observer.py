@@ -263,13 +263,6 @@ class PromotionEventObserver:
         deadline = time.monotonic() + self.MAX_DURATION_SECONDS
 
         try:
-            # Keep the callback registered for compatibility/diagnostics, but
-            # do not depend on it for the observer's primary evidence stream.
-            self.browser.engine.register_response_callback(
-                self.owner,
-                self.on_browser_response,
-            )
-
             self.browser_session = self.browser.open_session(
                 self.owner,
                 self.session.request.reference.url,
@@ -336,15 +329,6 @@ class PromotionEventObserver:
                 {"error": repr(exc)},
             )
         finally:
-            try:
-                if self.browser_session is not None:
-                    self.browser.engine.unregister_response_callback(
-                        self.owner,
-                        session=self.browser_session,
-                    )
-            except Exception:
-                pass
-
             try:
                 if self.browser_session is not None:
                     self.browser.close_session(self.owner)
