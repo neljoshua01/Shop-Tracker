@@ -483,18 +483,41 @@ class PurchasePipeline:
                     "Waiting for independent promotion forensic observation to finish..."
                 )
                 observation_timeout = 20 if self._forensic_observer_stop_requested else 135
-                completed = forensics.wait_for_promotion_observation(
-                    timeout=observation_timeout
-                )
+                try:
+                    completed = forensics.wait_for_promotion_observation(
+                        timeout=observation_timeout
+                    )
+                    print(
+                        "[PurchasePipeline] "
+                        "Independent promotion observation finished: "
+                        f"{completed}"
+                    )
+                    if not completed:
+                        print(
+                            "[PurchasePipeline] "
+                            "Promotion observer did not finish within the "
+                            f"{observation_timeout}s finalization window."
+                        )
+                except Exception as e:
+                    print(
+                        "[PurchasePipeline] "
+                        f"Promotion observer finalization warning: {e}"
+                    )
+
+            # Final forensic persistence is unconditional. The observer may
+            # have seen LIVE, seen no LIVE event at all, or been manually
+            # stopped before any promotion event. Every completed pipeline
+            # path must still produce final_summary.json.
+            try:
+                PromotionForensicsRecorder.stop(session)
+            except Exception as e:
                 print(
                     "[PurchasePipeline] "
-                    "Independent promotion observation finished: "
-                    f"{completed}"
+                    f"Final forensic recorder stop warning: {e}"
                 )
-
-            PromotionForensicsRecorder.stop(session)
-            self._forensics = None
-            self._forensic_observer_stop_requested = False
+            finally:
+                self._forensics = None
+                self._forensic_observer_stop_requested = False
 
             print(
                 "[PurchasePipeline] "
