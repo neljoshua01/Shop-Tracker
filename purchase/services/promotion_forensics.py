@@ -457,6 +457,11 @@ class PromotionForensicsRecorder:
             "event_log": "events.jsonl",
             "api_directory": "api",
             "page_directory": "pages",
+            "observation_summary": (
+                "observation_summary.json"
+                if (self.run_dir / "observation_summary.json").exists()
+                else None
+            ),
             "event_count": event_count,
             "api_file_count": api_files,
             "page_file_count": page_files,
