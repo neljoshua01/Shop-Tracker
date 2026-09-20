@@ -116,7 +116,7 @@ class PromotionForensicsRecorder:
             return cls._active.get(id(session))
 
     @classmethod
-    def stop(cls, session):
+    def stop_session(cls, session):
         key = id(session)
         with cls._registry_lock:
             recorder = cls._active.pop(key, None)
