@@ -173,6 +173,23 @@ class PurchasePipeline:
 
             forensics.record_event("sku_monitor_started", "pdp")
 
+            # The independent promotional observer must start for every
+            # promotional-price experiment, not only after a deep-discount
+            # signal is seen in the purchase monitor. This guarantees forensic
+            # coverage for all three required outcomes:
+            #   - LIVE -> no trigger
+            #   - no LIVE event -> manual stop
+            #   - LIVE -> transactional trigger
+            if session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET:
+                forensics.start_promotion_observation()
+                forensics.record_event(
+                    "promotion_observation_started_for_experiment",
+                    "post_trigger_observation",
+                    {
+                        "reason": "promotional_price_experiment_started",
+                    },
+                )
+
             monitor_thread = threading.Thread(
                 target=self.sku_monitor.monitor,
                 args=(session,),
