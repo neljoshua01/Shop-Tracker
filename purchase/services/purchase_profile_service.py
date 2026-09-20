@@ -28,9 +28,20 @@ class PurchaseProfileService:
             in (
                 TriggerCondition.PRICE_TARGET,
                 TriggerCondition.PRICE_AND_STOCK,
+                TriggerCondition.PROMOTIONAL_PRICE_TARGET,
             )
             and profile.target_price is None
         ):
             raise ValueError(
                 "Target price is required for the selected trigger."
+            )
+
+        if (
+            profile.trigger
+            is TriggerCondition.PROMOTIONAL_PRICE_TARGET
+            and profile.target_price is not None
+            and profile.target_price <= 0
+        ):
+            raise ValueError(
+                "Target price must be greater than zero."
             )
