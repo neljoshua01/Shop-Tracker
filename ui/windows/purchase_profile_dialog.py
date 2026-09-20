@@ -328,6 +328,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
             (TriggerCondition.PRICE_TARGET, "Price ≤ Target"),
             (TriggerCondition.STOCK_AVAILABLE, "Stock Available"),
             (TriggerCondition.PRICE_AND_STOCK, "Both Price AND Stock"),
+            (TriggerCondition.PROMOTIONAL_PRICE_TARGET, "Promotional Price ≤ Target (Transactional)"),
         ]
         for value, text in labels:
             ctk.CTkRadioButton(
@@ -676,6 +677,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         needs_price = self.trigger_var.get() in (
             TriggerCondition.PRICE_TARGET.value,
             TriggerCondition.PRICE_AND_STOCK.value,
+            TriggerCondition.PROMOTIONAL_PRICE_TARGET.value,
         )
         self.target_entry.configure(state="normal" if needs_price else "disabled")
         self._update_summary()
@@ -688,7 +690,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
         trigger = TriggerCondition(self.trigger_var.get())
         raw_price = self.target_entry.get().replace("₱", "").replace(",", "").strip()
         target_price = None
-        if trigger in (TriggerCondition.PRICE_TARGET, TriggerCondition.PRICE_AND_STOCK):
+        if trigger in (TriggerCondition.PRICE_TARGET, TriggerCondition.PRICE_AND_STOCK, TriggerCondition.PROMOTIONAL_PRICE_TARGET):
             try:
                 target_price = float(raw_price)
             except ValueError:
@@ -748,6 +750,7 @@ class PurchaseProfileDialog(ctk.CTkToplevel):
                     (TriggerCondition.PRICE_TARGET.value, "Price ≤ Target"),
                     (TriggerCondition.STOCK_AVAILABLE.value, "Stock Available"),
                     (TriggerCondition.PRICE_AND_STOCK.value, "Price AND Stock"),
+                    (TriggerCondition.PROMOTIONAL_PRICE_TARGET.value, "Promotional Price ≤ Target (Transactional)"),
                 ]
                 if value == self.trigger_var.get()
             ),
