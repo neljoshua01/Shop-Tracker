@@ -322,6 +322,10 @@ class SkuPriceMonitor:
                         "promotion_types": state.promotion_types,
                         "deep_discount": state.deep_discount,
                         "promotion_price": state.promotion_price,
+                        "transactional_promotion_price_match": (
+                            state.promotion_price is not None
+                            and state.price == state.promotion_price
+                        ),
                         "promotion_event_status": state.promotion_event_status,
                         "promotion_seconds_until_start": state.promotion_seconds_until_start,
                         "promotion_seconds_until_end": state.promotion_seconds_until_end,
