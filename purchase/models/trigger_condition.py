@@ -12,3 +12,4 @@ class TriggerCondition(Enum):
     PRICE_TARGET = "price_target"
     STOCK_AVAILABLE = "stock_available"
     PRICE_AND_STOCK = "price_and_stock"
+    PROMOTIONAL_PRICE_TARGET = "promotional_price_target"
