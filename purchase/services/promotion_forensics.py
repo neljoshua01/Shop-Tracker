@@ -35,6 +35,7 @@ class PromotionForensicsRecorder:
         self._callback_registered = False
         self._sequence = 0
         self._sequence_lock = threading.Lock()
+        self._event_observer = None
         self._file_lock = threading.Lock()
         self.started_at = datetime.now(timezone.utc)
 
@@ -63,6 +64,25 @@ class PromotionForensicsRecorder:
                 "target_price": session.request.target_price,
                 "polling_interval": session.request.polling_interval,
                 "auto_checkout": session.request.auto_checkout,
+                "purchase_condition_experiment": {
+                    "condition": session.request.trigger.value,
+                    "transactional_price_confirmation_required": (
+                        session.request.trigger.value == "promotional_price_target"
+                    ),
+                    "transactional_price_source": "selected_model.price",
+                    "advertised_promotion_price_source": (
+                        "bottom_banner.deep_discount.promotion_price"
+                    ),
+                    "exact_price_match_required": (
+                        session.request.trigger.value == "promotional_price_target"
+                    ),
+                    "independent_observer": {
+                        "enabled": session.request.trigger.value == "promotional_price_target",
+                        "poll_interval_seconds": 1.0,
+                        "post_event_buffer_seconds": 10.0,
+                        "max_duration_seconds": 120.0,
+                    },
+                },
                 "promotional_url": session.request.reference.url,
                 "safety": {
                     "payment_selection_not_recorded_as_an_action": True,
@@ -161,6 +181,38 @@ class PromotionForensicsRecorder:
         if details:
             payload.update(details)
         self._append_event(payload)
+
+    def start_promotion_observation(self):
+        """Start an independent PDP observer for the promotional experiment."""
+        if self._event_observer is not None:
+            return self._event_observer
+
+        from purchase.services.promotion_event_observer import PromotionEventObserver
+
+        observer = PromotionEventObserver(self.session, self)
+        self._event_observer = observer
+        observer.start()
+        return observer
+
+    def wait_for_promotion_observation(self, timeout=None):
+        """Wait for the independent observer to finish its event lifecycle."""
+        observer = self._event_observer
+        if observer is None:
+            return True
+        return observer.wait(timeout=timeout)
+
+    def stop_promotion_observation(self):
+        """Stop the independent observer immediately when cleanup requires it."""
+        observer = self._event_observer
+        if observer is not None:
+            observer.stop()
+
+    def write_observation_summary(self, summary):
+        """Persist the post-LIVE observation beside the normal forensic files."""
+        self._write_json(
+            self.run_dir / "observation_summary.json",
+            summary,
+        )
 
     async def on_browser_response(self, response):
         if not self._is_relevant(response.url):
