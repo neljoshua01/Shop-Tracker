@@ -23,6 +23,7 @@ from purchase.execution.cart_preparer import CartPreparer
 from purchase.execution.checkout_executor import CheckoutExecutor
 from purchase.services.sku_price_monitor import SkuPriceMonitor
 from purchase.services.promotion_forensics import PromotionForensicsRecorder
+from purchase.models.trigger_condition import TriggerCondition
 
 
 class PurchasePipeline:
@@ -438,6 +439,20 @@ class PurchasePipeline:
                 print(
                     "[PurchasePipeline] "
                     f"E1 timing finalization warning: {e}"
+                )
+
+            if session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET:
+                print(
+                    "[PurchasePipeline] "
+                    "Waiting for independent promotion forensic observation to finish..."
+                )
+                completed = forensics.wait_for_promotion_observation(
+                    timeout=135
+                )
+                print(
+                    "[PurchasePipeline] "
+                    "Independent promotion observation finished: "
+                    f"{completed}"
                 )
 
             PromotionForensicsRecorder.stop(session)
