@@ -284,15 +284,11 @@ class SkuPriceMonitor:
             self.latest_state = state
             self.updated.set()
 
-            recorder = PromotionForensicsRecorder.get(self.session)
-            if (
-                recorder is not None
-                and self.session.request.trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET
-                and state.deep_discount
-                and isinstance(state.promotion_reminder_event, dict)
-            ):
-                recorder.start_promotion_observation()
-
+            # The independent promotional observer is started by the
+            # PurchasePipeline at the beginning of every promotional-price
+            # experiment. Do not gate observer startup on deep-discount parsing
+            # here: the absence of a LIVE/deep-discount signal is itself
+            # important forensic evidence.
             if e1 is not None:
                 e1.mark("T6")
             should_trigger = self.evaluator.evaluate(self.session, state)
