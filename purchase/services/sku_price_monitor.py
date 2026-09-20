@@ -376,6 +376,9 @@ class SkuPriceMonitor:
             if cancellation_event is not None and cancellation_event.is_set():
                 return False
 
+            if self.event_ended.is_set():
+                return False
+
             if self.stop_event.wait(0.25):
                 if self.triggered.is_set():
                     return True
