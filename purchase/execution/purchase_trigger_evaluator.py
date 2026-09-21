@@ -30,29 +30,38 @@ class PurchaseTriggerEvaluator:
             )
             return False
 
-        # This experiment deliberately separates the advertised deep-discount
-        # price from the selected SKU's transactional model price. The new
-        # condition only triggers when Shopee's actual selected-model price
-        # equals the advertised promotional price and that promotional price
-        # is at or below the configured target.
+        # Transactional promotional pricing is a model-scoped state, not a
+        # banner/timer signal. Trigger only when the exact selected SKU is
+        # LIVE, in stock, associated with a valid promotion, and its actual
+        # transactional model price equals the advertised promotion price
+        # and is within the configured target.
         if trigger is TriggerCondition.PROMOTIONAL_PRICE_TARGET:
-            if (
-                not state.deep_discount
-                or state.promotion_event_status != "LIVE"
-                or state.promotion_price is None
-                or state.promotion_price <= 0
-            ):
-                print(
-                    "[PurchaseTriggerEvaluator] "
-                    "Promotional price condition not ready: "
-                    "promotion is not LIVE with a valid promotional price."
-                )
-                return False
-
+            is_live = state.promotion_event_status == "LIVE"
+            has_stock = state.has_stock
+            has_valid_promotion = (
+                state.promotion_id is not None
+                and state.promotion_id > 0
+            )
+            has_valid_promotion_price = (
+                state.promotion_price is not None
+                and state.promotion_price > 0
+            )
             transactional_price_confirmed = (
-                state.price == state.promotion_price
+                has_valid_promotion_price
+                and state.price == state.promotion_price
+            )
+            price_reached = (
+                transactional_price_confirmed
+                and state.price <= target_price
             )
 
+            print(
+                "[PurchaseTriggerEvaluator] "
+                f"Promotional state: LIVE={is_live}, "
+                f"stock={has_stock}, "
+                f"promotion_id_valid={has_valid_promotion}, "
+                f"transactional_price_match={transactional_price_confirmed}"
+            )
             print(
                 "[PurchaseTriggerEvaluator] "
                 f"Transactional SKU price: {state.price}"
@@ -65,23 +74,14 @@ class PurchaseTriggerEvaluator:
                 "[PurchaseTriggerEvaluator] "
                 f"Target price: {target_price}"
             )
-            print(
-                "[PurchaseTriggerEvaluator] "
-                "Transactional promotional price confirmed: "
-                f"{transactional_price_confirmed}"
-            )
 
-            if not transactional_price_confirmed:
-                print(
-                    "[PurchaseTriggerEvaluator] "
-                    "Waiting for the selected SKU's transactional price "
-                    "to match the promotional price."
-                )
-                return False
-
-            price_reached = state.price <= target_price
-
-            if price_reached:
+            if (
+                is_live
+                and has_stock
+                and has_valid_promotion
+                and has_valid_promotion_price
+                and price_reached
+            ):
                 print(
                     "[PurchaseTriggerEvaluator] "
                     "PROMOTIONAL TRANSACTIONAL PRICE TARGET REACHED."
@@ -90,7 +90,7 @@ class PurchaseTriggerEvaluator:
 
             print(
                 "[PurchaseTriggerEvaluator] "
-                "Transactional promotional price is above target."
+                "Promotional transactional trigger not reached."
             )
             return False
 
