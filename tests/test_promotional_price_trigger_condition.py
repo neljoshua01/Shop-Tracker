@@ -47,6 +47,7 @@ def make_state(
         deep_discount=deep_discount,
         promotion_price=promotion_price,
         promotion_event_status=status,
+        has_stock=True,
     )
 
 
@@ -93,4 +94,34 @@ def test_promotional_condition_requires_live_event():
             promotion_price=990000000,
             status="UPCOMING",
         ),
+    ) is False
+
+
+def test_promotional_condition_requires_stock():
+    evaluator = PurchaseTriggerEvaluator()
+
+    state = make_state(
+        price=990000000,
+        promotion_price=990000000,
+    )
+    state.has_stock = False
+
+    assert evaluator.evaluate(
+        make_session(),
+        state,
+    ) is False
+
+
+def test_promotional_condition_requires_valid_promotion_id():
+    evaluator = PurchaseTriggerEvaluator()
+
+    state = make_state(
+        price=990000000,
+        promotion_price=990000000,
+    )
+    state.promotion_id = None
+
+    assert evaluator.evaluate(
+        make_session(),
+        state,
     ) is False
